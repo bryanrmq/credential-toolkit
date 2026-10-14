@@ -17,14 +17,15 @@ import { TranslationsView } from './TranslationsView';
 type Pane = 'structure' | 'inspector' | 'output';
 
 export function Workspace() {
-  const project = useStore((state) => state.project)!;
+  const project = useStore((state) => state.project);
   const view = useStore((state) => state.view);
   const languagesOpen = useStore((state) => state.languagesOpen);
   const saveFailed = useStore((state) => state.draftSaveFailed);
-  const issues = useMemo(() => validate(project), [project]);
+  const issues = useMemo(() => (project ? validate(project) : []), [project]);
   const exportState = useExport(project);
   const [pane, setPane] = useState<Pane>('inspector');
   const [canSave] = useState(storageAvailable);
+  if (!project) return null;
 
   return (
     <IssuesContext.Provider value={issues}>

@@ -1,5 +1,5 @@
-import { WarningCircleIcon, WarningIcon } from '@phosphor-icons/react';
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { DotsThreeIcon, WarningCircleIcon, WarningIcon } from '@phosphor-icons/react';
+import { type ButtonHTMLAttributes, type ReactNode, useEffect, useRef, useState } from 'react';
 import { useFieldIssues } from '../issues';
 import { withKeys } from './keys';
 
@@ -87,19 +87,73 @@ export function Segmented<T extends string>({
   options,
   onChange,
   label,
+  className = '',
 }: {
   value: T;
   options: Array<{ value: T; label: ReactNode }>;
   onChange: (value: T) => void;
   label: string;
+  className?: string;
 }) {
   return (
-    <div className="segmented" role="group" aria-label={label}>
+    <div className={`segmented ${className}`.trim()} role="group" aria-label={label}>
       {options.map((option) => (
         <button key={option.value} type="button" aria-pressed={option.value === value} onClick={() => onChange(option.value)}>
           {option.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+export interface MenuItem {
+  label: string;
+  onSelect: () => void;
+  className?: string;
+}
+
+/** A "⋯" button with a small list of actions. Closes on selection, outside click or Escape. */
+export function Menu({ label, items }: { label: string; items: MenuItem[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: MouseEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  return (
+    <div className="menu" ref={ref}>
+      <Button size="icon" variant="ghost" aria-label={label} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        <DotsThreeIcon size={18} />
+      </Button>
+      {open && (
+        <div className="menu__list" role="menu" aria-label={label}>
+          {items.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              className={`menu__item ${item.className ?? ''}`.trim()}
+              onClick={() => {
+                setOpen(false);
+                item.onSelect();
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

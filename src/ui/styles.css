@@ -417,17 +417,13 @@ kbd {
   font-weight: 600;
   color: var(--text-strong);
   letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 .wordmark__mark {
   width: 22px;
   height: 22px;
-  border-radius: 5px;
-  background: var(--accent);
-  color: #ffffff;
-  display: grid;
-  place-items: center;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  color: var(--accent);
+  flex: none;
 }
 .start__title {
   font-family: var(--font-serif);
@@ -539,20 +535,111 @@ kbd {
   border-bottom: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(8px);
-  flex-wrap: wrap;
+}
+.topbar__lead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.topbar__divider {
+  color: var(--border-strong);
 }
 .topbar__name {
-  font-family: var(--font-serif);
-  font-size: 22px;
-  letter-spacing: -0.02em;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--text-strong);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 28ch;
+  min-width: 0;
 }
-.topbar__spacer {
-  flex: 1;
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+}
+.select--compact {
+  width: auto;
+  padding: 4px 28px 4px 8px;
+  font-size: 13px;
+}
+
+/* Menu */
+.menu {
+  position: relative;
+}
+.menu__list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  display: grid;
+}
+.menu__item {
+  text-align: left;
+  border: none;
+  background: none;
+  border-radius: 4px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+}
+.menu__item:hover,
+.menu__item:focus-visible {
+  background: var(--surface-muted);
+  color: var(--text-strong);
+}
+
+/* Responsive helpers: wide (> 960px) vs narrow */
+.narrow-only {
+  display: none;
+}
+@media (max-width: 1100px) {
+  .wordmark__text--compact,
+  .topbar__divider {
+    display: none;
+  }
+}
+@media (max-width: 960px) {
+  .wide-only {
+    display: none;
+  }
+  .narrow-only {
+    display: initial;
+  }
+  .menu__item.narrow-only {
+    display: block;
+  }
+}
+@media (max-width: 720px) {
+  .topbar {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .topbar__actions {
+    gap: 6px;
+  }
+  .hide-phone {
+    display: none;
+  }
+  .label-phone-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
 }
 .report {
   margin: 12px 20px 0;

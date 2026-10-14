@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProject, newAttribute } from '../../core/model';
 import { useStore } from '../../state/store';
 import { Workspace } from './Workspace';
@@ -55,7 +55,8 @@ describe('Workspace', () => {
   it('adds a language from the languages dialog', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
-    await user.click(screen.getByRole('button', { name: 'Languages' }));
+    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Manage languages' }));
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /French/ }));
     await user.click(screen.getByRole('button', { name: 'Done' }));
     expect(useStore.getState().project?.languages).toEqual(['de-CH', 'en-GB', 'fr-CH']);
@@ -106,5 +107,30 @@ describe('Workspace', () => {
     await user.click(within(row).getByRole('button', { name: 'en-GB' }));
     expect(useStore.getState().editLang).toBe('en-GB');
     expect(useStore.getState().selection).toMatchObject({ kind: 'node' });
+  });
+
+  it('starts over from the menu after confirming', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'New project' }));
+    expect(useStore.getState().project).not.toBeNull();
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'New project' }));
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(useStore.getState().project).toBeNull();
+    confirm.mockRestore();
+  });
+
+  it('closes the menu with Escape', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 });
