@@ -15,7 +15,6 @@ every language, then download the bundle with its `uri#integrity` value and the
 npm install
 npm run dev        # http://localhost:5173
 npm test           # unit and component tests (Vitest)
-npm run e2e        # browser smoke test in e2e/, local only (Playwright; run `npx playwright install chromium` once)
 npm run build      # static site in dist/
 ```
 

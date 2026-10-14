@@ -23,10 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 
-# Playwright
-test-results/
-playwright-report/
-
 # Local only, not in git
 e2e/
 docs/
