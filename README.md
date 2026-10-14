@@ -1,32 +1,28 @@
-# React + TypeScript + Vite
+# OCA Generator
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A web app for swiyu issuers to build the OCA bundle of an SD-JWT credential (swiyu
+"Visualisation of Verifiable Credential with OCA 1.0") without writing JSON or computing
+digests by hand. Everything runs in the browser; nothing is uploaded.
 
-Currently, two official plugins are available:
+Start from a sample credential, an existing OCA bundle, OID4VCI Credential Issuer Metadata,
+or a blank project. Edit names, labels, branding, order, clustering and value translations in
+every language, then download the bundle with its `uri#integrity` value and the
+`display` snippet for your SD-JWT VC Type Metadata.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Development
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev        # http://localhost:5173
+npm test           # unit and component tests (Vitest)
+npm run e2e        # browser smoke test (Playwright; run `npx playwright install chromium` once)
+npm run build      # static site in dist/
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+The OCA logic lives in `src/core` and has no UI dependencies. Test fixtures in
+`src/test/fixtures` come from the swiyu wallet and issuer repositories.
+
+## Deployment
+
+`.github/workflows/deploy.yml` tests every push and pull request and publishes `main` to
+GitHub Pages. Enable Pages with "GitHub Actions" as the source in the repository settings.
