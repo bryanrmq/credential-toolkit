@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProject, newAttribute } from '../../core/model';
@@ -201,5 +201,38 @@ describe('Workspace', () => {
     const header = screen.getByRole('heading', { level: 1, name: 'Name' }).closest('header')!;
     expect(within(header).getByText('name', { selector: 'code' })).toBeInTheDocument();
     expect(within(header).getByText('de-CH')).toBeInTheDocument();
+  });
+
+  it('resizes panes with the keyboard and remembers the widths', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<Workspace />);
+    const structure = screen.getByRole('separator', { name: 'Resize the structure pane' });
+    expect(structure).toHaveAttribute('aria-valuenow', '300');
+    structure.focus();
+    await user.keyboard('{ArrowRight}{ArrowRight}');
+    expect(structure).toHaveAttribute('aria-valuenow', '332');
+    const output = screen.getByRole('separator', { name: 'Resize the output pane' });
+    output.focus();
+    await user.keyboard('{Shift>}{ArrowLeft}{/Shift}');
+    expect(output).toHaveAttribute('aria-valuenow', '484');
+
+    unmount();
+    render(<Workspace />);
+    expect(screen.getByRole('separator', { name: 'Resize the structure pane' })).toHaveAttribute('aria-valuenow', '332');
+    expect(screen.getByRole('separator', { name: 'Resize the output pane' })).toHaveAttribute('aria-valuenow', '484');
+  });
+
+  it('resizes a pane by dragging its handle and resets it with a double-click', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    const structure = screen.getByRole('separator', { name: 'Resize the structure pane' });
+    fireEvent.pointerDown(structure, { clientX: 300, pointerId: 1 });
+    fireEvent.pointerMove(structure, { clientX: 360, pointerId: 1 });
+    fireEvent.pointerUp(structure, { clientX: 360, pointerId: 1 });
+    expect(structure).toHaveAttribute('aria-valuenow', '360');
+    expect(JSON.parse(localStorage.getItem('oca-generator:pane-widths')!)).toEqual({ structure: 360, output: 420 });
+
+    await user.dblClick(structure);
+    expect(structure).toHaveAttribute('aria-valuenow', '300');
   });
 });

@@ -715,15 +715,37 @@ input[type='checkbox'] {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr) 420px;
+  /* Side panes follow the user's widths (saved in localStorage) but give way on small windows. */
+  grid-template-columns:
+    min(var(--structure-width, 300px), 32vw) 5px minmax(0, 1fr) 5px
+    min(var(--output-width, 420px), 40vw);
 }
 .pane {
   min-height: 0;
   overflow: auto;
-  border-right: 1px solid var(--border);
 }
-.pane:last-child {
-  border-right: none;
+.pane-resizer {
+  position: relative;
+  z-index: 3;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+.pane-resizer::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 2px;
+  width: 1px;
+  background: var(--border);
+  transition:
+    background 150ms,
+    transform 150ms;
+}
+.pane-resizer:hover::before,
+.pane-resizer:focus-visible::before,
+.pane-resizer:active::before {
+  background: var(--text-muted);
+  transform: scaleX(3);
 }
 .pane--inspector {
   background: var(--surface);
@@ -760,9 +782,9 @@ input[type='checkbox'] {
   .panes {
     grid-template-columns: 1fr;
   }
-  .pane {
+  .pane,
+  .pane-resizer {
     display: none;
-    border-right: none;
   }
   .panes[data-pane='structure'] .pane--structure,
   .panes[data-pane='inspector'] .pane--inspector,
