@@ -137,6 +137,9 @@ export const t = {
     confirmDeleteGroup: (key: string) => `Delete "${key}" and everything inside it?`,
     passthrough: (types: string) => `Kept unchanged from the imported bundle: ${types}. These are not updated when keys change.`,
     language: (lang: string) => `Editing ${lang}`,
+    translationsTitle: 'Translations',
+    translationsHint: 'This item in every language. Empty fields are highlighted; click a language to edit it in the form.',
+    switchLanguage: (lang: string) => `Edit in ${lang}`,
   },
   output: {
     title: 'Output',
@@ -178,6 +181,7 @@ export const t = {
     text: 'Text',
     name: 'Credential name',
     description: 'Credential description',
+    primaryField: 'Primary field',
     label: 'Label',
     headline: 'Headline',
     value: (code: string) => `Value "${code}"`,

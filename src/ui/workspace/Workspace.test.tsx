@@ -162,4 +162,35 @@ describe('Workspace', () => {
     await user.click(screen.getByRole('button', { name: 'Add attribute' }));
     expect(useStore.getState().project?.root.children.map((child) => child.key)).toEqual(['attribute']);
   });
+
+  it('shows the selected item in every language next to the form', async () => {
+    const user = userEvent.setup();
+    const nameNode = useStore.getState().project!.root.children[0];
+    useStore.getState().select({ kind: 'node', id: nameNode.id });
+    render(<Workspace />);
+    const aside = screen.getByRole('complementary', { name: 'Translations' });
+    expect(within(aside).getByLabelText('Label (de-CH)')).toHaveValue('Name');
+    const english = within(aside).getByLabelText('Label (en-GB)');
+    expect(english).toHaveAttribute('data-empty', 'true');
+
+    await user.type(english, 'Name');
+    expect(useStore.getState().project?.root.children[0].labels).toEqual({ 'de-CH': 'Name', 'en-GB': 'Name' });
+
+    await user.click(within(aside).getAllByRole('button', { name: 'en-GB' })[0]);
+    expect(useStore.getState().editLang).toBe('en-GB');
+  });
+
+  it('shows the credential texts in every language when the credential is selected', () => {
+    render(<Workspace />);
+    const aside = screen.getByRole('complementary', { name: 'Translations' });
+    expect(within(aside).getByLabelText('Credential name (de-CH)')).toHaveValue('Hundebewilligung');
+    expect(within(aside).getByLabelText('Credential name (en-GB)')).toHaveValue('');
+    expect(within(aside).getByLabelText('Primary field (en-GB)')).toHaveValue('');
+  });
+
+  it('hides the translations column for a single-language project', () => {
+    useStore.getState().load(emptyProject(['de-CH']));
+    render(<Workspace />);
+    expect(screen.queryByRole('complementary', { name: 'Translations' })).not.toBeInTheDocument();
+  });
 });

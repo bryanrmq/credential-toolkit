@@ -889,10 +889,71 @@ input[type='checkbox'] {
   opacity: 0.4;
 }
 
-/* Inspector */
+/* Inspector: form, plus the translations column beside it when the pane is wide enough */
+.pane--inspector {
+  container-type: inline-size;
+}
 .inspector {
-  max-width: 640px;
+  display: grid;
+  grid-template-columns: minmax(0, 640px);
+  column-gap: 40px;
   padding: 8px 32px 64px;
+}
+.inspector__main {
+  min-width: 0;
+}
+.translations-aside {
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+  padding-top: 24px;
+  min-width: 0;
+}
+@container (min-width: 840px) {
+  .inspector {
+    grid-template-columns: minmax(0, 640px) minmax(240px, 320px);
+  }
+  .translations-aside {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    max-height: 100cqh;
+    overflow: auto;
+    border-top: none;
+    border-left: 1px solid var(--border);
+    margin-top: 16px;
+    padding: 0 0 24px 28px;
+  }
+}
+.translations-aside__title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+}
+.translations-aside__group {
+  display: grid;
+  gap: 6px;
+  margin-top: 20px;
+}
+.translations-aside__row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+.translations-aside__row .chip {
+  text-align: center;
+}
+.translations-aside__row .input {
+  padding: 5px 8px;
+  font-size: 13px;
+}
+.translations-aside__row .input[data-empty='true'] {
+  background: var(--yellow-bg);
+}
+.chip[aria-pressed='true'] {
+  border-color: var(--text-strong);
+  color: var(--text-strong);
 }
 .inspector__eyebrow {
   font-size: 12px;
