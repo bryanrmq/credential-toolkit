@@ -15,7 +15,7 @@ export function EntriesEditor({ node, edit, id }: { node: AttributeNode; edit: (
       <Toggle
         id={entries ? undefined : id}
         checked={!!entries}
-        label={t.inspector.valueTranslations}
+        label={t.inspector.valueTranslationsToggle}
         onChange={(checked) =>
           change((draft) => {
             if (!checked) delete draft.entries;

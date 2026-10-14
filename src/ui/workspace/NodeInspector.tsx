@@ -113,7 +113,7 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
       </Field>
 
       <Field id={`field-${node.id}-sensitive`} label={t.inspector.sensitive} hint={t.inspector.sensitiveHint}>
-        <Toggle id={`field-${node.id}-sensitive`} checked={node.sensitive} label={t.inspector.sensitive} onChange={(checked) => edit((draft) => void (draft.sensitive = checked))} />
+        <Toggle id={`field-${node.id}-sensitive`} checked={node.sensitive} label={t.inspector.sensitiveToggle} onChange={(checked) => edit((draft) => void (draft.sensitive = checked))} />
       </Field>
 
       <div className="section">
@@ -223,7 +223,7 @@ function GroupFields({ node, edit }: { node: GroupLink; edit: (recipe: (draft: N
       <Toggle
         id={`field-${node.id}-array`}
         checked={node.array}
-        label={t.inspector.listOfObjects}
+        label={t.inspector.listOfObjectsToggle}
         onChange={(checked) =>
           edit((draft) => {
             if (draft.kind !== 'group') return;

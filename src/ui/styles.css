@@ -679,14 +679,24 @@ pre,
 .tree__row:hover .tree__handle {
   color: var(--text-muted);
 }
+.tree__row svg {
+  flex: none;
+}
 .tree__key {
   font-family: var(--font-mono);
   font-size: 12.5px;
   color: var(--text-strong);
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tree__label {
   color: var(--text-muted);
   font-size: 12.5px;
+  flex: 1 1 0;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
