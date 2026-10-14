@@ -1,0 +1,72 @@
+import { useMemo, useState } from 'react';
+import { validate } from '../../core/validate';
+import { storageAvailable } from '../../state/persistence';
+import { useStore } from '../../state/store';
+import { useExport } from '../../state/useExport';
+import { t } from '../../strings';
+import { Tabs } from '../components/controls';
+import { IssuesContext } from '../issues';
+import { Inspector } from './Inspector';
+import { LanguagesDialog } from './LanguagesDialog';
+import { OutputPanel } from './OutputPanel';
+import { ReportBanner } from './ReportBanner';
+import { StructurePane } from './StructurePane';
+import { TopBar } from './TopBar';
+import { TranslationsView } from './TranslationsView';
+
+type Pane = 'structure' | 'inspector' | 'output';
+
+export function Workspace() {
+  const project = useStore((state) => state.project)!;
+  const view = useStore((state) => state.view);
+  const languagesOpen = useStore((state) => state.languagesOpen);
+  const saveFailed = useStore((state) => state.draftSaveFailed);
+  const issues = useMemo(() => validate(project), [project]);
+  const exportState = useExport(project);
+  const [pane, setPane] = useState<Pane>('inspector');
+  const [canSave] = useState(storageAvailable);
+
+  return (
+    <IssuesContext.Provider value={issues}>
+      <div className="workspace">
+        <TopBar exportState={exportState} />
+        {(!canSave || saveFailed) && (
+          <p className="note" role="status" style={{ margin: '12px 20px 0' }}>
+            {canSave ? t.workspace.saveFailed : t.workspace.storageUnavailable}
+          </p>
+        )}
+        <ReportBanner />
+        {view === 'translations' ? (
+          <TranslationsView />
+        ) : (
+          <>
+            <div className="pane-tabs">
+              <Tabs
+                label="Panes"
+                value={pane}
+                onChange={setPane}
+                options={[
+                  { value: 'structure', label: t.workspace.panes.structure },
+                  { value: 'inspector', label: t.workspace.panes.inspector },
+                  { value: 'output', label: t.workspace.panes.output },
+                ]}
+              />
+            </div>
+            <div className="panes" data-pane={pane}>
+              <section className="pane pane--structure" aria-label={t.structure.title}>
+                <StructurePane onSelect={() => setPane('inspector')} />
+              </section>
+              <section className="pane pane--inspector" aria-label={t.workspace.panes.inspector}>
+                <Inspector />
+              </section>
+              <section className="pane pane--output" aria-label={t.output.title}>
+                <OutputPanel exportState={exportState} />
+              </section>
+            </div>
+          </>
+        )}
+        {languagesOpen && <LanguagesDialog />}
+      </div>
+    </IssuesContext.Provider>
+  );
+}
