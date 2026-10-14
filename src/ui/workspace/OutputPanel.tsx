@@ -1,4 +1,4 @@
-import { CheckCircleIcon, CopyIcon, DeviceMobileIcon, DownloadSimpleIcon, WarningCircleIcon, WarningIcon } from '@phosphor-icons/react';
+import { CheckCircleIcon, CheckIcon, CopyIcon, DeviceMobileIcon, DownloadSimpleIcon, WarningCircleIcon, WarningIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { BUNDLE_FILE_NAME, buildVctSnippet } from '../../core/export/outputs';
 import { useStore } from '../../state/store';
@@ -9,8 +9,26 @@ import { goToIssue, groupIssues, useFieldIssues, useIssues } from '../issues';
 import { copyText, downloadText } from '../lib/download';
 import { SampleControl } from './SampleControl';
 
-function CopyButton({ text, label }: { text: string; label: string }) {
+function CopyButton({ text, label, iconOnly = false }: { text: string; label: string; iconOnly?: boolean }) {
   const [copied, setCopied] = useState(false);
+  if (iconOnly) {
+    return (
+      <Button
+        size="icon"
+        variant="ghost"
+        aria-label={copied ? t.output.copied : label}
+        title={copied ? t.output.copied : label}
+        onClick={async () => {
+          if (await copyText(text)) {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }
+        }}
+      >
+        {copied ? <CheckIcon /> : <CopyIcon />}
+      </Button>
+    );
+  }
   return (
     <Button
       size="small"
@@ -152,9 +170,12 @@ export function OutputPanel({ exportState }: { exportState: ExportState }) {
             {exportState.status === 'failed' && <p className="error-text">{t.output.failed(exportState.error)}</p>}
             {ready && (
               <>
-                <div className="output-meta">
-                  <span>{t.output.integrity}</span>
-                  <code style={{ wordBreak: 'break-all' }}>{ready.outputs.integrity}</code>
+                <div className="integrity">
+                  <span className="field__label">{t.output.integrity}</span>
+                  <div className="integrity__value">
+                    <code>{ready.outputs.integrity}</code>
+                    <CopyButton text={ready.outputs.integrity} label={t.output.copyIntegrity} iconOnly />
+                  </div>
                 </div>
                 {tab === 'bundle' ? (
                   <>
@@ -170,7 +191,6 @@ export function OutputPanel({ exportState }: { exportState: ExportState }) {
                       </Button>
                       <CopyButton text={ready.outputs.json} label={t.output.copyJson} />
                       <CopyButton text={ready.outputs.dataUrl} label={t.output.copyDataUrl} />
-                      <CopyButton text={ready.outputs.integrity} label={t.output.copyIntegrity} />
                     </div>
                     <pre className="code-block">{ready.outputs.json}</pre>
                   </>

@@ -1,9 +1,11 @@
 import { ArrowRightIcon, BracketsCurlyIcon, FilePlusIcon, IdentificationCardIcon, ShieldCheckIcon, StackIcon } from '@phosphor-icons/react';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useRef, useState } from 'react';
 import { loadDraft } from '../../state/persistence';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
+import { useReveal } from '../lib/reveal';
 import { Wordmark } from '../Wordmark';
+import { CredentialSketch } from './CredentialSketch';
 import { ImportDialog, type ImportKind } from './ImportDialog';
 
 const ENTRIES: Array<{ kind: ImportKind; icon: ReactNode; tone: string; wide?: boolean }> = [
@@ -18,18 +20,27 @@ export function StartScreen() {
   const [dialog, setDialog] = useState<ImportKind | null>(null);
   const [draft] = useState(loadDraft);
   const draftName = draft ? (draft.meta[draft.languages[0]]?.name ?? '') : '';
+  const innerRef = useRef<HTMLDivElement>(null);
+  useReveal(innerRef);
 
   return (
     <main className="start">
-      <div className="start__inner">
+      <div className="start__inner" ref={innerRef}>
         <Wordmark />
-        <h1 className="start__title reveal">{t.start.title}</h1>
-        <p className="start__intro reveal" style={{ ['--index' as string]: 1 }}>
-          {t.start.intro}
-        </p>
-        <p className="start__privacy reveal" style={{ ['--index' as string]: 2 }}>
-          <ShieldCheckIcon /> {t.start.privacy}
-        </p>
+        <section className="start__hero">
+          <div>
+            <h1 className="start__title reveal">{t.start.title}</h1>
+            <p className="start__intro reveal" style={{ ['--index' as string]: 1 }}>
+              {t.start.intro}
+            </p>
+            <p className="start__privacy reveal" style={{ ['--index' as string]: 2 }}>
+              <ShieldCheckIcon /> {t.start.privacy}
+            </p>
+          </div>
+          <div className="reveal" style={{ ['--index' as string]: 2 }}>
+            <CredentialSketch />
+          </div>
+        </section>
         <div className="bento">
           {draft && (
             <button type="button" className="bento__card bento__card--resume reveal" onClick={() => load(draft)}>

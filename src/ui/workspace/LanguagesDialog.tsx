@@ -38,7 +38,8 @@ export function LanguagesDialog() {
             </Button>
             <Button
               size="icon"
-              variant="danger"
+              variant="ghost"
+              className="btn--danger-hover"
               aria-label={`${t.languagesDialog.remove} ${lang}`}
               disabled={project.languages.length === 1}
               onClick={() => window.confirm(t.languagesDialog.confirmRemove(lang)) && update((draft) => removeLanguage(draft, lang))}
