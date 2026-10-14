@@ -1,6 +1,9 @@
 /** Every piece of interface copy, in one place so the tool can be translated later. */
 export const t = {
   appName: 'OCA Generator',
+  beta: 'Beta',
+  version: (version: string) => `v${version}`,
+  versionTitle: 'Version of this tool',
   start: {
     title: 'Design how your credential looks in swiyu',
     intro:
