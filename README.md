@@ -31,3 +31,11 @@ push and pull request.
 
 The site runs on Vercel's Hobby plan, which is for personal, non-commercial use. If an
 organisation takes the project over, move it to that organisation's account or a paid plan.
+
+## License
+
+[MIT](LICENSE) © 2026 Bryan Reymonenq.
+
+The test fixtures in `src/test/fixtures` and the digest check ported in `src/test/walletCesr.ts`
+come from the [swiyu](https://github.com/swiyu-admin-ch) wallet and issuer repositories,
+© 2024 Swiss Confederation, MIT License.
