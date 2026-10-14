@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
-import type { Issue, IssueTarget } from '../core/validate';
+import type { LangTag } from '../core/model';
+import type { Issue, IssueTarget, Severity } from '../core/validate';
 import { useStore } from '../state/store';
 
 export const IssuesContext = createContext<Issue[]>([]);
@@ -14,6 +15,33 @@ export function fieldId(target: IssueTarget): string {
   if (target.kind === 'hosting') return 'field-hosting-url';
   if (target.kind === 'credential') return `field-credential-${target.theme ?? 'light'}-${target.field}`;
   return `field-${target.nodeId}-${target.field}`;
+}
+
+export interface IssueGroup {
+  severity: Severity;
+  code: string;
+  summary: string;
+  /** Languages the issue occurs in, in order of appearance; empty when it is not language-specific. */
+  langs: LangTag[];
+  issues: Issue[];
+}
+
+/** One entry per issue and field, merging the copies raised for each language. Errors come first. */
+export function groupIssues(issues: Issue[]): IssueGroup[] {
+  const groups = new Map<string, IssueGroup>();
+  for (const issue of issues) {
+    const key = [issue.severity, issue.code, fieldId(issue.target), issue.summary].join('|');
+    let group = groups.get(key);
+    if (!group) {
+      group = { severity: issue.severity, code: issue.code, summary: issue.summary, langs: [], issues: [] };
+      groups.set(key, group);
+    }
+    group.issues.push(issue);
+    const lang = 'lang' in issue.target ? issue.target.lang : undefined;
+    if (lang && !group.langs.includes(lang)) group.langs.push(lang);
+  }
+  const list = [...groups.values()];
+  return [...list.filter((group) => group.severity === 'error'), ...list.filter((group) => group.severity === 'warning')];
 }
 
 export function useFieldIssues(id: string): Issue[] {

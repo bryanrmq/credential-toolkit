@@ -96,4 +96,15 @@ describe('Workspace', () => {
     expect(within(dialog).getByRole('alert')).toHaveTextContent('The sample credential must be a JSON object of claims.');
     expect(useStore.getState().project?.sample).toBeUndefined();
   });
+
+  it('lists an issue once with a chip per language', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    const row = screen.getByRole('button', { name: '"broken" has no label.' }).closest('li')!;
+    expect(within(row).getAllByRole('button').map((button) => button.textContent)).toEqual(['"broken" has no label.', 'de-CH', 'en-GB']);
+
+    await user.click(within(row).getByRole('button', { name: 'en-GB' }));
+    expect(useStore.getState().editLang).toBe('en-GB');
+    expect(useStore.getState().selection).toMatchObject({ kind: 'node' });
+  });
 });

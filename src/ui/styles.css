@@ -862,21 +862,49 @@ pre,
 }
 .issues li {
   border-bottom: 1px solid var(--border);
-}
-.issues button {
-  width: 100%;
-  text-align: left;
-  border: none;
-  background: none;
-  padding: 10px 2px;
   display: flex;
   gap: 10px;
   align-items: flex-start;
+  padding: 10px 2px;
+}
+.issues__body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.issues__summary {
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 0;
   cursor: pointer;
   font-size: 13px;
+  color: var(--text);
 }
-.issues button:hover {
-  background: var(--surface-muted);
+.issues__summary:hover {
+  color: var(--text-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.issues__langs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.chip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 4px;
+  padding: 0 6px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 20px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text-strong);
 }
 .issue-icon--error {
   color: var(--red-text);

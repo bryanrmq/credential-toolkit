@@ -29,7 +29,10 @@ export type IssueTarget =
 export interface Issue {
   severity: Severity;
   code: string;
+  /** Full text, naming the language when the issue belongs to one. */
   message: string;
+  /** The same text without the language, used to group one issue across languages. */
+  summary: string;
   target: IssueTarget;
 }
 
@@ -74,8 +77,10 @@ function childFingerprint(group: Group): string {
 
 export function validate(project: Project): Issue[] {
   const issues: Issue[] = [];
-  const error = (code: string, message: string, target: IssueTarget) => issues.push({ severity: 'error', code, message, target });
-  const warn = (code: string, message: string, target: IssueTarget) => issues.push({ severity: 'warning', code, message, target });
+  const error = (code: string, message: string, target: IssueTarget, summary = message) =>
+    issues.push({ severity: 'error', code, message, summary, target });
+  const warn = (code: string, message: string, target: IssueTarget, summary = message) =>
+    issues.push({ severity: 'warning', code, message, summary, target });
   const root = project.root;
 
   const checkTemplate = (text: string | undefined, owner: Group, report: (message: string) => void) => {
@@ -109,7 +114,9 @@ export function validate(project: Project): Issue[] {
   // Credential-level fields
   for (const lang of project.languages) {
     const meta = project.meta[lang];
-    if (!meta?.name) warn('name-missing', `The credential name is missing in ${lang}.`, { kind: 'credential', field: 'name', lang });
+    if (!meta?.name) {
+      warn('name-missing', `The credential name is missing in ${lang}.`, { kind: 'credential', field: 'name', lang }, 'The credential name is missing.');
+    }
     const pair = project.branding[lang] ?? { light: {} };
     const themes: Array<['light' | 'dark', Branding | undefined]> = [['light', pair.light], ['dark', pair.dark]];
     for (const [theme, branding] of themes) {
@@ -118,29 +125,54 @@ export function validate(project: Project): Issue[] {
       if (branding.logo) {
         const info = imageInfo(branding.logo);
         if (!info.declaredMime) {
-          error('logo-format', `The ${theme} logo (${lang}) must be a PNG or JPEG data URL.`, target('logo'));
+          error('logo-format', `The ${theme} logo (${lang}) must be a PNG or JPEG data URL.`, target('logo'), `The ${theme} logo must be a PNG or JPEG data URL.`);
         } else {
           if (info.actualMime && info.actualMime !== info.declaredMime) {
-            warn('logo-mime-mismatch', `The ${theme} logo (${lang}) is declared as ${info.declaredMime} but contains ${info.actualMime} data.`, target('logo'));
+            warn(
+              'logo-mime-mismatch',
+              `The ${theme} logo (${lang}) is declared as ${info.declaredMime} but contains ${info.actualMime} data.`,
+              target('logo'),
+              `The ${theme} logo is declared as ${info.declaredMime} but contains ${info.actualMime} data.`,
+            );
           }
           if (info.width && info.height) {
             if (info.width > MAX_LOGO_SIZE || info.height > MAX_LOGO_SIZE) {
-              warn('logo-too-large', `The ${theme} logo (${lang}) is ${info.width}×${info.height}; wallets accept at most 512×512.`, target('logo'));
+              warn(
+                'logo-too-large',
+                `The ${theme} logo (${lang}) is ${info.width}×${info.height}; wallets accept at most 512×512.`,
+                target('logo'),
+                `The ${theme} logo is ${info.width}×${info.height}; wallets accept at most 512×512.`,
+              );
             }
             if (info.width !== info.height) {
-              warn('logo-not-square', `The ${theme} logo (${lang}) is not square, so it will look small at 24×24.`, target('logo'));
+              warn(
+                'logo-not-square',
+                `The ${theme} logo (${lang}) is not square, so it will look small at 24×24.`,
+                target('logo'),
+                `The ${theme} logo is not square, so it will look small at 24×24.`,
+              );
             }
           }
         }
       }
       if (branding.primaryBackgroundColor && !COLOR.test(branding.primaryBackgroundColor)) {
-        error('color-format', `The ${theme} background colour (${lang}) must look like #1A2B3C, without transparency.`, target('primaryBackgroundColor'));
+        error(
+          'color-format',
+          `The ${theme} background colour (${lang}) must look like #1A2B3C, without transparency.`,
+          target('primaryBackgroundColor'),
+          `The ${theme} background colour must look like #1A2B3C, without transparency.`,
+        );
       }
       checkTemplate(branding.primaryField, root, (message) => error('template-unresolved', message, target('primaryField')));
       checkTemplate(branding.secondaryField, root, (message) => error('template-unresolved', message, target('secondaryField')));
     }
     if (!meta?.description && !pair.light.primaryField) {
-      warn('summary-missing', `The card has no summary line in ${lang}. Add a description or a primary field.`, { kind: 'credential', field: 'description', lang });
+      warn(
+        'summary-missing',
+        `The card has no summary line in ${lang}. Add a description or a primary field.`,
+        { kind: 'credential', field: 'description', lang },
+        'The card has no summary line. Add a description or a primary field.',
+      );
     }
   }
 
@@ -189,7 +221,7 @@ export function validate(project: Project): Issue[] {
 
     for (const lang of project.languages) {
       const label = node.labels[lang];
-      if (!label) warn('label-missing', `"${name}" has no label in ${lang}.`, target('label', lang));
+      if (!label) warn('label-missing', `"${name}" has no label in ${lang}.`, target('label', lang), `"${name}" has no label.`);
       checkTemplate(label, parent, (message) => error('template-unresolved', message, target('label', lang)));
     }
 
@@ -206,10 +238,17 @@ export function validate(project: Project): Issue[] {
         const labels = node.entries.labels[lang] ?? {};
         for (const code of Object.keys(labels)) {
           if (!codes.includes(code) && labels[code]) {
-            error('entry-undeclared', `"${name}" translates "${code}" in ${lang}, but that code is not declared.`, target('entries', lang));
+            error(
+              'entry-undeclared',
+              `"${name}" translates "${code}" in ${lang}, but that code is not declared.`,
+              target('entries', lang),
+              `"${name}" translates "${code}", but that code is not declared.`,
+            );
           }
         }
-        if (codes.some((code) => !labels[code])) warn('entry-missing', `Some values of "${name}" are not translated in ${lang}.`, target('entries', lang));
+        if (codes.some((code) => !labels[code])) {
+          warn('entry-missing', `Some values of "${name}" are not translated in ${lang}.`, target('entries', lang), `Some values of "${name}" are not translated.`);
+        }
       }
     }
   }

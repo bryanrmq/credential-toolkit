@@ -4,7 +4,7 @@ import { useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
 import { Badge, Button, Segmented } from '../components/controls';
-import { useIssues } from '../issues';
+import { groupIssues, useIssues } from '../issues';
 import { downloadText } from '../lib/download';
 import { Wordmark } from '../Wordmark';
 
@@ -14,8 +14,9 @@ export function TopBar({ exportState }: { exportState: ExportState }) {
   const view = useStore((state) => state.view);
   const { setEditLang, setView, setLanguagesOpen, close } = useStore.getState();
   const issues = useIssues();
-  const errors = issues.filter((issue) => issue.severity === 'error').length;
-  const warnings = issues.length - errors;
+  const groups = groupIssues(issues);
+  const errors = groups.filter((group) => group.severity === 'error').length;
+  const warnings = groups.length - errors;
   const name = project.meta[editLang]?.name || t.workspace.untitled;
   const canDownload = errors === 0 && exportState.status === 'ready';
 

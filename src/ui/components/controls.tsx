@@ -36,7 +36,7 @@ export function Field({ id, label, hint, children }: FieldProps) {
       {issues.map((issue, index) => (
         <p key={index} className={`field__issue field__issue--${issue.severity}`}>
           {issue.severity === 'error' ? <WarningCircleIcon size={14} /> : <WarningIcon size={14} />}
-          {issue.message}
+          {issue.summary}
         </p>
       ))}
     </div>

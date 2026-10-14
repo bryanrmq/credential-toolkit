@@ -5,7 +5,7 @@ import { useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
 import { Badge, Button, Tabs } from '../components/controls';
-import { goToIssue, useFieldIssues, useIssues } from '../issues';
+import { goToIssue, groupIssues, useFieldIssues, useIssues } from '../issues';
 import { copyText, downloadText } from '../lib/download';
 import { SampleControl } from './SampleControl';
 
@@ -31,6 +31,7 @@ export function OutputPanel({ exportState }: { exportState: ExportState }) {
   const update = useStore((state) => state.update);
   const issues = useIssues();
   const errors = issues.filter((issue) => issue.severity === 'error');
+  const groups = groupIssues(issues);
   const tab = useStore((state) => state.outputTab);
   const setTab = useStore((state) => state.setOutputTab);
   const hostingIssues = useFieldIssues('field-hosting-url');
@@ -54,7 +55,7 @@ export function OutputPanel({ exportState }: { exportState: ExportState }) {
               value: 'issues',
               label: (
                 <>
-                  {t.output.issues} {issues.length > 0 && <Badge tone={errors.length ? 'red' : 'yellow'}>{issues.length}</Badge>}
+                  {t.output.issues} {groups.length > 0 && <Badge tone={errors.length ? 'red' : 'yellow'}>{groups.length}</Badge>}
                 </>
               ),
             },
@@ -72,12 +73,28 @@ export function OutputPanel({ exportState }: { exportState: ExportState }) {
             </p>
           ) : (
             <ul className="issues">
-              {[...errors, ...issues.filter((issue) => issue.severity === 'warning')].map((issue, index) => (
+              {groups.map((group, index) => (
                 <li key={index}>
-                  <button type="button" onClick={() => goToIssue(issue)}>
-                    {issue.severity === 'error' ? <WarningCircleIcon className="issue-icon--error" /> : <WarningIcon className="issue-icon--warning" />}
-                    <span>{issue.message}</span>
-                  </button>
+                  {group.severity === 'error' ? <WarningCircleIcon className="issue-icon--error" /> : <WarningIcon className="issue-icon--warning" />}
+                  <div className="issues__body">
+                    <button type="button" className="issues__summary" onClick={() => goToIssue(group.issues[0])}>
+                      {group.summary}
+                    </button>
+                    {group.langs.length > 0 && (
+                      <div className="issues__langs">
+                        {group.langs.map((lang) => (
+                          <button
+                            key={lang}
+                            type="button"
+                            className="chip"
+                            onClick={() => goToIssue(group.issues.find((issue) => 'lang' in issue.target && issue.target.lang === lang)!)}
+                          >
+                            {lang}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>

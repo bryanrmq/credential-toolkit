@@ -169,3 +169,25 @@ describe('digest collisions with reordered attributes', () => {
     expect(codes(validate(project))).toEqual(['error:digest-collision']);
   });
 });
+
+describe('issue summaries', () => {
+  it('gives per-language issues a summary without the language', () => {
+    const project = clean();
+    project.languages.push('fr-CH');
+    project.meta['fr-CH'] = { name: '', description: 'Pour les détenteurs' };
+    project.branding['fr-CH'] = { light: {} };
+    const issues = validate(project);
+    const name = issues.find((issue) => issue.code === 'name-missing')!;
+    expect(name.message).toBe('The credential name is missing in fr-CH.');
+    expect(name.summary).toBe('The credential name is missing.');
+    const label = issues.find((issue) => issue.code === 'label-missing')!;
+    expect(label.summary).toBe('"name" has no label.');
+  });
+
+  it('uses the message as summary for issues without a language', () => {
+    const project = clean();
+    project.hosting = { mode: 'url', url: '' };
+    const [hosting] = validate(project);
+    expect(hosting.summary).toBe(hosting.message);
+  });
+});
