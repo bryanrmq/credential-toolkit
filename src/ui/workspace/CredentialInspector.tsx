@@ -67,7 +67,12 @@ export function CredentialInspector() {
             <>
               {theme === 'dark' && <p className="note">{t.inspector.darkHint}</p>}
               <Field id={id('logo')} label={t.inspector.logo} hint={t.inspector.logoHint}>
-                <LogoInput id={id('logo')} value={branding.logo} onChange={(value) => setBranding('logo', value)} />
+                <LogoInput
+                  id={id('logo')}
+                  value={branding.logo}
+                  background={branding.primaryBackgroundColor}
+                  onChange={(value) => setBranding('logo', value)}
+                />
               </Field>
               <Field id={id('primaryBackgroundColor')} label={t.inspector.background} hint={t.inspector.backgroundHint}>
                 <ColorInput

@@ -69,6 +69,16 @@ pre,
   font-family: var(--font-mono);
   font-size: 12.5px;
 }
+kbd {
+  display: inline-block;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-muted);
+  padding: 0 5px;
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--text-strong);
+}
 
 :focus-visible {
   outline: 2px solid var(--blue-text);
@@ -763,30 +773,27 @@ pre,
   gap: 14px;
   align-items: center;
 }
-.logo-input__preview {
+.logo-preview {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex: none;
+}
+.logo-preview__tile {
   width: 56px;
   height: 56px;
   border: 1px solid var(--border);
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background-color: #ffffff;
-  background-image:
-    linear-gradient(45deg, var(--surface-muted) 25%, transparent 25%),
-    linear-gradient(-45deg, var(--surface-muted) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, var(--surface-muted) 75%),
-    linear-gradient(-45deg, transparent 75%, var(--surface-muted) 75%);
-  background-size: 10px 10px;
-  background-position:
-    0 0,
-    0 5px,
-    5px -5px,
-    -5px 0;
-  flex: none;
 }
-.logo-input__preview img {
-  max-width: 40px;
-  max-height: 40px;
+.logo-preview__tile--small {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+}
+.logo-preview__tile img {
+  object-fit: contain;
 }
 .color-input {
   display: flex;

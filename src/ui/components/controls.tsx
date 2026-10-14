@@ -1,6 +1,7 @@
 import { WarningCircleIcon, WarningIcon } from '@phosphor-icons/react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { useFieldIssues } from '../issues';
+import { withKeys } from './keys';
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -32,7 +33,7 @@ export function Field({ id, label, hint, children }: FieldProps) {
         {label}
       </label>
       {children}
-      {hint && <p className="field__hint">{hint}</p>}
+      {hint && <p className="field__hint">{typeof hint === 'string' ? withKeys(hint) : hint}</p>}
       {issues.map((issue, index) => (
         <p key={index} className={`field__issue field__issue--${issue.severity}`}>
           {issue.severity === 'error' ? <WarningCircleIcon size={14} /> : <WarningIcon size={14} />}
