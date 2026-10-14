@@ -1,6 +1,6 @@
 /* Tokens: warm monochrome with muted pastel accents (taste-skill:minimalist-ui) */
 :root {
-  --canvas: #fbfbfa;
+  --canvas: #ffffff;
   --surface: #ffffff;
   --surface-muted: #f7f6f3;
   --border: #eaeaea;
@@ -393,13 +393,6 @@ pre,
   min-height: 100%;
   position: relative;
   overflow: hidden;
-}
-.start::before {
-  content: '';
-  position: fixed;
-  inset: -20%;
-  pointer-events: none;
-  background: radial-gradient(circle at 70% 20%, rgba(214, 160, 92, 0.05), transparent 45%);
 }
 .start__inner {
   position: relative;
