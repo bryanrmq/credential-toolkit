@@ -6,6 +6,7 @@ import { ImportError, type ImportResult, parseJsonText } from '../../core/import
 import { importSample, parseSampleText } from '../../core/import/sample';
 import { DEFAULT_LANGUAGES } from '../../core/langs';
 import { type LangTag, emptyProject } from '../../core/model';
+import { loadDraft } from '../../state/persistence';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Button, Dialog } from '../components/controls';
@@ -47,6 +48,10 @@ export function ImportDialog({ kind, onClose }: { kind: ImportKind; onClose: () 
       else if (kind === 'sample') result = importSample(parseSampleText(text), languages);
       else if (kind === 'bundle') result = await importBundle(parseJsonText(text));
       else result = importIssuerMetadata(parseJsonText(text), configuration || configurations[0]?.id || '');
+      if (loadDraft() && !window.confirm(t.start.confirmReplaceDraft)) {
+        setBusy(false);
+        return;
+      }
       load(result.project, result.report);
     } catch (caught) {
       setError(caught instanceof ImportError ? caught.message : `Unexpected error: ${String(caught)}`);

@@ -9,6 +9,7 @@ export const t = {
     resumeTitle: 'Continue your draft',
     resumeBody: (name: string) => `${name || 'Untitled credential'} — saved in this browser.`,
     resumeAction: 'Open draft',
+    confirmReplaceDraft: 'Starting a new project replaces the draft saved in this browser. Continue?',
     footer: 'Follows the swiyu "Visualisation of Verifiable Credential with OCA 1.0" specification.',
     entries: {
       sample: {

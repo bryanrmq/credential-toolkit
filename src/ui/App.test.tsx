@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { emptyProject } from '../core/model';
+import { loadDraft, saveDraft } from '../state/persistence';
 import { useStore } from '../state/store';
 import { App } from './App';
 
@@ -47,5 +49,25 @@ describe('App', () => {
     await user.paste('{"capture_bases": [}');
     await user.click(within(dialog).getByRole('button', { name: 'Open in editor' }));
     expect(within(dialog).getByRole('alert')).toHaveTextContent(/Invalid JSON at line 1/);
+  });
+
+  it('asks before a new project replaces the saved draft', async () => {
+    const draft = emptyProject(['de-CH']);
+    draft.meta['de-CH'].name = 'Hundebewilligung';
+    saveDraft(draft);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /Start blank/ }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Open in editor' }));
+
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(useStore.getState().project).toBeNull();
+    expect(loadDraft()?.meta['de-CH'].name).toBe('Hundebewilligung');
+
+    confirm.mockReturnValue(true);
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Open in editor' }));
+    expect(screen.getByRole('heading', { name: 'Untitled credential' })).toBeInTheDocument();
+    confirm.mockRestore();
   });
 });
