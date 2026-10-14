@@ -142,3 +142,16 @@ describe('buildBundle with non-ASCII content', () => {
     expect(JSON.parse(serializeBundle(bundle)).overlays[0].name).toBe('Carte d’accès « Zürich »');
   });
 });
+
+describe('buildBundle with conflicting groups', () => {
+  it('refuses to emit two different overlay sets for one capture base', async () => {
+    const project = emptyProject(['en']);
+    const make = (prefix: string) => {
+      const group = emptyGroup();
+      group.children.push(newAttribute('city', { source: [prefix, 'city'], labels: { en: 'City' } }));
+      return group;
+    };
+    project.root.children.push(newGroupLink('home', { group: make('home') }), newGroupLink('work', { group: make('work') }));
+    await expect(buildBundle(project)).rejects.toThrow(/"home" and "work" have the same keys and types/);
+  });
+});

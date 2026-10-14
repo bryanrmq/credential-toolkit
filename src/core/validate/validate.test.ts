@@ -153,3 +153,19 @@ describe('hosting', () => {
     expect(validate(project)).toEqual([]);
   });
 });
+
+describe('digest collisions with reordered attributes', () => {
+  it('reports identical groups even when their attributes are listed in a different order', () => {
+    const project = clean();
+    const make = (prefix: string, keys: string[]) => {
+      const group = emptyGroup();
+      for (const key of keys) group.children.push(newAttribute(key, { source: [prefix, key], labels: { 'de-CH': key } }));
+      return group;
+    };
+    project.root.children.push(
+      newGroupLink('home', { source: ['home'], group: make('home', ['street', 'city']), labels: { 'de-CH': 'Wohnort' } }),
+      newGroupLink('work', { source: ['work'], group: make('work', ['city', 'street']), labels: { 'de-CH': 'Arbeitsort' } }),
+    );
+    expect(codes(validate(project))).toEqual(['error:digest-collision']);
+  });
+});

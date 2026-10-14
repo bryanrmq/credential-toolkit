@@ -1,3 +1,4 @@
+import canonicalize from 'canonicalize';
 import { cesrDigest } from '../cesr';
 import {
   DATA_SOURCE_FORMAT,
@@ -7,6 +8,7 @@ import {
   type Project,
   typeToString,
   walkGroups,
+  walkNodes,
 } from '../model';
 import { toSpecTemplate } from '../templates';
 
@@ -55,9 +57,12 @@ export function captureBaseAttributes(group: Group, childRef: (child: Group) => 
   return attributes;
 }
 
-/** Synchronous stand-in for the digest: equal signatures mean equal digests. */
+/**
+ * Synchronous stand-in for the digest: equal signatures mean equal digests. Canonicalised like the
+ * digest itself, so attribute order does not matter.
+ */
 export function structuralSignature(group: Group): string {
-  return JSON.stringify(captureBaseAttributes(group, structuralSignature));
+  return canonicalize(captureBaseAttributes(group, structuralSignature)) ?? '';
 }
 
 /** Digests for every group, children before parents. */
@@ -179,23 +184,31 @@ function withoutCaptureBase(overlays: OverlayJson[]): string {
   return JSON.stringify(overlays.map(({ capture_base: _ignored, ...rest }) => rest));
 }
 
-/** Project → bundle object. Identical groups with identical overlays are emitted once. */
+/**
+ * Project → bundle object. Identical groups with identical overlays are emitted once; identical
+ * groups with different overlays would give one capture base two conflicting overlay sets, so
+ * building fails (the validator reports the same case as `digest-collision`).
+ */
 export async function buildBundle(project: Project): Promise<BuiltBundle> {
   const digests = await computeDigests(project.root);
   const capture_bases: CaptureBaseJson[] = [];
   const overlays: OverlayJson[] = [];
-  const emitted = new Map<string, string>(); // digest → overlays fingerprint
+  const emitted = new Map<string, { fingerprint: string; groupId: string }>();
+  const linkKeys = new Map<string, string>();
+  for (const { node } of walkNodes(project.root)) if (node.kind === 'group') linkKeys.set(node.group.id, node.key);
 
   for (const group of walkGroups(project.root)) {
     const digest = digests.get(group.id)!;
     const groupOverlayList = groupOverlays(project, group, digests);
     const fingerprint = withoutCaptureBase(groupOverlayList);
-    if (emitted.has(digest)) {
-      if (emitted.get(digest) === fingerprint) continue;
-      overlays.push(...groupOverlayList); // collision: reported by the validator, export is blocked
-      continue;
+    const first = emitted.get(digest);
+    if (first) {
+      if (first.fingerprint === fingerprint) continue;
+      throw new Error(
+        `"${linkKeys.get(first.groupId) ?? 'root'}" and "${linkKeys.get(group.id) ?? 'root'}" have the same keys and types, so they would share one digest, but their labels, order or sources differ. Rename a key in one of them.`,
+      );
     }
-    emitted.set(digest, fingerprint);
+    emitted.set(digest, { fingerprint, groupId: group.id });
     capture_bases.push({
       type: CAPTURE_BASE_TYPE,
       digest,
