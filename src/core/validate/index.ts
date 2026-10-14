@@ -1,0 +1,243 @@
+import { structuralSignature } from '../export/bundle';
+import { imageInfo } from '../image';
+import { hasRegion, isValidLanguageTag } from '../langs';
+import {
+  type Branding,
+  type ClaimsPath,
+  type Group,
+  type GroupLink,
+  type LangTag,
+  type Node,
+  type Project,
+  isArrayType,
+  walkGroups,
+  walkNodes,
+} from '../model';
+import { listExpressions, resolveEditorPath } from '../templates';
+
+export type Severity = 'error' | 'warning';
+
+export type CredentialField = 'name' | 'description' | 'logo' | 'primaryBackgroundColor' | 'primaryField' | 'secondaryField';
+export type NodeField = 'key' | 'type' | 'source' | 'label' | 'entries';
+
+export type IssueTarget =
+  | { kind: 'languages' }
+  | { kind: 'hosting' }
+  | { kind: 'credential'; field: CredentialField; lang: LangTag; theme?: 'light' | 'dark' }
+  | { kind: 'node'; nodeId: string; field: NodeField; lang?: LangTag };
+
+export interface Issue {
+  severity: Severity;
+  code: string;
+  message: string;
+  target: IssueTarget;
+}
+
+const COLOR = /^#[0-9A-Fa-f]{6}$/;
+const FORBIDDEN_KEY_CHARACTERS = /[\s.[\]{}:/"]/;
+const MAX_LOGO_SIZE = 512;
+const MAX_CLUSTER_DEPTH = 3;
+
+export function isValidPathSegment(segment: unknown): boolean {
+  if (segment === null) return true;
+  if (typeof segment === 'string') return segment.length > 0 && !segment.includes('"');
+  return typeof segment === 'number' && Number.isInteger(segment) && segment >= 0;
+}
+
+/** True when the path selects at least one value in `data` (or cannot be checked because an array is empty). */
+export function pathExists(data: unknown, path: ClaimsPath): boolean {
+  if (path.length === 0) return true;
+  const [segment, ...rest] = path;
+  if (segment === null) {
+    if (!Array.isArray(data)) return false;
+    return data.length === 0 || data.some((item) => pathExists(item, rest));
+  }
+  if (typeof segment === 'number') return Array.isArray(data) && segment < data.length && pathExists(data[segment], rest);
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return false;
+  return segment in data && pathExists((data as Record<string, unknown>)[segment], rest);
+}
+
+function childFingerprint(group: Group): string {
+  return JSON.stringify({
+    children: group.children.map((child) => ({
+      key: child.key,
+      kind: child.kind,
+      labels: child.labels,
+      source: child.source,
+      sensitive: child.sensitive,
+      standard: child.kind === 'attribute' ? child.standard : undefined,
+      entries: child.kind === 'attribute' ? child.entries : undefined,
+    })),
+    passthrough: group.passthrough.map(({ capture_base: _ignored, ...rest }) => rest),
+  });
+}
+
+export function validate(project: Project): Issue[] {
+  const issues: Issue[] = [];
+  const error = (code: string, message: string, target: IssueTarget) => issues.push({ severity: 'error', code, message, target });
+  const warn = (code: string, message: string, target: IssueTarget) => issues.push({ severity: 'warning', code, message, target });
+  const root = project.root;
+
+  const checkTemplate = (text: string | undefined, owner: Group, report: (message: string) => void) => {
+    if (!text) return;
+    for (const expression of listExpressions(text)) {
+      if (expression.refDigest !== undefined) continue; // spec form kept from an import; checked by the wallet
+      if (!resolveEditorPath(root, owner, expression)) report(`"{{${expression.raw}}}" does not match any attribute.`);
+    }
+  };
+
+  // Hosting
+  if (project.hosting.mode === 'url') {
+    const url = project.hosting.url.trim();
+    if (url === '') warn('hosting-url-missing', 'Enter the URL where you will publish the bundle; the VCT snippet points to it.', { kind: 'hosting' });
+    else if (!url.startsWith('https://')) warn('hosting-url-insecure', 'The bundle URL should start with https://.', { kind: 'hosting' });
+  }
+
+  // Languages
+  if (project.languages.length === 0) error('languages-empty', 'Add at least one language.', { kind: 'languages' });
+  const seenLanguages = new Set<LangTag>();
+  for (const lang of project.languages) {
+    if (seenLanguages.has(lang)) error('language-duplicate', `"${lang}" is listed twice.`, { kind: 'languages' });
+    seenLanguages.add(lang);
+    if (!isValidLanguageTag(lang)) {
+      error('language-invalid', `"${lang}" is rejected by swiyu wallets. Use a tag like "de" or "de-CH".`, { kind: 'languages' });
+    } else if (!hasRegion(lang)) {
+      warn('language-no-region', `"${lang}" has no region. Wallets match locales exactly, so prefer a tag like "${lang}-CH".`, { kind: 'languages' });
+    }
+  }
+
+  // Credential-level fields
+  for (const lang of project.languages) {
+    const meta = project.meta[lang];
+    if (!meta?.name) warn('name-missing', `The credential name is missing in ${lang}.`, { kind: 'credential', field: 'name', lang });
+    const pair = project.branding[lang] ?? { light: {} };
+    const themes: Array<['light' | 'dark', Branding | undefined]> = [['light', pair.light], ['dark', pair.dark]];
+    for (const [theme, branding] of themes) {
+      if (!branding) continue;
+      const target = (field: CredentialField): IssueTarget => ({ kind: 'credential', field, lang, theme });
+      if (branding.logo) {
+        const info = imageInfo(branding.logo);
+        if (!info.declaredMime) {
+          error('logo-format', `The ${theme} logo (${lang}) must be a PNG or JPEG data URL.`, target('logo'));
+        } else {
+          if (info.actualMime && info.actualMime !== info.declaredMime) {
+            warn('logo-mime-mismatch', `The ${theme} logo (${lang}) is declared as ${info.declaredMime} but contains ${info.actualMime} data.`, target('logo'));
+          }
+          if (info.width && info.height) {
+            if (info.width > MAX_LOGO_SIZE || info.height > MAX_LOGO_SIZE) {
+              warn('logo-too-large', `The ${theme} logo (${lang}) is ${info.width}×${info.height}; wallets accept at most 512×512.`, target('logo'));
+            }
+            if (info.width !== info.height) {
+              warn('logo-not-square', `The ${theme} logo (${lang}) is not square, so it will look small at 24×24.`, target('logo'));
+            }
+          }
+        }
+      }
+      if (branding.primaryBackgroundColor && !COLOR.test(branding.primaryBackgroundColor)) {
+        error('color-format', `The ${theme} background colour (${lang}) must look like #1A2B3C, without transparency.`, target('primaryBackgroundColor'));
+      }
+      checkTemplate(branding.primaryField, root, (message) => error('template-unresolved', message, target('primaryField')));
+      checkTemplate(branding.secondaryField, root, (message) => error('template-unresolved', message, target('secondaryField')));
+    }
+    if (!meta?.description && !pair.light.primaryField) {
+      warn('summary-missing', `The card has no summary line in ${lang}. Add a description or a primary field.`, { kind: 'credential', field: 'description', lang });
+    }
+  }
+
+  // Structure
+  const linkByGroup = new Map<Group, GroupLink>();
+  for (const { node, parent, depth } of walkNodes(root)) {
+    if (node.kind === 'group') {
+      linkByGroup.set(node.group, node);
+      if (depth + 1 > MAX_CLUSTER_DEPTH) {
+        warn('cluster-too-deep', `"${node.key}" is nested ${depth + 1} levels deep; wallets show anything below level 3 at level 3.`, { kind: 'node', nodeId: node.id, field: 'key' });
+      }
+    }
+    checkNode(node, parent);
+  }
+
+  function checkNode(node: Node, parent: Group) {
+    const target = (field: NodeField, lang?: LangTag): IssueTarget => ({ kind: 'node', nodeId: node.id, field, lang });
+    const name = node.key || '(unnamed)';
+
+    if (!node.key) error('key-empty', 'An attribute or group has no key.', target('key'));
+    else if (FORBIDDEN_KEY_CHARACTERS.test(node.key)) {
+      error('key-characters', `"${node.key}" contains spaces or one of . [ ] { } : / " which break templates and paths.`, target('key'));
+    }
+    if (node.key && parent.children.filter((sibling) => sibling.key === node.key).length > 1) {
+      error('key-duplicate', `"${node.key}" is used twice in the same group.`, target('key'));
+    }
+
+    const source = node.source ?? [];
+    const isArray = node.kind === 'group' ? node.array : isArrayType(node.type);
+    if (node.kind === 'attribute' && source.length === 0) {
+      error('source-missing', `"${name}" has no source path, so the wallet cannot find its value.`, target('source'));
+    } else if (node.kind === 'group' && node.array && source.length === 0) {
+      error('source-missing', `Array group "${name}" needs a source path such as ["${name}", null].`, target('source'));
+    } else if (source.length) {
+      if (!source.every(isValidPathSegment)) {
+        error('source-invalid', `The source path of "${name}" may only contain non-empty names, positive integers and null.`, target('source'));
+      } else {
+        const endsWithNull = source[source.length - 1] === null;
+        if (isArray && !endsWithNull) warn('source-array-shape', `"${name}" is an array; its source path should end with null.`, target('source'));
+        if (!isArray && endsWithNull) warn('source-array-shape', `"${name}" is not an array but its source path ends with null.`, target('source'));
+        if (project.sample !== undefined && !pathExists(project.sample, source)) {
+          warn('source-not-in-sample', `The source path of "${name}" does not exist in the sample credential.`, target('source'));
+        }
+      }
+    }
+
+    for (const lang of project.languages) {
+      const label = node.labels[lang];
+      if (!label) warn('label-missing', `"${name}" has no label in ${lang}.`, target('label', lang));
+      checkTemplate(label, parent, (message) => error('template-unresolved', message, target('label', lang)));
+    }
+
+    if (node.kind !== 'attribute') return;
+    if (node.type === 'DateTime' || (isArrayType(node.type) && node.type.array === 'DateTime')) {
+      if (!node.standard) error('datetime-standard', `Choose a date format (ISO 8601 or Unix time) for "${name}".`, target('type'));
+    }
+    if (node.entries) {
+      const codes = node.entries.codes;
+      if (codes.some((code) => code === '') || new Set(codes).size !== codes.length) {
+        error('entry-code-invalid', `Value translation codes of "${name}" must be unique and not empty.`, target('entries'));
+      }
+      for (const lang of project.languages) {
+        const labels = node.entries.labels[lang] ?? {};
+        for (const code of Object.keys(labels)) {
+          if (!codes.includes(code) && labels[code]) {
+            error('entry-undeclared', `"${name}" translates "${code}" in ${lang}, but that code is not declared.`, target('entries', lang));
+          }
+        }
+        if (codes.some((code) => !labels[code])) warn('entry-missing', `Some values of "${name}" are not translated in ${lang}.`, target('entries', lang));
+      }
+    }
+  }
+
+  // Identical capture bases with different overlays would share one digest.
+  const bySignature = new Map<string, Group[]>();
+  for (const group of walkGroups(root)) {
+    const signature = structuralSignature(group);
+    bySignature.set(signature, [...(bySignature.get(signature) ?? []), group]);
+  }
+  for (const groups of bySignature.values()) {
+    if (groups.length < 2) continue;
+    const first = groups[0];
+    for (const other of groups.slice(1)) {
+      if (childFingerprint(other) === childFingerprint(first)) continue;
+      const a = linkByGroup.get(first);
+      const b = linkByGroup.get(other)!;
+      error(
+        'digest-collision',
+        `"${a?.key ?? 'root'}" and "${b.key}" have the same keys and types, so they get the same digest, but their labels or sources differ. Rename a key in one of them (its source path can stay).`,
+        { kind: 'node', nodeId: b.id, field: 'key' },
+      );
+    }
+  }
+
+  return issues;
+}
+
+export function hasErrors(issues: Issue[]): boolean {
+  return issues.some((issue) => issue.severity === 'error');
+}
