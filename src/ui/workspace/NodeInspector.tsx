@@ -19,6 +19,7 @@ import { Button, Field, Toggle } from '../components/controls';
 import { CommitInput, PathInput, TemplateInput } from '../components/inputs';
 import { fieldId } from '../issues';
 import { EntriesEditor } from './EntriesEditor';
+import { InspectorHeader } from './InspectorHeader';
 
 /** Every group a node may move to: all groups except the node's own subtree. */
 function moveTargets(root: Group, node: Node): Array<{ id: string; label: string }> {
@@ -69,10 +70,12 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
 
   return (
     <>
-      <p className="inspector__eyebrow">
-        {node.kind === 'group' ? (node.array ? t.structure.addList : t.structure.addGroup) : t.structure.addAttribute} · {t.inspector.language(lang)}
-      </p>
-      <h1 className="inspector__title">{node.labels[lang] || node.key || '—'}</h1>
+      <InspectorHeader
+        kind={node.kind === 'group' ? (node.array ? t.structure.addList : t.structure.addGroup) : t.structure.addAttribute}
+        lang={lang}
+        title={node.labels[lang] || node.key || '—'}
+        technicalKey={node.key}
+      />
 
       <Field id={id('key')} label={t.inspector.key} hint={t.inspector.keyHint}>
         <CommitInput id={id('key')} mono value={node.key} onCommit={(value) => update((draft) => renameNode(draft, node.id, value))} />

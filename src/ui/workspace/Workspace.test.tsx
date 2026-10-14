@@ -193,4 +193,13 @@ describe('Workspace', () => {
     render(<Workspace />);
     expect(screen.queryByRole('complementary', { name: 'Translations' })).not.toBeInTheDocument();
   });
+
+  it('heads the inspector with the label, the technical key and the editing language', () => {
+    const nameNode = useStore.getState().project!.root.children[0];
+    useStore.getState().select({ kind: 'node', id: nameNode.id });
+    render(<Workspace />);
+    const header = screen.getByRole('heading', { level: 1, name: 'Name' }).closest('header')!;
+    expect(within(header).getByText('name', { selector: 'code' })).toBeInTheDocument();
+    expect(within(header).getByText('de-CH')).toBeInTheDocument();
+  });
 });

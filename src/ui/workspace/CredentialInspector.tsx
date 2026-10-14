@@ -6,6 +6,7 @@ import { Button, Field, Tabs } from '../components/controls';
 import { TemplateInput, TextInput } from '../components/inputs';
 import { ColorInput, LogoInput } from '../components/media';
 import { fieldId } from '../issues';
+import { InspectorHeader } from './InspectorHeader';
 
 export function CredentialInspector() {
   const project = useStore((state) => state.project)!;
@@ -35,8 +36,7 @@ export function CredentialInspector() {
 
   return (
     <>
-      <p className="inspector__eyebrow">{t.inspector.credentialEyebrow} · {t.inspector.language(lang)}</p>
-      <h1 className="inspector__title">{meta.name || t.workspace.untitled}</h1>
+      <InspectorHeader kind={t.inspector.credentialEyebrow} lang={lang} title={meta.name || t.workspace.untitled} />
       <Field id={id('name')} label={t.inspector.name} hint={t.inspector.nameHint}>
         <TextInput id={id('name')} value={meta.name} onChange={(value) => setMeta('name', value)} />
       </Field>
