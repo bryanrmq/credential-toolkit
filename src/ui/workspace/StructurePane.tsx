@@ -24,7 +24,8 @@ import {
   TextTIcon,
   ToggleLeftIcon,
 } from '@phosphor-icons/react';
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
+import { importSample } from '../../core/import/sample';
 import {
   type Group,
   KNOWN_STANDARDS,
@@ -40,6 +41,7 @@ import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
 import { fieldId, focusField, useIssues } from '../issues';
+import { SampleDialog } from './SampleControl';
 
 function nodeIcon(node: Node): ReactNode {
   if (node.kind === 'group') return node.array ? <StackIcon /> : <FolderSimpleIcon />;
@@ -117,7 +119,8 @@ function NodeList({ group, onSelect }: { group: Group; onSelect: () => void }) {
 export function StructurePane({ onSelect }: { onSelect: () => void }) {
   const project = useStore((state) => state.project)!;
   const selection = useStore((state) => state.selection);
-  const { update, select } = useStore.getState();
+  const { update, select, setReport } = useStore.getState();
+  const [filling, setFilling] = useState(false);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
   const add = (kind: 'attribute' | 'group' | 'list') => {
@@ -178,9 +181,40 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
           <IdentificationCardIcon />
           <span className="tree__key">{t.structure.credential}</span>
         </div>
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <NodeList group={project.root} onSelect={onSelect} />
-        </DndContext>
+        {project.root.children.length === 0 ? (
+          <div className="empty-structure">
+            <p className="empty-structure__title">{t.structure.empty}</p>
+            <p className="field__hint">{t.structure.emptyHint}</p>
+            <div className="row row--wrap">
+              <Button size="small" variant="primary" onClick={() => add('attribute')}>
+                <PlusIcon /> {t.structure.addFirst}
+              </Button>
+              <Button size="small" onClick={() => setFilling(true)}>
+                {t.structure.fillFromSample}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <NodeList group={project.root} onSelect={onSelect} />
+          </DndContext>
+        )}
+        {filling && (
+          <SampleDialog
+            title={t.structure.fillTitle}
+            intro={t.structure.fillIntro}
+            submitLabel={t.structure.fillSubmit}
+            onSample={(sample) => {
+              const result = importSample(sample, project.languages);
+              update((draft) => {
+                draft.root = result.project.root;
+                draft.sample = sample;
+              });
+              setReport(result.report);
+            }}
+            onClose={() => setFilling(false)}
+          />
+        )}
       </div>
     </>
   );

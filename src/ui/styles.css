@@ -804,6 +804,19 @@ kbd {
 .tree__dot--warning {
   background: var(--yellow-text);
 }
+.empty-structure {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+.empty-structure__title {
+  margin: 0;
+  font-weight: 500;
+  color: var(--text-strong);
+}
 .tree__empty {
   color: var(--text-muted);
   font-size: 12.5px;

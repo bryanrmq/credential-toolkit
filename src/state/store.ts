@@ -28,6 +28,7 @@ export interface AppState {
   setLanguagesOpen: (open: boolean) => void;
   setOutputTab: (tab: OutputTab) => void;
   setDraftSaveFailed: (failed: boolean) => void;
+  setReport: (report: ReportNote[]) => void;
   dismissReport: () => void;
 }
 
@@ -66,5 +67,6 @@ export const useStore = create<AppState>()((set, get) => ({
   setLanguagesOpen: (languagesOpen) => set({ languagesOpen }),
   setOutputTab: (outputTab) => set({ outputTab }),
   setDraftSaveFailed: (draftSaveFailed) => set({ draftSaveFailed }),
+  setReport: (report) => set({ report: report.length ? report : null }),
   dismissReport: () => set({ report: null }),
 }));

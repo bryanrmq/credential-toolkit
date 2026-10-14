@@ -133,4 +133,33 @@ describe('Workspace', () => {
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
+
+  it('fills an empty structure from a sample', async () => {
+    const project = emptyProject(['de-CH']);
+    project.meta['de-CH'] = { name: 'Hundebewilligung', description: '' };
+    useStore.getState().load(project);
+    const user = userEvent.setup();
+    render(<Workspace />);
+    expect(screen.getByText('No attributes yet.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Fill from a sample' }));
+    const dialog = screen.getByRole('dialog');
+    await user.click(within(dialog).getByLabelText(/Paste JSON/));
+    await user.paste('{"iss": "did:example", "given_name": "Seraina", "address": {"city": "Bern"}}');
+    await user.click(within(dialog).getByRole('button', { name: 'Fill' }));
+
+    const state = useStore.getState();
+    expect(state.project?.root.children.map((child) => child.key)).toEqual(['given_name', 'address']);
+    expect(state.project?.sample).toEqual({ iss: 'did:example', given_name: 'Seraina', address: { city: 'Bern' } });
+    expect(state.project?.meta['de-CH'].name).toBe('Hundebewilligung');
+    expect(screen.getByText('Skipped technical claims: iss.')).toBeInTheDocument();
+  });
+
+  it('adds the first attribute from the empty state', async () => {
+    useStore.getState().load(emptyProject(['de-CH']));
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(screen.getByRole('button', { name: 'Add attribute' }));
+    expect(useStore.getState().project?.root.children.map((child) => child.key)).toEqual(['attribute']);
+  });
 });

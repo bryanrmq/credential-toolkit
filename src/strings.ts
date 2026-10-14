@@ -70,6 +70,12 @@ export const t = {
     addGroup: 'Group',
     addList: 'List of objects',
     empty: 'No attributes yet.',
+    emptyHint: 'Add them one by one, or paste a sample credential to fill in attributes, types and source paths.',
+    addFirst: 'Add attribute',
+    fillFromSample: 'Fill from a sample',
+    fillTitle: 'Fill from a sample credential',
+    fillIntro: 'Paste the decoded claims of an issued credential. Attributes, types, nesting and source paths are created from it, and it is kept to check source paths.',
+    fillSubmit: 'Fill',
     dragHandle: (key: string) => `Move ${key}`,
   },
   inspector: {

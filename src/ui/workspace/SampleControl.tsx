@@ -25,13 +25,33 @@ export function SampleControl() {
           </Button>
         )}
       </div>
-      {open && <SampleDialog onClose={() => setOpen(false)} />}
+      {open && (
+        <SampleDialog
+          title={t.sample.dialogTitle}
+          intro={t.sample.dialogIntro}
+          submitLabel={t.sample.submit}
+          onSample={(sample) => update((draft) => void (draft.sample = sample))}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </div>
   );
 }
 
-function SampleDialog({ onClose }: { onClose: () => void }) {
-  const update = useStore((state) => state.update);
+/** Asks for a sample credential (claims object). `onSample` may throw an ImportError to show it. */
+export function SampleDialog({
+  title,
+  intro,
+  submitLabel,
+  onSample,
+  onClose,
+}: {
+  title: string;
+  intro: string;
+  submitLabel: string;
+  onSample: (sample: Record<string, unknown>) => void;
+  onClose: () => void;
+}) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +60,7 @@ function SampleDialog({ onClose }: { onClose: () => void }) {
     try {
       const sample = parseSampleText(text);
       if (!isPlainObject(sample)) throw new ImportError(t.sample.notObject);
-      update((draft) => void (draft.sample = sample));
+      onSample(sample);
       onClose();
     } catch (caught) {
       setError(caught instanceof ImportError ? caught.message : String(caught));
@@ -48,7 +68,7 @@ function SampleDialog({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Dialog title={t.sample.dialogTitle} intro={t.sample.dialogIntro} onClose={onClose}>
+    <Dialog title={title} intro={intro} onClose={onClose}>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -86,7 +106,7 @@ function SampleDialog({ onClose }: { onClose: () => void }) {
             {t.importDialog.cancel}
           </Button>
           <Button variant="primary" type="submit">
-            {t.sample.submit}
+            {submitLabel}
           </Button>
         </div>
       </form>
