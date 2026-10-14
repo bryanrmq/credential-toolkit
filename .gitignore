@@ -26,3 +26,7 @@ dist-ssr
 # Playwright
 test-results/
 playwright-report/
+
+# Local only, not in git
+e2e/
+docs/
