@@ -68,4 +68,32 @@ describe('Workspace', () => {
     expect(screen.getByText(/too large to save/)).toHaveAttribute('role', 'status');
     useStore.getState().setDraftSaveFailed(false);
   });
+
+  it('attaches a sample credential and checks source paths against it', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(screen.getByRole('button', { name: 'Attach sample' }));
+    const dialog = screen.getByRole('dialog');
+    await user.click(within(dialog).getByLabelText(/Paste JSON/));
+    await user.paste('{"given_name": "Seraina"}');
+    await user.click(within(dialog).getByRole('button', { name: 'Attach' }));
+
+    expect(useStore.getState().project?.sample).toEqual({ given_name: 'Seraina' });
+    expect(screen.getByText('The source path of "name" does not exist in the sample credential.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Remove sample' }));
+    expect(useStore.getState().project?.sample).toBeUndefined();
+  });
+
+  it('refuses a sample that is not a claims object', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(screen.getByRole('button', { name: 'Attach sample' }));
+    const dialog = screen.getByRole('dialog');
+    await user.click(within(dialog).getByLabelText(/Paste JSON/));
+    await user.paste('[1, 2]');
+    await user.click(within(dialog).getByRole('button', { name: 'Attach' }));
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('The sample credential must be a JSON object of claims.');
+    expect(useStore.getState().project?.sample).toBeUndefined();
+  });
 });

@@ -853,6 +853,15 @@ pre,
 }
 
 /* Output */
+.sample-control {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  display: grid;
+  gap: 8px;
+}
 .issues {
   list-style: none;
   margin: 0;

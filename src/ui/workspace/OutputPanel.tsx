@@ -7,6 +7,7 @@ import { t } from '../../strings';
 import { Badge, Button, Tabs } from '../components/controls';
 import { goToIssue, useFieldIssues, useIssues } from '../issues';
 import { copyText, downloadText } from '../lib/download';
+import { SampleControl } from './SampleControl';
 
 function CopyButton({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -43,6 +44,7 @@ export function OutputPanel({ exportState }: { exportState: ExportState }) {
         {ready && <span className="field__hint">{t.output.size((ready.outputs.json.length / 1024).toFixed(1))}</span>}
       </div>
       <div className="pane__body">
+        <SampleControl />
         <Tabs
           label={t.output.title}
           value={tab}

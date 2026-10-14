@@ -147,6 +147,17 @@ export const t = {
     working: 'Building…',
     failed: (message: string) => `The bundle could not be built: ${message}`,
   },
+  sample: {
+    none: 'No sample credential attached. Attach one to check that every source path exists.',
+    attached: 'Sample credential attached: source paths are checked against it. It is never exported.',
+    attach: 'Attach sample',
+    replace: 'Replace sample',
+    remove: 'Remove sample',
+    dialogTitle: 'Attach a sample credential',
+    dialogIntro: 'Paste the decoded claims of an issued credential. It is only used to check source paths and is never exported.',
+    submit: 'Attach',
+    notObject: 'The sample credential must be a JSON object of claims.',
+  },
   translations: {
     text: 'Text',
     name: 'Credential name',
