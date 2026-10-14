@@ -24,5 +24,10 @@ The OCA logic lives in `src/core` and has no UI dependencies. Test fixtures in
 
 ## Deployment
 
-`.github/workflows/deploy.yml` tests every push and pull request and publishes `main` to
-GitHub Pages. Enable Pages with "GitHub Actions" as the source in the repository settings.
+Vercel's GitHub integration deploys `main` to production and gives every pull request a
+preview URL. `vercel.json` runs the unit tests before the build, so a failing test stops the
+deploy. `.github/workflows/ci.yml` also lints, type-checks and runs the unit and e2e tests on
+every push and pull request.
+
+The site runs on Vercel's Hobby plan, which is for personal, non-commercial use. If an
+organisation takes the project over, move it to that organisation's account or a paid plan.
