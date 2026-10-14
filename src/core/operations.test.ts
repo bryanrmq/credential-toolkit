@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { type GroupLink, emptyProject, newAttribute, newGroupLink, walkNodes } from './model';
 import {
   addLanguage,
+  NEW_NODE_KEYS,
   insertNode,
   moveLanguage,
   moveNode,
@@ -106,16 +107,29 @@ describe('key and source helpers', () => {
     expect(sourcePrefixFor(p, cluster.group.id)).toEqual(['pets', null]);
   });
 
-  it('renames a node and the matching end of its source path', () => {
+  it('keeps the source path when an existing key is renamed (spec §5.1)', () => {
     const p = emptyProject(['en']);
-    const list = newAttribute('tags', { type: { array: 'Text' }, source: ['tags', null] });
-    const moved = newAttribute('city', { source: ['address', 'town'] });
-    p.root.children.push(list, moved);
-    renameNode(p, list.id, 'labels');
-    renameNode(p, moved.id, 'place');
+    const city = newAttribute('city', { source: ['work', 'city'] });
+    const tags = newAttribute('tags', { type: { array: 'Text' }, source: ['tags', null] });
+    p.root.children.push(city, tags);
+    renameNode(p, city.id, 'city2');
+    renameNode(p, tags.id, 'labels');
     expect(p.root.children.map((child) => [child.key, child.source])).toEqual([
-      ['labels', ['labels', null]],
-      ['place', ['address', 'town']],
+      ['city2', ['work', 'city']],
+      ['labels', ['tags', null]],
+    ]);
+  });
+
+  it('moves the source of a newly added item that still has its placeholder key', () => {
+    const p = emptyProject(['en']);
+    const attribute = newAttribute(NEW_NODE_KEYS.attribute, { source: ['pets', null, NEW_NODE_KEYS.attribute] });
+    const list = newGroupLink(`${NEW_NODE_KEYS.list}_2`, { array: true, source: [`${NEW_NODE_KEYS.list}_2`, null] });
+    p.root.children.push(attribute, list);
+    renameNode(p, attribute.id, 'name');
+    renameNode(p, list.id, 'pets');
+    expect(p.root.children.map((child) => [child.key, child.source])).toEqual([
+      ['name', ['pets', null, 'name']],
+      ['pets', ['pets', null]],
     ]);
   });
 

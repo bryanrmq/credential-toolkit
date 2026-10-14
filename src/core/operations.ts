@@ -74,6 +74,11 @@ export function moveLanguage(project: Project, lang: LangTag, index: number): vo
   project.languages = rest;
 }
 
+/** Keys the editor gives new items (made unique with `_2`, `_3`…). */
+export const NEW_NODE_KEYS = { attribute: 'attribute', group: 'group', list: 'items' } as const;
+
+const PLACEHOLDER_KEY = new RegExp(`^(?:${Object.values(NEW_NODE_KEYS).join('|')})(?:_\\d+)?$`);
+
 /** `base`, or `base_2`, `base_3`… — the first key not used in `group`. */
 export function uniqueKey(group: Group, base: string): string {
   const taken = new Set(group.children.map((child) => child.key));
@@ -99,8 +104,9 @@ export function sourcePrefixFor(project: Project, groupId: string): ClaimsPath {
 }
 
 /**
- * Renames a node. Templates that reference it follow the rename, and so does the last name in
- * its source path when it was the old key.
+ * Renames a node. Templates that reference it follow the rename. The source path stays as it is
+ * (spec §5.1), except for a newly added item that still has its placeholder key: its path was only
+ * derived from that key, so the last name in it follows.
  */
 export function renameNode(project: Project, nodeId: string, key: string): void {
   const visit = findNode(project.root, nodeId);
@@ -121,7 +127,7 @@ export function renameNode(project: Project, nodeId: string, key: string): void 
     }
   }
   const source = node.source;
-  if (source) {
+  if (source && PLACEHOLDER_KEY.test(node.key)) {
     for (let index = source.length - 1; index >= 0; index--) {
       const segment = source[index];
       if (typeof segment !== 'string') continue;

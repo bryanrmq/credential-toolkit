@@ -35,7 +35,7 @@ import {
   newAttribute,
   newGroupLink,
 } from '../../core/model';
-import { insertNode, moveNode, sourcePrefixFor, uniqueKey } from '../../core/operations';
+import { NEW_NODE_KEYS, insertNode, moveNode, sourcePrefixFor, uniqueKey } from '../../core/operations';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
@@ -123,7 +123,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
   const add = (kind: 'attribute' | 'group' | 'list') => {
     const group = targetGroup(project, selection.kind === 'node' ? selection.id : null);
     const prefix = sourcePrefixFor(project, group.id);
-    const key = uniqueKey(group, kind === 'attribute' ? 'attribute' : kind === 'group' ? 'group' : 'items');
+    const key = uniqueKey(group, NEW_NODE_KEYS[kind]);
     const node =
       kind === 'attribute'
         ? newAttribute(key, { source: [...prefix, key] })

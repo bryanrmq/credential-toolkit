@@ -90,7 +90,7 @@ export const t = {
     primaryFieldHint: 'Summary line on the card. Type {{ to insert an attribute value.',
     secondaryField: 'Secondary field',
     key: 'Key',
-    keyHint: 'The attribute name inside the OCA bundle. Press Enter to apply; templates that use it are updated.',
+    keyHint: 'The attribute name inside the OCA bundle. Press Enter to apply. Templates that use it follow the rename; the source path does not (except for an item you just added).',
     type: 'Type',
     list: 'List of values',
     format: 'Format',
