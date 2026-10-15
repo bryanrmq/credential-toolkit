@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { LangTag, Project } from '../core/model';
 import type { Issue, IssueTarget, Severity } from '../core/validate';
-import { type Fix, type FixTools, fixesFor } from '../core/validate/fixes';
+import { type Fix, type FixTools, LANGUAGE_RENAME_CODES, fixesFor } from '../core/validate/fixes';
 import { useStore } from '../state/store';
 import { t } from '../strings';
 import { downscaleLogo } from './lib/logo';
@@ -72,9 +72,10 @@ export function groupFixes(group: IssueGroup, project: Project, tools: FixTools 
   return [...byLabel].map(([label, fixes]) => ({ label, fixes }));
 }
 
-/** What Fix all applies: the fixes of every group with a single button, in list order. */
+/** What Fix all applies: the fixes of every group with a single button, in list order, language renames last. */
 export function fixAllGroups(groups: IssueGroup[], project: Project, tools: FixTools = FIX_TOOLS): Fix[][] {
-  return groups
+  const renames = (group: IssueGroup) => LANGUAGE_RENAME_CODES.includes(group.code);
+  return [...groups.filter((group) => !renames(group)), ...groups.filter(renames)]
     .map((group) => groupFixes(group, project, tools))
     .filter((options) => options.length === 1)
     .map(([option]) => option.fixes);

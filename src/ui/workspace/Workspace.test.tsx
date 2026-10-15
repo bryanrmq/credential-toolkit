@@ -296,4 +296,21 @@ describe('Workspace', () => {
     expect(screen.getByText('1 error')).toBeInTheDocument();
     expect(screen.queryByText('Fixed 1 issue')).not.toBeInTheDocument();
   });
+
+  it('shows a fix under a field only when the issue of that field has one', async () => {
+    const user = userEvent.setup();
+    useStore.getState().update((draft) => {
+      draft.branding['de-CH'].light.primaryBackgroundColor = '#abc';
+      draft.branding['en-GB'].light.primaryBackgroundColor = 'red';
+    });
+    useStore.getState().select({ kind: 'credential' });
+    useStore.getState().setBrandingTheme('light');
+    render(<Workspace />);
+    const inspector = screen.getByRole('region', { name: 'Edit' });
+    expect(within(inspector).getByRole('button', { name: 'Use "#AABBCC"' })).toBeInTheDocument();
+    await user.click(within(screen.getByRole('group', { name: 'Editing language' })).getByRole('button', { name: 'en-GB' }));
+    expect(within(inspector).getByText(/background colour must look like/)).toBeInTheDocument();
+    expect(within(inspector).queryByRole('button', { name: 'Use "#AABBCC"' })).not.toBeInTheDocument();
+  });
+
 });

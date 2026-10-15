@@ -389,6 +389,9 @@ const FIXES: Record<string, FixFactory> = {
   },
 };
 
+/** Codes whose fix renames a language. Run them after the others, which look their language up by its old tag. */
+export const LANGUAGE_RENAME_CODES: readonly string[] = ['language-invalid', 'language-no-region'];
+
 /** Codes with a fix rule. */
 export const FIXABLE_CODES: readonly string[] = Object.keys(FIXES);
 

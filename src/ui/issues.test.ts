@@ -94,4 +94,21 @@ describe('fixAllGroups', () => {
     const groups = fixAllGroups(groupIssues(validate(project)), project, tools);
     expect(groups.map((fixes) => fixes.map((fix) => fix.label))).toEqual([['Use "#AABBCC"']]);
   });
+
+  it('renames languages after the fixes that look a language up', async () => {
+    const project = emptyProject(['de', 'fr']);
+    project.meta.de = { name: 'Bewilligung', description: 'Für Halter' };
+    project.meta.fr = { name: 'Permis', description: 'Pour les détenteurs' };
+    project.hosting = { mode: 'dataUrl' };
+    project.branding.de.light.logo = pngDataUrl(1024, 1024);
+    project.branding.fr.light.logo = pngDataUrl(1024, 1024);
+    const draft = structuredClone(project);
+    for (const fixes of fixAllGroups(groupIssues(validate(project)), project, tools)) {
+      for (const fix of fixes) await fix.apply(draft);
+    }
+    expect(draft.languages).toEqual(['de-CH', 'fr-CH']);
+    expect(draft.branding['de-CH'].light.logo).toBe(pngDataUrl(512, 512));
+    expect(draft.branding['fr-CH'].light.logo).toBe(pngDataUrl(512, 512));
+    expect(validate(draft)).toEqual([]);
+  });
 });
