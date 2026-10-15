@@ -4,22 +4,16 @@ import { imageInfo } from '../../core/image';
 import { LANGUAGE_NAMES, isValidLanguageTag } from '../../core/langs';
 import type { LangTag } from '../../core/model';
 import { t } from '../../strings';
-import { logoTint } from '../lib/color';
 import { LOGO_MAX_SIZE, downscaleLogo, isAcceptedImage, readAsDataUrl } from '../lib/logo';
 import { Button } from './controls';
-
-const TINT_FILTER = { black: 'brightness(0)', white: 'brightness(0) invert(1)' } as const;
 
 export function LogoInput({
   id,
   value,
-  background,
   onChange,
 }: {
   id: string;
   value?: string;
-  /** The card's background colour, used to preview the logo the way the wallet tints it. */
-  background?: string;
   onChange: (value: string | undefined) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -29,7 +23,6 @@ export function LogoInput({
   return (
     <div>
       <div className="logo-input">
-        <LogoPreview value={info?.declaredMime ? value : undefined} background={background} />
         <div className="row row--wrap">
           <Button id={id} size="small" onClick={() => fileRef.current?.click()}>
             <UploadSimpleIcon /> {t.inspector.uploadLogo}
@@ -70,22 +63,6 @@ export function LogoInput({
 }
 
 const HEX = /^#[0-9A-Fa-f]{6}$/;
-
-/** The logo on the card colour, tinted black or white as the wallet does, at preview and real (24 px) size. */
-function LogoPreview({ value, background }: { value?: string; background?: string }) {
-  const color = background && HEX.test(background) ? background : '#FFFFFF';
-  const filter = TINT_FILTER[logoTint(background)];
-  return (
-    <div className="logo-preview" title={t.inspector.logoPreview}>
-      <span className="logo-preview__tile" style={{ background: color }}>
-        {value && <img src={value} alt="" width={40} height={40} style={{ filter }} />}
-      </span>
-      <span className="logo-preview__tile logo-preview__tile--small" style={{ background: color }}>
-        {value && <img src={value} alt="" width={24} height={24} style={{ filter }} />}
-      </span>
-    </div>
-  );
-}
 
 export function ColorInput({ id, value, onChange }: { id: string; value?: string; onChange: (value: string | undefined) => void }) {
   return (

@@ -1036,28 +1036,6 @@ input[type='checkbox'] {
   gap: 14px;
   align-items: center;
 }
-.logo-preview {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  flex: none;
-}
-.logo-preview__tile {
-  width: 56px;
-  height: 56px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-}
-.logo-preview__tile--small {
-  width: 36px;
-  height: 36px;
-  border-radius: 6px;
-}
-.logo-preview__tile img {
-  object-fit: contain;
-}
 .color-input {
   display: flex;
   gap: 8px;

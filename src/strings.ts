@@ -99,7 +99,6 @@ export const t = {
     logo: 'Logo',
     logoHint: 'PNG or JPEG, square, at most 512×512. The wallet shows it at 24×24 and tints it black or white.',
     uploadLogo: 'Upload',
-    logoPreview: 'Preview on the card colour, tinted black or white as the wallet does',
     removeLogo: 'Remove',
     downscale: 'Shrink to 512 px',
     logoError: 'Only PNG and JPEG files are supported.',
