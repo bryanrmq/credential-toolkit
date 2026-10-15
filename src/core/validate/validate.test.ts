@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { pngDataUrl } from '../../test/images';
 import { KNOWN_STANDARDS, type Project, emptyGroup, emptyProject, newAttribute, newGroupLink } from '../model';
-import { type Issue, hasErrors, isValidPathSegment, pathExists, validate } from './index';
+import { type Issue, hasErrors, isValidPathSegment, pathExists, validate, valuesAt } from './index';
 
 /** A project with no issues at all, to which each test adds one problem. */
 function clean(): Project {
@@ -158,6 +158,16 @@ describe('helpers', () => {
     expect(pathExists(data, ['empty', null, 'x'])).toBe(true);
     expect(pathExists(data, ['missing'])).toBe(false);
   });
+
+  it('valuesAt collects every value a path selects', () => {
+    const data = { pets: [{ born: 1 }, { born: 2 }, {}], name: 'Rex' };
+    expect(valuesAt(data, ['pets', null, 'born'])).toEqual([1, 2]);
+    expect(valuesAt(data, ['pets', 1, 'born'])).toEqual([2]);
+    expect(valuesAt(data, ['name'])).toEqual(['Rex']);
+    expect(valuesAt(data, ['missing'])).toEqual([]);
+    expect(valuesAt(data, ['name', null])).toEqual([]);
+    expect(valuesAt(data, [])).toEqual([data]);
+  });
 });
 
 describe('hosting', () => {
@@ -200,6 +210,24 @@ describe('issue summaries', () => {
     expect(name.summary).toBe('The credential name is missing.');
     const label = issues.find((issue) => issue.code === 'label-missing')!;
     expect(label.summary).toBe('"name" has no label.');
+  });
+
+  it('names the language or value code an issue is about', () => {
+    const project = clean();
+    project.languages.push('gsw', 'fr', 'de-CH');
+    project.root.children.push(
+      newAttribute('status', {
+        source: ['status'],
+        labels: { 'de-CH': 'Status' },
+        entries: { codes: ['a'], labels: { 'de-CH': { a: 'A', b: 'B' } } },
+      }),
+    );
+    const subjects = validate(project)
+      .filter((issue) => issue.subject !== undefined)
+      .map((issue) => `${issue.code}:${issue.subject}`);
+    expect(subjects).toEqual(
+      expect.arrayContaining(['language-invalid:gsw', 'language-no-region:fr', 'language-duplicate:de-CH', 'entry-undeclared:b']),
+    );
   });
 
   it('uses the message as summary for issues without a language', () => {
