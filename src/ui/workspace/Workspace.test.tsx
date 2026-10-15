@@ -285,4 +285,15 @@ describe('Workspace', () => {
     expect(useStore.getState().project!.languages).toEqual(['de-CH', 'fr-CH']);
     useStore.getState().setLanguagesOpen(false);
   });
+
+  it('undoes a fix from the toast', async () => {
+    const user = userEvent.setup();
+    useStore.getState().setOutputTab('issues');
+    render(<Workspace />);
+    await user.click(within(screen.getByRole('region', { name: 'Output' })).getByRole('button', { name: 'Set source to broken' }));
+    expect(screen.getByText('Fixed 1 issue')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(screen.getByText('1 error')).toBeInTheDocument();
+    expect(screen.queryByText('Fixed 1 issue')).not.toBeInTheDocument();
+  });
 });

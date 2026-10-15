@@ -5,6 +5,7 @@ import { useStore } from '../../state/store';
 import { useExport } from '../../state/useExport';
 import { t } from '../../strings';
 import { Tabs } from '../components/controls';
+import { FixToast } from '../components/FixToast';
 import { PaneResizer } from '../components/PaneResizer';
 import { IssuesContext } from '../issues';
 import {
@@ -109,6 +110,7 @@ export function Workspace() {
           </>
         )}
         {languagesOpen && <LanguagesDialog />}
+        <FixToast />
       </div>
     </IssuesContext.Provider>
   );

@@ -405,6 +405,34 @@ input[type='checkbox'] {
   gap: 8px;
   margin-top: 24px;
 }
+
+/* Fix toast */
+.toast-region {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: calc(100vw - 32px);
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 6px 6px 14px;
+  background: var(--surface);
+  color: var(--text-strong);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  font-size: 13px;
+}
+.toast--error {
+  padding-right: 14px;
+  background: var(--red-bg);
+  border-color: transparent;
+  color: var(--red-text);
+}
 .error-text {
   color: var(--red-text);
   font-size: 13px;
