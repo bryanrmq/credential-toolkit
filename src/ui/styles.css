@@ -1036,28 +1036,6 @@ input[type='checkbox'] {
   gap: 14px;
   align-items: center;
 }
-.logo-preview {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  flex: none;
-}
-.logo-preview__tile {
-  width: 56px;
-  height: 56px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-}
-.logo-preview__tile--small {
-  width: 36px;
-  height: 36px;
-  border-radius: 6px;
-}
-.logo-preview__tile img {
-  object-fit: contain;
-}
 .color-input {
   display: flex;
   gap: 8px;
@@ -1071,6 +1049,165 @@ input[type='checkbox'] {
   padding: 2px;
   background: var(--surface);
   flex: none;
+}
+/* An approximation of a swiyu wallet credential card; geometry comes from the platform profile. */
+.credential-card {
+  position: relative;
+  margin: 0;
+  flex: none;
+  display: flex;
+  width: var(--card-width);
+  aspect-ratio: var(--card-ratio);
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: var(--card-line-height);
+}
+.credential-card--text-top {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--card-logo-gap);
+}
+.credential-card--text-bottom {
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--card-logo-gap);
+}
+.credential-card__text {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-text-gap);
+}
+.credential-card--text-top .credential-card__text {
+  flex: 1;
+}
+.credential-card__logo {
+  position: relative;
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  width: var(--card-logo-width);
+  height: var(--card-logo-height);
+}
+.credential-card--text-bottom .credential-card__logo {
+  align-self: flex-end;
+}
+.credential-card__logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.credential-card__name,
+.credential-card__summary {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.credential-card__name {
+  font-weight: var(--card-name-weight);
+}
+.credential-card__summary {
+  opacity: 0.7;
+}
+.card-placeholder {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+/* A wallet's shading layer, drawn over the card colour and under the content. */
+.card-gradient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+/* The home list row: logo-only thumbnail, then name and summary in the app's text style. */
+.home-row {
+  margin: 0;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--row-gap);
+  width: var(--row-width);
+  padding: var(--row-padding);
+  border-radius: var(--row-radius);
+  font-family: var(--font-sans);
+  line-height: var(--row-line-height);
+}
+.home-row__thumbnail {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.home-row__logo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--thumbnail-logo-width);
+  height: var(--thumbnail-logo-height);
+}
+.home-row__logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.home-row__text {
+  flex: 1;
+  min-width: 0;
+}
+.home-row__name,
+.home-row__summary {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.home-row__chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+.card-preview {
+  margin-bottom: 24px;
+}
+.card-preview__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.card-preview__header .section__title {
+  margin-bottom: 0;
+}
+/* Stands in for the wallet app background: white in light mode, black in dark mode. */
+.card-preview__stage {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.card-preview__stage--light {
+  background: #ffffff;
+}
+.card-preview__stage--dark {
+  background: #000000;
+}
+.card-preview__differences {
+  margin: 0 0 12px;
+  padding: 10px 12px 10px 28px;
+  border-radius: var(--radius);
+  background: var(--yellow-bg);
+  color: var(--yellow-text);
+  font-size: 12.5px;
 }
 .entries {
   width: 100%;

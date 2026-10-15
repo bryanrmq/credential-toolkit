@@ -17,8 +17,11 @@ export interface TemplateTarget {
   node: Node;
 }
 
+/** Both swiyu wallets accept a `.join()` separator of 0 to 10 characters and empty the expression otherwise. */
+export const MAX_JOIN_SEPARATOR = 10;
+
 const TEMPLATE = /\{\{(.*?)\}\}/g;
-const JOIN_SUFFIX = /\.join\((?:'[^']*'|"[^"]*")\)$/;
+const JOIN_SUFFIX = /\.join\((?:'([^']*)'|"([^"]*)")\)$/;
 const INDEX_SUFFIX = /\[(?:\d+|null)\]$/;
 const REFS_FORM = /^refs:([^:]+):(.+)$/;
 
@@ -40,6 +43,12 @@ export function parseExpression(raw: string): TemplateExpression {
   const absolute = rest.startsWith('/');
   if (absolute) rest = rest.slice(1);
   return { raw, path: rest.split('.'), absolute, suffix };
+}
+
+/** The `.join()` separator, or undefined when the expression has none. */
+export function joinSeparator(expression: TemplateExpression): string | undefined {
+  const join = JOIN_SUFFIX.exec(expression.suffix);
+  return join ? (join[1] ?? join[2]) : undefined;
 }
 
 export function listExpressions(text: string): TemplateExpression[] {

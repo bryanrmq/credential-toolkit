@@ -13,7 +13,7 @@ import {
   walkGroups,
   walkNodes,
 } from '../model';
-import { listExpressions, resolveEditorPath } from '../templates';
+import { MAX_JOIN_SEPARATOR, joinSeparator, listExpressions, resolveEditorPath } from '../templates';
 
 export type Severity = 'error' | 'warning';
 
@@ -83,11 +83,18 @@ export function validate(project: Project): Issue[] {
     issues.push({ severity: 'warning', code, message, summary, target });
   const root = project.root;
 
-  const checkTemplate = (text: string | undefined, owner: Group, report: (message: string) => void) => {
+  const checkTemplate = (text: string | undefined, owner: Group, report: (code: string, message: string) => void) => {
     if (!text) return;
     for (const expression of listExpressions(text)) {
+      if ((joinSeparator(expression)?.length ?? 0) > MAX_JOIN_SEPARATOR) {
+        report(
+          'template-join-too-long',
+          `"{{${expression.raw}}}" joins with more than ${MAX_JOIN_SEPARATOR} characters, so wallets show nothing for it.`,
+        );
+        continue;
+      }
       if (expression.refDigest !== undefined) continue; // spec form kept from an import; checked by the wallet
-      if (!resolveEditorPath(root, owner, expression)) report(`"{{${expression.raw}}}" does not match any attribute.`);
+      if (!resolveEditorPath(root, owner, expression)) report('template-unresolved', `"{{${expression.raw}}}" does not match any attribute.`);
     }
   };
 
@@ -163,8 +170,8 @@ export function validate(project: Project): Issue[] {
           `The ${theme} background colour must look like #1A2B3C, without transparency.`,
         );
       }
-      checkTemplate(branding.primaryField, root, (message) => error('template-unresolved', message, target('primaryField')));
-      checkTemplate(branding.secondaryField, root, (message) => error('template-unresolved', message, target('secondaryField')));
+      checkTemplate(branding.primaryField, root, (code, message) => error(code, message, target('primaryField')));
+      checkTemplate(branding.secondaryField, root, (code, message) => error(code, message, target('secondaryField')));
     }
     if (!meta?.description && !pair.light.primaryField) {
       warn(
@@ -221,7 +228,7 @@ export function validate(project: Project): Issue[] {
     for (const lang of project.languages) {
       const label = node.labels[lang];
       if (!label) warn('label-missing', `"${name}" has no label in ${lang}.`, target('label', lang), `"${name}" has no label.`);
-      checkTemplate(label, parent, (message) => error('template-unresolved', message, target('label', lang)));
+      checkTemplate(label, parent, (code, message) => error(code, message, target('label', lang)));
     }
 
     if (node.kind !== 'attribute') return;

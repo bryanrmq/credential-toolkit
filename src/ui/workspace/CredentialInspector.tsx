@@ -6,6 +6,7 @@ import { Button, Field, Tabs } from '../components/controls';
 import { TemplateInput, TextInput } from '../components/inputs';
 import { ColorInput, LogoInput } from '../components/media';
 import { fieldId } from '../issues';
+import { CardPreview } from './CardPreview';
 import { InspectorHeader } from './InspectorHeader';
 
 export function CredentialInspector() {
@@ -37,6 +38,7 @@ export function CredentialInspector() {
   return (
     <>
       <InspectorHeader kind={t.inspector.credentialEyebrow} lang={lang} title={meta.name || t.workspace.untitled} />
+      <CardPreview />
       <Field id={id('name')} label={t.inspector.name} hint={t.inspector.nameHint}>
         <TextInput id={id('name')} value={meta.name} onChange={(value) => setMeta('name', value)} />
       </Field>
@@ -67,12 +69,7 @@ export function CredentialInspector() {
             <>
               {theme === 'dark' && <p className="note">{t.inspector.darkHint}</p>}
               <Field id={id('logo')} label={t.inspector.logo} hint={t.inspector.logoHint}>
-                <LogoInput
-                  id={id('logo')}
-                  value={branding.logo}
-                  background={branding.primaryBackgroundColor}
-                  onChange={(value) => setBranding('logo', value)}
-                />
+                <LogoInput id={id('logo')} value={branding.logo} onChange={(value) => setBranding('logo', value)} />
               </Field>
               <Field id={id('primaryBackgroundColor')} label={t.inspector.background} hint={t.inspector.backgroundHint}>
                 <ColorInput
@@ -89,7 +86,7 @@ export function CredentialInspector() {
                   onChange={(value) => setBranding('primaryField', value)}
                 />
               </Field>
-              <Field id={id('secondaryField')} label={t.inspector.secondaryField}>
+              <Field id={id('secondaryField')} label={t.inspector.secondaryField} hint={t.inspector.secondaryFieldHint}>
                 <TemplateInput
                   id={id('secondaryField')}
                   value={branding.secondaryField ?? ''}
