@@ -38,12 +38,21 @@ describe('validate', () => {
     project.root.children.push(
       newAttribute('missing', { source: [] }),
       newAttribute('bad', { source: ['', -1] }),
-      newAttribute('list', { type: { array: 'Text' }, source: ['list'] }),
+      newAttribute('single', { source: ['single', null] }),
       newGroupLink('pets', { array: true }),
     );
     const found = codes(validate(project));
     expect(found.filter((code) => code === 'error:source-missing')).toHaveLength(2);
     expect(found).toEqual(expect.arrayContaining(['error:source-invalid', 'warning:source-array-shape']));
+  });
+
+  it('accepts an array source path with or without a trailing null', () => {
+    const project = clean();
+    project.root.children.push(
+      newAttribute('nationalities', { type: { array: 'Text' }, source: ['nationalities'], labels: { 'de-CH': 'Nationalitäten' } }),
+      newAttribute('languages', { type: { array: 'Text' }, source: ['languages', null], labels: { 'de-CH': 'Sprachen' } }),
+    );
+    expect(validate(project)).toEqual([]);
   });
 
   it('checks source paths against the sample', () => {
