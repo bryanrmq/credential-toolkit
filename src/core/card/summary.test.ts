@@ -88,6 +88,11 @@ describe('resolveCardText with a sample', () => {
     expect(render(withSample, template)).toBe(expected);
   });
 
+  it.each<CardPlatform>(['ios', 'android'])('empties a join separator longer than 10 characters on %s', (platform) => {
+    expect(render(withSample, "A{{tags.join('0123456789')}}B", platform)).toBe('Avalue10123456789value2B');
+    expect(render(withSample, "A{{tags.join('0123456789X')}}B", platform)).toBe('AB');
+  });
+
   it('empties an array with no elements (iOS arrayPathNoClaims)', () => {
     expect(render(project({ tags: [] }), 'Test: {{tags}}')).toBe('Test: ');
   });
@@ -154,6 +159,10 @@ describe('resolveCardText without a sample', () => {
 
   it('still empties unknown keys, groups and refs: templates', () => {
     expect(resolveCardText(project(), LANG, '{{attribute3}}{{address}}{{refs:EAbc:attribute1}}', 'ios')).toEqual([]);
+  });
+
+  it('empties a join separator longer than 10 characters instead of showing a placeholder', () => {
+    expect(resolveCardText(project(), LANG, "{{tags.join('0123456789X')}}", 'ios')).toEqual([]);
   });
 });
 

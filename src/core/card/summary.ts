@@ -1,5 +1,5 @@
 import type { AttributeNode, Branding, ClaimsPath, LangTag, Project } from '../model';
-import { parseExpression, resolveEditorPath } from '../templates';
+import { MAX_JOIN_SEPARATOR, joinSeparator, parseExpression, resolveEditorPath } from '../templates';
 import { CARD_PROFILES, type CardPlatform } from './profiles';
 
 /** A run of summary text, or an attribute shown by name because there is no sample value for it. */
@@ -7,7 +7,6 @@ export type SummarySegment = { kind: 'text'; text: string } | { kind: 'placehold
 
 const TEMPLATE = /\{\{(.*?)\}\}/g;
 const INDEX = /^\[(\d+|null)\]/;
-const JOIN = /\.join\((?:'([^']*)'|"([^"]*)")\)$/;
 const DEFAULT_SEPARATOR = ', ';
 const NULL_VALUE = '–';
 
@@ -26,8 +25,8 @@ export function summaryText(segments: SummarySegment[]): string {
 
 /**
  * Fills `{{…}}` templates the way the platform's wallet does once the credential is issued, using the sample
- * credential as the claims. Without a sample, each attribute becomes a placeholder. Unresolvable templates
- * become empty.
+ * credential as the claims. Without a sample, each attribute becomes a placeholder. Unresolvable templates,
+ * and those whose join separator is too long for the wallets, become empty.
  */
 export function resolveCardText(project: Project, lang: LangTag, text: string, platform: CardPlatform): SummarySegment[] {
   const segments: SummarySegment[] = [];
@@ -54,25 +53,22 @@ export function resolveCardText(project: Project, lang: LangTag, text: string, p
 
 function resolveExpression(project: Project, lang: LangTag, raw: string, platform: CardPlatform): SummarySegment {
   const expression = parseExpression(raw);
+  const separator = joinSeparator(expression) ?? DEFAULT_SEPARATOR;
   const target = resolveEditorPath(project.root, project.root, expression);
-  if (!target || target.node.kind !== 'attribute') return { kind: 'text', text: '' };
+  if (!target || target.node.kind !== 'attribute' || separator.length > MAX_JOIN_SEPARATOR) return { kind: 'text', text: '' };
   const attribute = target.node;
   if (project.sample === undefined) return { kind: 'placeholder', label: attribute.labels[lang] || attribute.key };
-  const { index, separator } = parseSuffix(expression.suffix);
+  const index = parseIndex(expression.suffix);
   const path = index === undefined ? attribute.source : CARD_PROFILES[platform].indexPath(attribute.source, index);
   if (!path) return { kind: 'text', text: '' };
   const values = claimValues(project.sample, path).flatMap((value) => displayValue(value, attribute, lang));
   return { kind: 'text', text: values.join(separator) };
 }
 
-/** `index` is undefined without an index suffix and null for `[null]`. */
-function parseSuffix(suffix: string): { index?: number | null; separator: string } {
+/** Undefined without an index suffix and null for `[null]`. */
+function parseIndex(suffix: string): number | null | undefined {
   const index = INDEX.exec(suffix);
-  const join = JOIN.exec(suffix);
-  return {
-    index: index ? (index[1] === 'null' ? null : Number(index[1])) : undefined,
-    separator: join ? (join[1] ?? join[2]) : DEFAULT_SEPARATOR,
-  };
+  return index ? (index[1] === 'null' ? null : Number(index[1])) : undefined;
 }
 
 /** Every value at `path`; a `null` segment walks every element of an array. Missing claims give none. */

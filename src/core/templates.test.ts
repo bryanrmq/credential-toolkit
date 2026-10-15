@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { type Group, emptyGroup, newAttribute, newGroupLink } from './model';
 import {
+  joinSeparator,
   listExpressions,
   parseExpression,
   renameInTemplate,
@@ -34,6 +35,12 @@ describe('parseExpression', () => {
     expect(parseExpression("pets.name.join('/')")).toMatchObject({ path: ['pets', 'name'], suffix: ".join('/')", absolute: false });
     expect(parseExpression('array_strings[null].join(" ")')).toMatchObject({ path: ['array_strings'], suffix: '[null].join(" ")' });
     expect(parseExpression('/person.lastname')).toMatchObject({ path: ['person', 'lastname'], absolute: true });
+  });
+
+  it('reads the join separator from either quote style', () => {
+    expect(joinSeparator(parseExpression("pets.name.join('/')"))).toBe('/');
+    expect(joinSeparator(parseExpression('tags[null].join("")'))).toBe('');
+    expect(joinSeparator(parseExpression('tags[1]'))).toBeUndefined();
   });
 
   it('recognises the spec refs form', () => {
