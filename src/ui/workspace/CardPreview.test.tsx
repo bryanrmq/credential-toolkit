@@ -2,7 +2,7 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { type Project, emptyProject, newAttribute } from '../../core/model';
+import { type Project, emptyGroup, emptyProject, newAttribute, newGroupLink } from '../../core/model';
 import { useStore } from '../../state/store';
 import { CardPreview } from './CardPreview';
 
@@ -85,6 +85,23 @@ describe('CardPreview', () => {
     );
     expect(card()).toHaveTextContent('Halter: Seraina');
     expect(screen.queryByText(/Attach a sample credential/)).not.toBeInTheDocument();
+  });
+
+  it('says when the other wallet resolves the summary differently', async () => {
+    const user = userEvent.setup();
+    load((project) => {
+      const pets = { ...emptyGroup(), children: [newAttribute('name', { source: ['pets', null, 'name'] })] };
+      project.root.children.push(newGroupLink('pets', { array: true, source: ['pets', null], group: pets }));
+      project.branding['de-CH'].light.primaryField = '{{pets.name[1]}}';
+      project.sample = { pets: [{ name: 'Rex' }, { name: 'Bello' }] };
+    });
+    render(<CardPreview />);
+    expect(card()).toHaveTextContent('Bello');
+    expect(screen.getByText('Android: empty summary')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Android' }));
+    expect(card()).not.toHaveTextContent('Bello');
+    expect(screen.getByText('iOS: summary "Bello"')).toBeInTheDocument();
   });
 
   it('says when the other wallet rejects the colour', () => {

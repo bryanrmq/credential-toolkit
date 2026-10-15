@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { selectBranding } from '../../core/card/branding';
 import { type CardDifference, cardDifferences, otherPlatform } from '../../core/card/differences';
 import { CARD_PROFILES, type CardPlatform } from '../../core/card/profiles';
-import { cardSummary } from '../../core/card/summary';
+import { cardSummary, summaryText } from '../../core/card/summary';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { CredentialCard } from '../components/CredentialCard';
@@ -19,6 +19,8 @@ function describeDifference(difference: CardDifference, platform: CardPlatform):
       return t.cardPreview.accepted(name, difference.translucent);
     case 'name':
       return difference.text === null ? t.cardPreview.nameHidden(name) : t.cardPreview.nameShown(name, difference.text);
+    case 'summary':
+      return t.cardPreview.summary(name, difference.text);
   }
 }
 
@@ -50,9 +52,11 @@ export function CardPreview() {
   const { ref, scale } = useFitScale(layout.referenceWidth);
   const { branding, lightShownForDark } = selectBranding(project, lang, theme);
   const name = project.meta[lang]?.name ?? '';
-  const summary = cardSummary(project, lang, branding);
+  const other = otherPlatform(platform);
+  const summary = cardSummary(project, lang, branding, platform);
+  const summaries = { [platform]: summaryText(summary), [other]: summaryText(cardSummary(project, lang, branding, other)) } as Record<CardPlatform, string>;
   const background = profile.parseBackground(branding.primaryBackgroundColor) ?? profile.fallbackBackground;
-  const differences = cardDifferences(platform, { name, background: branding.primaryBackgroundColor });
+  const differences = cardDifferences(platform, { name, background: branding.primaryBackgroundColor, summaries });
 
   return (
     <div className="card-preview">
@@ -96,7 +100,7 @@ export function CardPreview() {
       {differences.length > 0 && (
         <ul className="card-preview__differences">
           {differences.map((difference) => (
-            <li key={difference.kind}>{describeDifference(difference, otherPlatform(platform))}</li>
+            <li key={difference.kind}>{describeDifference(difference, other)}</li>
           ))}
         </ul>
       )}

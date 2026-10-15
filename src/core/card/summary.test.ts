@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { type Group, type Node, type Project, emptyGroup, emptyProject, newAttribute, newGroupLink } from '../model';
-import { cardSummary, resolveCardText } from './summary';
+import type { CardPlatform } from './profiles';
+import { cardSummary, resolveCardText, summaryText } from './summary';
 
 const LANG = 'de-CH';
 
@@ -28,11 +29,7 @@ const SAMPLE = {
   pets: [{ name: 'Rex' }, { name: 'Bello' }],
 };
 
-/** Flattens segments to a string; placeholders as ‹label›. */
-const render = (p: Project, template: string) =>
-  resolveCardText(p, LANG, template)
-    .map((segment) => (segment.kind === 'text' ? segment.text : `‹${segment.label}›`))
-    .join('');
+const render = (p: Project, template: string, platform: CardPlatform = 'ios') => summaryText(resolveCardText(p, LANG, template, platform));
 
 describe('resolveCardText with a sample', () => {
   const withSample = project(SAMPLE);
@@ -123,11 +120,31 @@ describe('resolveCardText with a sample', () => {
     expect(render(withSample, 'A{{address}}B')).toBe('AB');
     expect(render(withSample, 'A{{refs:EAbc:attribute1}}B')).toBe('AB');
   });
+
+  it('applies the Android index rule: drop a trailing null, then append the index (TransformOcaOverlaysImpl)', () => {
+    expect(render(withSample, '{{tags[1]}}', 'android')).toBe('value2');
+    expect(render(withSample, '{{tags[null]}}', 'android')).toBe('value1, value2');
+    expect(render(withSample, '{{pets.name[1]}}', 'android')).toBe('');
+    expect(render(withSample, '{{attribute1[null]}}', 'android')).toBe('');
+  });
+
+  it('applies the iOS index rule: [N] replaces the single null, [null] changes nothing (AttributeTemplateResolver)', () => {
+    expect(render(withSample, '{{tags[1]}}', 'ios')).toBe('value2');
+    expect(render(withSample, '{{pets.name[1]}}', 'ios')).toBe('Bello');
+    expect(render(withSample, '{{attribute1[null]}}', 'ios')).toBe('attribute1Value');
+    expect(render(withSample, '{{attribute1[0]}}', 'ios')).toBe('');
+  });
+});
+
+describe('summaryText', () => {
+  it('flattens segments, showing placeholders as ‹label›', () => {
+    expect(summaryText([{ kind: 'text', text: 'Hi ' }, { kind: 'placeholder', label: 'Vorname' }])).toBe('Hi ‹Vorname›');
+  });
 });
 
 describe('resolveCardText without a sample', () => {
   it('shows each attribute as a placeholder named by its label, else its key', () => {
-    expect(resolveCardText(project(), LANG, 'Hi {{attribute1}} {{attribute2}}')).toEqual([
+    expect(resolveCardText(project(), LANG, 'Hi {{attribute1}} {{attribute2}}', 'ios')).toEqual([
       { kind: 'text', text: 'Hi ' },
       { kind: 'placeholder', label: 'Erstes' },
       { kind: 'text', text: ' ' },
@@ -136,26 +153,30 @@ describe('resolveCardText without a sample', () => {
   });
 
   it('still empties unknown keys, groups and refs: templates', () => {
-    expect(resolveCardText(project(), LANG, '{{attribute3}}{{address}}{{refs:EAbc:attribute1}}')).toEqual([]);
+    expect(resolveCardText(project(), LANG, '{{attribute3}}{{address}}{{refs:EAbc:attribute1}}', 'ios')).toEqual([]);
   });
 });
 
 describe('cardSummary', () => {
   it('uses the primary field when it is set', () => {
-    expect(cardSummary(project(SAMPLE), LANG, { primaryField: '{{address.city}}' })).toEqual([{ kind: 'text', text: 'Bern' }]);
+    expect(cardSummary(project(SAMPLE), LANG, { primaryField: '{{address.city}}' }, 'ios')).toEqual([{ kind: 'text', text: 'Bern' }]);
+  });
+
+  it('treats an empty primary field as missing, as the exported bundle drops it', () => {
+    expect(cardSummary(project(SAMPLE), LANG, { primaryField: '' }, 'ios')).toEqual([{ kind: 'text', text: 'Für Hundehalter' }]);
   });
 
   it('falls back to the description, which is resolved too', () => {
-    expect(cardSummary(project(SAMPLE), LANG, {})).toEqual([{ kind: 'text', text: 'Für Hundehalter' }]);
+    expect(cardSummary(project(SAMPLE), LANG, {}, 'ios')).toEqual([{ kind: 'text', text: 'Für Hundehalter' }]);
     const p = project(SAMPLE);
     p.meta[LANG].description = 'Halter: {{attribute1}}';
-    expect(cardSummary(p, LANG, {})).toEqual([{ kind: 'text', text: 'Halter: attribute1Value' }]);
+    expect(cardSummary(p, LANG, {}, 'ios')).toEqual([{ kind: 'text', text: 'Halter: attribute1Value' }]);
   });
 
   it('is empty when there is neither a primary field nor a description', () => {
     const p = project(SAMPLE);
     p.meta[LANG].description = '';
-    expect(cardSummary(p, LANG, {})).toEqual([]);
-    expect(cardSummary(p, 'fr-CH', {})).toEqual([]);
+    expect(cardSummary(p, LANG, {}, 'ios')).toEqual([]);
+    expect(cardSummary(p, 'fr-CH', {}, 'ios')).toEqual([]);
   });
 });

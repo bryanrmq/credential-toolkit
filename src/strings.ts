@@ -159,6 +159,7 @@ export const t = {
     accepted: (platform: string, translucent: boolean) => `${platform}: shows this colour${translucent ? ', translucent' : ''}`,
     nameShown: (platform: string, text: string) => `${platform}: shows "${text}" when the name is empty`,
     nameHidden: (platform: string) => `${platform}: no text when the name is empty`,
+    summary: (platform: string, text: string) => (text ? `${platform}: summary "${text}"` : `${platform}: empty summary`),
   },
   output: {
     title: 'Output',

@@ -27,6 +27,13 @@ describe('cardDifferences', () => {
     expect(cardDifferences('android', { name: '' })).toEqual([{ kind: 'name', text: 'n/a' }]);
   });
 
+  it('names the other platform summary when the template rules give different text', () => {
+    const summaries = { ios: 'Bello', android: '' };
+    expect(cardDifferences('ios', { name: 'Permit', summaries })).toEqual([{ kind: 'summary', text: '' }]);
+    expect(cardDifferences('android', { name: 'Permit', summaries })).toEqual([{ kind: 'summary', text: 'Bello' }]);
+    expect(cardDifferences('ios', { name: 'Permit', summaries: { ios: 'Rex', android: 'Rex' } })).toEqual([]);
+  });
+
   it('flips the platform', () => {
     expect(otherPlatform('ios')).toBe('android');
     expect(otherPlatform('android')).toBe('ios');

@@ -6,6 +6,8 @@
  * `GetContrastedColorImpl.kt`).
  */
 
+import type { ClaimsPath } from '../model';
+
 export type CardPlatform = 'ios' | 'android';
 export type CardVariant = 'detail' | 'offer';
 export type Ink = 'black' | 'white';
@@ -46,6 +48,8 @@ export interface CardProfile {
   textInk(background: Rgba): Ink;
   /** Shown when the name is empty; null draws no name. */
   missingName: string | null;
+  /** Applies a template's `[N]` or `[null]` suffix to an attribute's claims path; null when nothing can match. */
+  indexPath(path: ClaimsPath, index: number | null): ClaimsPath | null;
   layout: Record<CardVariant, CardLayout>;
 }
 
@@ -111,6 +115,19 @@ function androidTextInk({ r, g, b }: Rgba): Ink {
   return contrastWithWhite > contrastWithBlack ? 'white' : 'black';
 }
 
+/** iOS `AttributeTemplateResolver`: `[N]` replaces the path's single `null`; `[null]` leaves the path as is. */
+function iosIndexPath(path: ClaimsPath, index: number | null): ClaimsPath | null {
+  if (index === null) return path;
+  const nulls = path.filter((segment) => segment === null).length;
+  return nulls === 1 ? path.map((segment) => (segment === null ? index : segment)) : null;
+}
+
+/** Android `TransformOcaOverlaysImpl.getReplacement`: drops a trailing `null`, then appends the index. */
+function androidIndexPath(path: ClaimsPath, index: number | null): ClaimsPath {
+  const base = path[path.length - 1] === null ? path.slice(0, -1) : path;
+  return [...base, index];
+}
+
 export const CARD_PROFILES: Record<CardPlatform, CardProfile> = {
   ios: {
     platform: 'ios',
@@ -118,6 +135,7 @@ export const CARD_PROFILES: Record<CardPlatform, CardProfile> = {
     fallbackBackground: { r: 0xd7, g: 0xd4, b: 0xcd, a: 1 },
     textInk: iosTextInk,
     missingName: 'n/a',
+    indexPath: iosIndexPath,
     layout: {
       // CredentialCard .large, credential detail screen
       detail: {
@@ -153,6 +171,7 @@ export const CARD_PROFILES: Record<CardPlatform, CardProfile> = {
     fallbackBackground: { r: 0xf0, g: 0xed, b: 0xe5, a: 1 },
     textInk: androidTextInk,
     missingName: null,
+    indexPath: androidIndexPath,
     layout: {
       // CredentialCardCreditFormat, credential detail screen
       detail: {

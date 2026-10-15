@@ -5,16 +5,24 @@ export type CardDifference =
   | { kind: 'ink'; ink: Ink }
   | { kind: 'background'; fallback: string }
   | { kind: 'accepted'; translucent: boolean }
-  | { kind: 'name'; text: string | null };
+  | { kind: 'name'; text: string | null }
+  | { kind: 'summary'; text: string };
 
 export function otherPlatform(platform: CardPlatform): CardPlatform {
   return platform === 'ios' ? 'android' : 'ios';
 }
 
-/** Where the other wallet would draw these card inputs differently from `current`. */
-export function cardDifferences(current: CardPlatform, inputs: { name: string; background?: string }): CardDifference[] {
+/**
+ * Where the other wallet would draw these card inputs differently from `current`. `summaries` holds the summary
+ * line each platform resolves (their template index rules differ).
+ */
+export function cardDifferences(
+  current: CardPlatform,
+  inputs: { name: string; background?: string; summaries?: Record<CardPlatform, string> },
+): CardDifference[] {
+  const other = otherPlatform(current);
   const here = CARD_PROFILES[current];
-  const there = CARD_PROFILES[otherPlatform(current)];
+  const there = CARD_PROFILES[other];
   const hereColour = here.parseBackground(inputs.background);
   const thereColour = there.parseBackground(inputs.background);
   const differences: CardDifference[] = [];
@@ -25,5 +33,7 @@ export function cardDifferences(current: CardPlatform, inputs: { name: string; b
     if (ink !== here.textInk(hereColour)) differences.push({ kind: 'ink', ink });
   }
   if (inputs.name === '' && here.missingName !== there.missingName) differences.push({ kind: 'name', text: there.missingName });
+  const { summaries } = inputs;
+  if (summaries && summaries[current] !== summaries[other]) differences.push({ kind: 'summary', text: summaries[other] });
   return differences;
 }
