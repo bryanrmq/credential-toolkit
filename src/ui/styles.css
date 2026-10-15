@@ -1072,6 +1072,70 @@ input[type='checkbox'] {
   background: var(--surface);
   flex: none;
 }
+/* An approximation of a swiyu wallet credential card; geometry comes from the platform profile. */
+.credential-card {
+  margin: 0;
+  flex: none;
+  display: flex;
+  width: var(--card-width);
+  aspect-ratio: var(--card-ratio);
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: var(--card-line-height);
+}
+.credential-card--text-top {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--card-logo-gap);
+}
+.credential-card--text-bottom {
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--card-logo-gap);
+}
+.credential-card__text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-text-gap);
+}
+.credential-card--text-top .credential-card__text {
+  flex: 1;
+}
+.credential-card__logo {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  width: var(--card-logo-width);
+  height: var(--card-logo-height);
+}
+.credential-card--text-bottom .credential-card__logo {
+  align-self: flex-end;
+}
+.credential-card__logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.credential-card__name,
+.credential-card__summary {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.credential-card__name {
+  font-weight: var(--card-name-weight);
+}
+.credential-card__summary {
+  opacity: 0.7;
+}
+.credential-card__placeholder {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
 .entries {
   width: 100%;
   border-collapse: collapse;
