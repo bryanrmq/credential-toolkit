@@ -188,6 +188,15 @@ export const t = {
     working: 'Building…',
     failed: (message: string) => `The bundle could not be built: ${message}`,
   },
+  fixes: {
+    fix: 'Fix',
+    fixAll: (count: number) => `Fix all (${count})`,
+    undo: 'Undo',
+    fixed: (fixed: number, total: number) =>
+      fixed === total ? `Fixed ${fixed} ${fixed === 1 ? 'issue' : 'issues'}` : `Fixed ${fixed} of ${total} issues`,
+    failed: (label?: string) => (label ? `Couldn't fix: ${label}` : "Couldn't apply the fixes"),
+    stale: 'The project changed while fixing. Try again.',
+  },
   sample: {
     none: 'No sample credential attached. Attach one to check that every source path exists.',
     attached: 'Sample credential attached: source paths are checked against it. It is never exported.',

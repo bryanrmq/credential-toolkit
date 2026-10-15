@@ -1,11 +1,11 @@
-import { CheckCircleIcon, CheckIcon, CopyIcon, DeviceMobileIcon, DownloadSimpleIcon, WarningCircleIcon, WarningIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { CheckCircleIcon, CheckIcon, CopyIcon, DeviceMobileIcon, DownloadSimpleIcon, WarningCircleIcon, WarningIcon, WrenchIcon } from '@phosphor-icons/react';
+import { Fragment, useState } from 'react';
 import { BUNDLE_FILE_NAME, buildVctSnippet } from '../../core/export/outputs';
 import { useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
-import { Badge, Button, Tabs } from '../components/controls';
-import { goToIssue, groupIssues, useFieldIssues, useIssues } from '../issues';
+import { Badge, Button, InlineIssueFixes, IssueFixes, Tabs } from '../components/controls';
+import { fixAllGroups, goToIssue, groupIssues, useFieldIssues, useIssues } from '../issues';
 import { copyText, downloadText } from '../lib/download';
 import { SampleControl } from './SampleControl';
 
@@ -50,6 +50,9 @@ export function OutputPanel({ exportState }: { exportState: ExportState }) {
   const issues = useIssues();
   const errors = issues.filter((issue) => issue.severity === 'error');
   const groups = groupIssues(issues);
+  const fixing = useStore((state) => state.fixing);
+  const applyFixes = useStore((state) => state.applyFixes);
+  const fixAll = fixAllGroups(groups, project);
   const tab = useStore((state) => state.outputTab);
   const setTab = useStore((state) => state.setOutputTab);
   const hostingIssues = useFieldIssues('field-hosting-url');
@@ -90,32 +93,42 @@ export function OutputPanel({ exportState }: { exportState: ExportState }) {
               {t.output.noIssues}
             </p>
           ) : (
-            <ul className="issues">
-              {groups.map((group, index) => (
-                <li key={index}>
-                  {group.severity === 'error' ? <WarningCircleIcon className="issue-icon--error" /> : <WarningIcon className="issue-icon--warning" />}
-                  <div className="issues__body">
-                    <button type="button" className="issues__summary" onClick={() => goToIssue(group.issues[0])}>
-                      {group.summary}
-                    </button>
-                    {group.langs.length > 0 && (
-                      <div className="issues__langs">
-                        {group.langs.map((lang) => (
-                          <button
-                            key={lang}
-                            type="button"
-                            className="chip"
-                            onClick={() => goToIssue(group.issues.find((issue) => 'lang' in issue.target && issue.target.lang === lang)!)}
-                          >
-                            {lang}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <>
+              {fixAll.length > 0 && (
+                <div className="issues__toolbar">
+                  <Button size="small" disabled={fixing} onClick={() => void applyFixes(fixAll)}>
+                    <WrenchIcon /> {t.fixes.fixAll(fixAll.length)}
+                  </Button>
+                </div>
+              )}
+              <ul className="issues">
+                {groups.map((group, index) => (
+                  <li key={index}>
+                    {group.severity === 'error' ? <WarningCircleIcon className="issue-icon--error" /> : <WarningIcon className="issue-icon--warning" />}
+                    <div className="issues__body">
+                      <button type="button" className="issues__summary" onClick={() => goToIssue(group.issues[0])}>
+                        {group.summary}
+                      </button>
+                      {group.langs.length > 0 && (
+                        <div className="issues__langs">
+                          {group.langs.map((lang) => (
+                            <button
+                              key={lang}
+                              type="button"
+                              className="chip"
+                              onClick={() => goToIssue(group.issues.find((issue) => 'lang' in issue.target && issue.target.lang === lang)!)}
+                            >
+                              {lang}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <IssueFixes group={group} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
           ))}
 
         {tab !== 'issues' && (
@@ -149,9 +162,12 @@ export function OutputPanel({ exportState }: { exportState: ExportState }) {
                   )}
                   {hosting.mode === 'url' &&
                     hostingIssues.map((issue) => (
-                      <span key={issue.code} className="field__issue field__issue--warning" style={{ marginTop: 6 }}>
-                        {issue.message}
-                      </span>
+                      <Fragment key={issue.code}>
+                        <span className="field__issue field__issue--warning" style={{ marginTop: 6 }}>
+                          {issue.message}
+                        </span>
+                        <InlineIssueFixes issue={issue} />
+                      </Fragment>
                     ))}
                 </span>
               </label>

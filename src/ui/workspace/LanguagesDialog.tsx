@@ -1,10 +1,10 @@
 import { ArrowDownIcon, ArrowUpIcon, TrashIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { LANGUAGE_NAMES, isValidLanguageTag } from '../../core/langs';
 import { addLanguage, moveLanguage, removeLanguage } from '../../core/operations';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
-import { Badge, Button, Dialog } from '../components/controls';
+import { Badge, Button, Dialog, InlineIssueFixes } from '../components/controls';
 import { useFieldIssues } from '../issues';
 
 export function LanguagesDialog() {
@@ -50,9 +50,10 @@ export function LanguagesDialog() {
         ))}
       </ul>
       {issues.map((issue, index) => (
-        <p key={index} className={`field__issue field__issue--${issue.severity}`}>
-          {issue.message}
-        </p>
+        <Fragment key={index}>
+          <p className={`field__issue field__issue--${issue.severity}`}>{issue.message}</p>
+          <InlineIssueFixes issue={issue} />
+        </Fragment>
       ))}
       {missingDefaults.length > 0 && (
         <div className="row row--wrap" style={{ marginBottom: 16 }}>

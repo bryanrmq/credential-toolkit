@@ -1298,6 +1298,16 @@ input[type='checkbox'] {
   flex-wrap: wrap;
   gap: 4px;
 }
+.issues__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 0 4px;
+}
+.issue-fixes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
 .chip {
   border: 1px solid var(--border);
   background: var(--surface);
