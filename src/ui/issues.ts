@@ -1,7 +1,10 @@
 import { createContext, useContext } from 'react';
-import type { LangTag } from '../core/model';
+import type { LangTag, Project } from '../core/model';
 import type { Issue, IssueTarget, Severity } from '../core/validate';
+import { type Fix, type FixTools, LANGUAGE_RENAME_CODES, fixesFor } from '../core/validate/fixes';
 import { useStore } from '../state/store';
+import { t } from '../strings';
+import { downscaleLogo } from './lib/logo';
 
 export const IssuesContext = createContext<Issue[]>([]);
 
@@ -42,6 +45,40 @@ export function groupIssues(issues: Issue[]): IssueGroup[] {
   }
   const list = [...groups.values()];
   return [...list.filter((group) => group.severity === 'error'), ...list.filter((group) => group.severity === 'warning')];
+}
+
+/** Image work for fixes, done with the browser's canvas. */
+export const FIX_TOOLS: FixTools = { reencodePng: downscaleLogo };
+
+/** One fix button: its label and the fix it applies in each language of the group. */
+export interface GroupFix {
+  label: string;
+  fixes: Fix[];
+}
+
+/**
+ * The fix buttons of an issue group: none, one (Fix all applies it) or one per choice. When every issue has a single
+ * fix but the labels differ between languages (a different colour in each), the one button is labelled "Fix".
+ */
+export function groupFixes(group: IssueGroup, project: Project, tools: FixTools = FIX_TOOLS): GroupFix[] {
+  const perIssue = group.issues.map((issue) => fixesFor(issue, project, tools)).filter((fixes) => fixes.length > 0);
+  if (perIssue.length === 0) return [];
+  if (perIssue.every((fixes) => fixes.length === 1)) {
+    const fixes = perIssue.map(([fix]) => fix);
+    return [{ label: fixes.every((fix) => fix.label === fixes[0].label) ? fixes[0].label : t.fixes.fix, fixes }];
+  }
+  const byLabel = new Map<string, Fix[]>();
+  for (const fix of perIssue.flat()) byLabel.set(fix.label, [...(byLabel.get(fix.label) ?? []), fix]);
+  return [...byLabel].map(([label, fixes]) => ({ label, fixes }));
+}
+
+/** What Fix all applies: the fixes of every group with a single button, in list order, language renames last. */
+export function fixAllGroups(groups: IssueGroup[], project: Project, tools: FixTools = FIX_TOOLS): Fix[][] {
+  const renames = (group: IssueGroup) => LANGUAGE_RENAME_CODES.includes(group.code);
+  return [...groups.filter((group) => !renames(group)), ...groups.filter(renames)]
+    .map((group) => groupFixes(group, project, tools))
+    .filter((options) => options.length === 1)
+    .map(([option]) => option.fixes);
 }
 
 export function useFieldIssues(id: string): Issue[] {

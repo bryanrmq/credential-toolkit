@@ -8,6 +8,7 @@ import {
   moveNode,
   removeLanguage,
   removeNode,
+  renameLanguage,
   renameNode,
   sourcePrefixFor,
   uniqueKey,
@@ -31,6 +32,26 @@ describe('tree operations', () => {
     const { project: p } = project();
     insertNode(p, p.root.id, newAttribute('first'), 0);
     expect(keys(p.root.children)).toEqual(['first', 'a', 'b', 'g']);
+  });
+
+  it('renames a language everywhere it is used', () => {
+    const { project: p, a, group, inner } = project();
+    p.meta['en-GB'].name = 'Card';
+    renameLanguage(p, 'en-GB', 'en-US');
+    expect(p.languages).toEqual(['de-CH', 'en-US']);
+    expect(p.meta['en-US'].name).toBe('Card');
+    expect(p.branding['en-US']).toEqual({ light: {} });
+    expect('en-GB' in p.meta || 'en-GB' in p.branding).toBe(false);
+    expect(a.labels).toEqual({ 'de-CH': 'A', 'en-US': 'A' });
+    expect(group.labels).toEqual({ 'en-US': 'G' });
+    expect(inner.entries!.labels).toEqual({ 'en-US': { x: 'X' } });
+  });
+
+  it('does not rename a language onto one that already exists', () => {
+    const { project: p } = project();
+    renameLanguage(p, 'en-GB', 'de-CH');
+    expect(p.languages).toEqual(['de-CH', 'en-GB']);
+    expect(p.meta['en-GB']).toBeDefined();
   });
 
   it('removes nested nodes', () => {

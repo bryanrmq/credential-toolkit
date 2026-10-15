@@ -235,4 +235,82 @@ describe('Workspace', () => {
     await user.dblClick(structure);
     expect(structure).toHaveAttribute('aria-valuenow', '300');
   });
+
+  it('fixes an issue from the Issues tab', async () => {
+    const user = userEvent.setup();
+    useStore.getState().setOutputTab('issues');
+    render(<Workspace />);
+    const output = screen.getByRole('region', { name: 'Output' });
+    await user.click(within(output).getByRole('button', { name: 'Set source to broken' }));
+    expect(screen.queryByText('1 error')).not.toBeInTheDocument();
+    expect(useStore.getState().project!.root.children[1].source).toEqual(['broken']);
+  });
+
+  it('offers the same fix under the field', async () => {
+    const user = userEvent.setup();
+    useStore.getState().setOutputTab('issues');
+    render(<Workspace />);
+    await user.click(screen.getByRole('button', { name: /"broken" has no source path/ }));
+    const inspector = screen.getByRole('region', { name: 'Edit' });
+    await user.click(within(inspector).getByRole('button', { name: 'Set source to broken' }));
+    expect(screen.getByLabelText('Source path')).toHaveValue('broken');
+    expect(within(inspector).queryByText(/has no source path/)).not.toBeInTheDocument();
+  });
+
+  it('fixes every issue that has a single fix at once', async () => {
+    const user = userEvent.setup();
+    useStore.getState().update((draft) => {
+      draft.root.children.push(
+        newAttribute('a b', { source: ['ab'], labels: { 'de-CH': 'AB' } }),
+        newAttribute('when', { type: 'DateTime', source: ['when'], labels: { 'de-CH': 'Wann' } }),
+      );
+    });
+    useStore.getState().setOutputTab('issues');
+    render(<Workspace />);
+    const output = screen.getByRole('region', { name: 'Output' });
+    await user.click(within(output).getByRole('button', { name: 'Fix all (2)' }));
+    expect(useStore.getState().project!.root.children.map((node) => node.key)).toEqual(['name', 'broken', 'a_b', 'when']);
+    expect(useStore.getState().project!.root.children[1].source).toEqual(['broken']);
+    expect(within(output).getByRole('button', { name: 'Use ISO 8601' })).toBeInTheDocument();
+    expect(within(output).getByRole('button', { name: 'Use Unix time' })).toBeInTheDocument();
+    expect(within(output).queryByRole('button', { name: /Fix all/ })).not.toBeInTheDocument();
+  });
+
+  it('fixes a language tag from the languages dialog', async () => {
+    const user = userEvent.setup();
+    useStore.getState().load(emptyProject(['de-CH', 'fr']));
+    useStore.getState().setLanguagesOpen(true);
+    render(<Workspace />);
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Rename to "fr-CH"' }));
+    expect(useStore.getState().project!.languages).toEqual(['de-CH', 'fr-CH']);
+    useStore.getState().setLanguagesOpen(false);
+  });
+
+  it('undoes a fix from the toast', async () => {
+    const user = userEvent.setup();
+    useStore.getState().setOutputTab('issues');
+    render(<Workspace />);
+    await user.click(within(screen.getByRole('region', { name: 'Output' })).getByRole('button', { name: 'Set source to broken' }));
+    expect(screen.getByText('Fixed 1 issue')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(screen.getByText('1 error')).toBeInTheDocument();
+    expect(screen.queryByText('Fixed 1 issue')).not.toBeInTheDocument();
+  });
+
+  it('shows a fix under a field only when the issue of that field has one', async () => {
+    const user = userEvent.setup();
+    useStore.getState().update((draft) => {
+      draft.branding['de-CH'].light.primaryBackgroundColor = '#abc';
+      draft.branding['en-GB'].light.primaryBackgroundColor = 'red';
+    });
+    useStore.getState().select({ kind: 'credential' });
+    useStore.getState().setBrandingTheme('light');
+    render(<Workspace />);
+    const inspector = screen.getByRole('region', { name: 'Edit' });
+    expect(within(inspector).getByRole('button', { name: 'Use "#AABBCC"' })).toBeInTheDocument();
+    await user.click(within(screen.getByRole('group', { name: 'Editing language' })).getByRole('button', { name: 'en-GB' }));
+    expect(within(inspector).getByText(/background colour must look like/)).toBeInTheDocument();
+    expect(within(inspector).queryByRole('button', { name: 'Use "#AABBCC"' })).not.toBeInTheDocument();
+  });
+
 });

@@ -74,6 +74,23 @@ export function moveLanguage(project: Project, lang: LangTag, index: number): vo
   project.languages = rest;
 }
 
+/** Renames a language tag everywhere it is used. Does nothing when `from` is not listed or `to` already is. */
+export function renameLanguage(project: Project, from: LangTag, to: LangTag): void {
+  if (!project.languages.includes(from) || project.languages.includes(to)) return;
+  project.languages = project.languages.map((tag) => (tag === from ? to : tag));
+  const move = <T>(record: Record<LangTag, T>) => {
+    if (!(from in record)) return;
+    record[to] = record[from];
+    delete record[from];
+  };
+  move(project.meta);
+  move(project.branding);
+  for (const { node } of walkNodes(project.root)) {
+    move(node.labels);
+    if (node.kind === 'attribute' && node.entries) move(node.entries.labels);
+  }
+}
+
 /** Keys the editor gives new items (made unique with `_2`, `_3`…). */
 export const NEW_NODE_KEYS = { attribute: 'attribute', group: 'group', list: 'items' } as const;
 

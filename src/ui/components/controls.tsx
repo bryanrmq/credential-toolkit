@@ -1,6 +1,9 @@
 import { DotsThreeIcon, WarningCircleIcon, WarningIcon } from '@phosphor-icons/react';
-import { type ButtonHTMLAttributes, type ReactNode, useEffect, useRef, useState } from 'react';
-import { useFieldIssues } from '../issues';
+import { type ButtonHTMLAttributes, Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
+import type { Issue } from '../../core/validate';
+import { fixesFor } from '../../core/validate/fixes';
+import { useStore } from '../../state/store';
+import { FIX_TOOLS, type IssueGroup, groupFixes, groupIssues, useFieldIssues, useIssues } from '../issues';
 import { withKeys } from './keys';
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -35,13 +38,43 @@ export function Field({ id, label, hint, children }: FieldProps) {
       {children}
       {hint && <p className="field__hint">{typeof hint === 'string' ? withKeys(hint) : hint}</p>}
       {issues.map((issue, index) => (
-        <p key={index} className={`field__issue field__issue--${issue.severity}`}>
-          {issue.severity === 'error' ? <WarningCircleIcon size={14} /> : <WarningIcon size={14} />}
-          {issue.summary}
-        </p>
+        <Fragment key={index}>
+          <p className={`field__issue field__issue--${issue.severity}`}>
+            {issue.severity === 'error' ? <WarningCircleIcon size={14} /> : <WarningIcon size={14} />}
+            {issue.summary}
+          </p>
+          <InlineIssueFixes issue={issue} />
+        </Fragment>
       ))}
     </div>
   );
+}
+
+/** The fix buttons of one issue group; nothing when the group has no fix. */
+export function IssueFixes({ group }: { group: IssueGroup }) {
+  const project = useStore((state) => state.project);
+  const fixing = useStore((state) => state.fixing);
+  const applyFixes = useStore((state) => state.applyFixes);
+  const options = project ? groupFixes(group, project) : [];
+  if (options.length === 0) return null;
+  return (
+    <span className="issue-fixes">
+      {options.map((option) => (
+        <Button key={option.label} size="small" disabled={fixing} onClick={() => void applyFixes([option.fixes])}>
+          {option.label}
+        </Button>
+      ))}
+    </span>
+  );
+}
+
+/** The fix buttons for an issue shown next to its input: those of the group the issue belongs to. */
+export function InlineIssueFixes({ issue }: { issue: Issue }) {
+  const project = useStore((state) => state.project);
+  const group = groupIssues(useIssues()).find((candidate) => candidate.issues.includes(issue));
+  // The buttons fix the whole group, but only show where this issue itself can be fixed.
+  if (!group || !project || fixesFor(issue, project, FIX_TOOLS).length === 0) return null;
+  return <IssueFixes group={group} />;
 }
 
 export function Toggle({ id, checked, onChange, label }: { id?: string; checked: boolean; onChange: (checked: boolean) => void; label: ReactNode }) {

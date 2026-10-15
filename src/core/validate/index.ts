@@ -34,11 +34,13 @@ export interface Issue {
   /** The same text without the language, used to group one issue across languages. */
   summary: string;
   target: IssueTarget;
+  /** What the issue is about when the target does not say: the language tag or the value code. */
+  subject?: string;
 }
 
 const COLOR = /^#[0-9A-Fa-f]{6}$/;
-const FORBIDDEN_KEY_CHARACTERS = /[\s.[\]{}:/"]/;
-const MAX_LOGO_SIZE = 512;
+export const FORBIDDEN_KEY_CHARACTERS = /[\s.[\]{}:/"]/;
+export const MAX_LOGO_SIZE = 512;
 const MAX_CLUSTER_DEPTH = 3;
 
 export function isValidPathSegment(segment: unknown): boolean {
@@ -60,6 +62,16 @@ export function pathExists(data: unknown, path: ClaimsPath): boolean {
   return segment in data && pathExists((data as Record<string, unknown>)[segment], rest);
 }
 
+/** Every value `path` selects in `data`; a null segment fans out over the items of an array. */
+export function valuesAt(data: unknown, path: ClaimsPath): unknown[] {
+  if (path.length === 0) return [data];
+  const [segment, ...rest] = path;
+  if (segment === null) return Array.isArray(data) ? data.flatMap((item) => valuesAt(item, rest)) : [];
+  if (typeof segment === 'number') return Array.isArray(data) && segment < data.length ? valuesAt(data[segment], rest) : [];
+  if (typeof data !== 'object' || data === null || Array.isArray(data) || !(segment in data)) return [];
+  return valuesAt((data as Record<string, unknown>)[segment], rest);
+}
+
 function childFingerprint(group: Group): string {
   return JSON.stringify({
     children: group.children.map((child) => ({
@@ -77,10 +89,10 @@ function childFingerprint(group: Group): string {
 
 export function validate(project: Project): Issue[] {
   const issues: Issue[] = [];
-  const error = (code: string, message: string, target: IssueTarget, summary = message) =>
-    issues.push({ severity: 'error', code, message, summary, target });
-  const warn = (code: string, message: string, target: IssueTarget, summary = message) =>
-    issues.push({ severity: 'warning', code, message, summary, target });
+  const error = (code: string, message: string, target: IssueTarget, summary = message, subject?: string) =>
+    issues.push({ severity: 'error', code, message, summary, target, subject });
+  const warn = (code: string, message: string, target: IssueTarget, summary = message, subject?: string) =>
+    issues.push({ severity: 'warning', code, message, summary, target, subject });
   const root = project.root;
 
   const checkTemplate = (text: string | undefined, owner: Group, report: (code: string, message: string) => void) => {
@@ -109,12 +121,18 @@ export function validate(project: Project): Issue[] {
   if (project.languages.length === 0) error('languages-empty', 'Add at least one language.', { kind: 'languages' });
   const seenLanguages = new Set<LangTag>();
   for (const lang of project.languages) {
-    if (seenLanguages.has(lang)) error('language-duplicate', `"${lang}" is listed twice.`, { kind: 'languages' });
+    if (seenLanguages.has(lang)) error('language-duplicate', `"${lang}" is listed twice.`, { kind: 'languages' }, undefined, lang);
     seenLanguages.add(lang);
     if (!isValidLanguageTag(lang)) {
-      error('language-invalid', `"${lang}" is rejected by swiyu wallets. Use a tag like "de" or "de-CH".`, { kind: 'languages' });
+      error('language-invalid', `"${lang}" is rejected by swiyu wallets. Use a tag like "de" or "de-CH".`, { kind: 'languages' }, undefined, lang);
     } else if (!hasRegion(lang)) {
-      warn('language-no-region', `"${lang}" has no region. Wallets match locales exactly, so prefer a tag like "${lang}-CH".`, { kind: 'languages' });
+      warn(
+        'language-no-region',
+        `"${lang}" has no region. Wallets match locales exactly, so prefer a tag like "${lang}-CH".`,
+        { kind: 'languages' },
+        undefined,
+        lang,
+      );
     }
   }
 
@@ -249,6 +267,7 @@ export function validate(project: Project): Issue[] {
               `"${name}" translates "${code}" in ${lang}, but that code is not declared.`,
               target('entries', lang),
               `"${name}" translates "${code}", but that code is not declared.`,
+              code,
             );
           }
         }
