@@ -217,9 +217,8 @@ export function validate(project: Project): Issue[] {
       if (!source.every(isValidPathSegment)) {
         error('source-invalid', `The source path of "${name}" may only contain non-empty names, positive integers and null.`, target('source'));
       } else {
-        const endsWithNull = source[source.length - 1] === null;
-        if (isArray && !endsWithNull) warn('source-array-shape', `"${name}" is an array; its source path should end with null.`, target('source'));
-        if (!isArray && endsWithNull) warn('source-array-shape', `"${name}" is not an array but its source path ends with null.`, target('source'));
+        // An array may end with null or not (the spec only shows null in examples), but a single value may not.
+        if (!isArray && source[source.length - 1] === null) warn('source-array-shape', `"${name}" is not an array but its source path ends with null.`, target('source'));
         if (project.sample !== undefined && !pathExists(project.sample, source)) {
           warn('source-not-in-sample', `The source path of "${name}" does not exist in the sample credential.`, target('source'));
         }
