@@ -60,6 +60,15 @@ describe('validate', () => {
     expect(issues[0].message).toContain('{{nope}}');
   });
 
+  it('rejects a join separator longer than the 10 characters wallets accept', () => {
+    const project = clean();
+    project.root.children.push(newAttribute('tags', { type: { array: 'Text' }, source: ['tags', null], labels: { 'de-CH': 'Tags' } }));
+    project.branding['de-CH'].light.primaryField = "{{tags.join('0123456789')}} {{tags.join('0123456789X')}}";
+    const issues = validate(project);
+    expect(codes(issues)).toEqual(['error:template-join-too-long']);
+    expect(issues[0].message).toContain("{{tags.join('0123456789X')}}");
+  });
+
   it('checks logos and colours', () => {
     const project = clean();
     project.branding['de-CH'] = {
