@@ -1,9 +1,10 @@
+import { imageInfo } from '../image';
 import { inferPrimitive } from '../import/sample';
 import { DEFAULT_LANGUAGES } from '../langs';
 import { type Branding, type ClaimsPath, type Entries, KNOWN_STANDARDS, type NodeVisit, type Project, findNode, isArrayType } from '../model';
 import { renameLanguage, renameNode, sourcePrefixFor, uniqueKey } from '../operations';
 import { formatPath } from '../paths';
-import { FORBIDDEN_KEY_CHARACTERS, type Issue, pathExists, valuesAt } from './index';
+import { FORBIDDEN_KEY_CHARACTERS, type Issue, MAX_LOGO_SIZE, pathExists, valuesAt } from './index';
 
 export interface Fix {
   /** Says what will change, e.g. 'Rename to "birth_date"'. */
@@ -135,6 +136,31 @@ function pathsEndingWith(data: unknown, key: string): ClaimsPath[] {
   };
   walk(data, []);
   return [...found.values()];
+}
+
+const IMAGE_DATA_URL = /^data:image\/[\w.+-]+;base64,/;
+
+function isTooLarge(logo: string): boolean {
+  const { width, height } = imageInfo(logo);
+  return !!width && !!height && Math.max(width, height) > MAX_LOGO_SIZE;
+}
+
+function isConvertible(logo: string): boolean {
+  return IMAGE_DATA_URL.test(logo) && !imageInfo(logo).declaredMime;
+}
+
+/**
+ * Replaces the logo with a re-encoded PNG. The image is processed first; the logo is only written when it is still
+ * the one that was processed.
+ */
+function reencodeLogo(issue: Issue, tools: FixTools, needed: (logo: string) => boolean) {
+  return async (draft: Project) => {
+    const before = brandingAt(draft, issue)?.logo;
+    if (!before || !needed(before)) return;
+    const after = await tools.reencodePng(before, MAX_LOGO_SIZE);
+    const branding = brandingAt(draft, issue);
+    if (branding?.logo === before) branding.logo = after;
+  };
 }
 
 const FIXES: Record<string, FixFactory> = {
@@ -331,7 +357,56 @@ const FIXES: Record<string, FixFactory> = {
       },
     ];
   },
+
+  'logo-mime-mismatch': (issue, project) => {
+    const logo = brandingAt(project, issue)?.logo;
+    const info = logo ? imageInfo(logo) : undefined;
+    if (!info?.declaredMime || !info.actualMime || info.declaredMime === info.actualMime) return [];
+    return [
+      {
+        label: `Mark as ${info.actualMime === 'image/png' ? 'PNG' : 'JPEG'}`,
+        apply: (draft) => {
+          const branding = brandingAt(draft, issue);
+          const current = branding?.logo ? imageInfo(branding.logo) : undefined;
+          if (branding?.logo && current?.declaredMime && current.actualMime && current.declaredMime !== current.actualMime) {
+            branding.logo = branding.logo.replace(current.declaredMime, current.actualMime);
+          }
+        },
+      },
+    ];
+  },
+
+  'logo-too-large': (issue, project, tools) => {
+    const logo = brandingAt(project, issue)?.logo;
+    if (!logo || !isTooLarge(logo)) return [];
+    return [{ label: `Shrink to ${MAX_LOGO_SIZE} px`, apply: reencodeLogo(issue, tools, isTooLarge) }];
+  },
+
+  'logo-format': (issue, project, tools) => {
+    const logo = brandingAt(project, issue)?.logo;
+    if (!logo || !isConvertible(logo)) return [];
+    return [{ label: 'Convert to PNG', apply: reencodeLogo(issue, tools, isConvertible) }];
+  },
 };
+
+/** Codes with a fix rule. */
+export const FIXABLE_CODES: readonly string[] = Object.keys(FIXES);
+
+/** Codes `validate()` raises that deliberately have no fix: they need the issuer's own content or judgement. */
+export const NO_FIX_CODES: readonly string[] = [
+  'languages-empty',
+  'name-missing',
+  'label-missing',
+  'summary-missing',
+  'entry-missing',
+  'hosting-url-missing',
+  'template-unresolved',
+  'template-join-too-long',
+  'source-invalid',
+  'cluster-too-deep',
+  'logo-not-square',
+  'digest-collision',
+];
 
 /** The fixes for one issue: none (no button), one (a Fix button, used by Fix all) or several (one button each). */
 export function fixesFor(issue: Issue, project: Project, tools: FixTools): Fix[] {

@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { pngDataUrl } from '../../test/images';
+import { describe, expect, it, vi } from 'vitest';
+import { jpegDataUrl, pngDataUrl } from '../../test/images';
 import { KNOWN_STANDARDS, type Project, emptyProject, newAttribute, newGroupLink } from '../model';
-import { type FixTools, fixesFor } from './fixes';
+import { FIXABLE_CODES, type FixTools, NO_FIX_CODES, fixesFor } from './fixes';
+import validateSource from './index.ts?raw';
 import { type Issue, validate } from './index';
 
 const TOOLS: FixTools = { reencodePng: async () => pngDataUrl(512, 512) };
@@ -359,5 +360,78 @@ describe('value fixes', () => {
     project.sample = { name: 'Rex', home: { city: 'Bern' }, work: { city: 'Biel' } };
     project.root.children.push(newAttribute('city', { source: ['city'], labels: { 'de-CH': 'Ort' } }));
     expect(labels(project, 'source-not-in-sample')).toEqual([]);
+  });
+});
+
+describe('logo fixes', () => {
+  function withLogo(logo: string): Project {
+    const project = clean();
+    project.branding['de-CH'].light.logo = logo;
+    return project;
+  }
+
+  it('relabels a logo with the type its bytes have', async () => {
+    const project = withLogo(jpegDataUrl(64, 64, 'image/png'));
+    expect(labels(project, 'logo-mime-mismatch')).toEqual(['Mark as JPEG']);
+    const result = await fixed(project, 'logo-mime-mismatch');
+    expect(result.branding['de-CH'].light.logo).toBe(jpegDataUrl(64, 64));
+    expect(codes(result)).toEqual([]);
+  });
+
+  it('shrinks a logo that is too large', async () => {
+    const big = pngDataUrl(1024, 1024);
+    const tools: FixTools = { reencodePng: vi.fn(async () => pngDataUrl(512, 512)) };
+    const project = withLogo(big);
+    expect(labels(project, 'logo-too-large', tools)).toEqual(['Shrink to 512 px']);
+    const result = await fixed(project, 'logo-too-large', undefined, tools);
+    expect(tools.reencodePng).toHaveBeenCalledWith(big, 512);
+    expect(result.branding['de-CH'].light.logo).toBe(pngDataUrl(512, 512));
+    expect(codes(result)).toEqual([]);
+  });
+
+  it('converts another image type to PNG', async () => {
+    const project = withLogo('data:image/svg+xml;base64,PHN2Zy8+');
+    expect(labels(project, 'logo-format')).toEqual(['Convert to PNG']);
+    const result = await fixed(project, 'logo-format');
+    expect(result.branding['de-CH'].light.logo).toBe(pngDataUrl(512, 512));
+    expect(codes(result)).toEqual([]);
+  });
+
+  it('cannot convert a logo that is not a data URL', () => {
+    expect(labels(withLogo('https://issuer.example.ch/logo.png'), 'logo-format')).toEqual([]);
+  });
+
+  it('leaves the logo alone when the image cannot be decoded', async () => {
+    const big = pngDataUrl(1024, 1024);
+    const tools: FixTools = { reencodePng: async () => Promise.reject(new Error('decode failed')) };
+    const project = withLogo(big);
+    const [fix] = fixesFor(issueOf(project, 'logo-too-large'), project, tools);
+    const draft = structuredClone(project);
+    await expect(fix.apply(draft)).rejects.toThrow('decode failed');
+    expect(draft.branding['de-CH'].light.logo).toBe(big);
+  });
+
+  it('keeps a logo the issuer replaced while it was being shrunk', async () => {
+    let finish!: (value: string) => void;
+    const tools: FixTools = { reencodePng: () => new Promise<string>((resolve) => (finish = resolve)) };
+    const project = withLogo(pngDataUrl(1024, 1024));
+    const [fix] = fixesFor(issueOf(project, 'logo-too-large'), project, tools);
+    const draft = structuredClone(project);
+    const running = fix.apply(draft);
+    draft.branding['de-CH'].light.logo = pngDataUrl(100, 100);
+    finish(pngDataUrl(512, 512));
+    await running;
+    expect(draft.branding['de-CH'].light.logo).toBe(pngDataUrl(100, 100));
+  });
+});
+
+describe('fix catalogue', () => {
+  it('decides for every validation code whether it has a fix', () => {
+    const raised = new Set([...validateSource.matchAll(/\b(?:error|warn|report)\(\s*'([a-z-]+)'/g)].map((match) => match[1]));
+    expect(raised.size).toBeGreaterThan(25);
+    const decided = new Set([...FIXABLE_CODES, ...NO_FIX_CODES]);
+    expect([...raised].filter((code) => !decided.has(code))).toEqual([]);
+    expect([...decided].filter((code) => !raised.has(code))).toEqual([]);
+    expect(FIXABLE_CODES.filter((code) => NO_FIX_CODES.includes(code))).toEqual([]);
   });
 });
