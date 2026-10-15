@@ -27,6 +27,11 @@ describe('cardDifferences', () => {
     expect(cardDifferences('android', { name: '' })).toEqual([{ kind: 'name', text: 'n/a' }]);
   });
 
+  it('names the other platform home-row text for an empty name', () => {
+    expect(cardDifferences('android', { variant: 'home', name: '' })).toEqual([{ kind: 'name', text: 'Credential' }]);
+    expect(cardDifferences('ios', { variant: 'home', name: '' })).toEqual([{ kind: 'name', text: null }]);
+  });
+
   it('names the other platform summary when the template rules give different text', () => {
     const summaries = { ios: 'Bello', android: '' };
     expect(cardDifferences('ios', { name: 'Permit', summaries })).toEqual([{ kind: 'summary', text: '' }]);

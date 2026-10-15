@@ -1,15 +1,12 @@
 import type { CSSProperties } from 'react';
-import type { CardLayout, Ink, Rgba } from '../../core/card/profiles';
+import { type CardLayout, type Ink, type Rgba, formatRgba } from '../../core/card/profiles';
 import type { SummarySegment } from '../../core/card/summary';
+import { CardLogo, GradientLayers, SummaryText } from './cardParts';
 
 const INK_COLOUR = { black: '#000000', white: '#FFFFFF' } as const;
-/** Both wallets draw the logo as a black or white silhouette of its alpha channel. */
-const INK_FILTER = { black: 'brightness(0)', white: 'brightness(0) invert(1)' } as const;
-/** The only logos both wallets can decode and Android accepts. */
-const DRAWABLE_LOGO = /^data:image\/(?:png|jpeg);base64,/;
 
 export interface CredentialCardProps {
-  /** Accessible name, e.g. "iOS detail card". */
+  /** Accessible name, e.g. "iOS card". */
   label: string;
   layout: CardLayout;
   background: Rgba;
@@ -22,7 +19,7 @@ export interface CredentialCardProps {
   scale?: number;
 }
 
-/** One wallet's credential card: colour, black or white content, logo silhouette, name and summary. */
+/** One wallet's credential card: colour and gradients, black or white content, logo silhouette, name and summary. */
 export function CredentialCard({ label, layout, background, ink, name, summary, logo, scale = 1 }: CredentialCardProps) {
   const { padding } = layout;
   const style = {
@@ -36,30 +33,18 @@ export function CredentialCard({ label, layout, background, ink, name, summary, 
     '--card-text-gap': `${layout.textGap}px`,
     '--card-name-weight': String(layout.nameWeight),
     '--card-line-height': layout.lineHeight === 'normal' ? 'normal' : `${layout.lineHeight}px`,
-    background: `rgba(${background.r}, ${background.g}, ${background.b}, ${background.a})`,
+    background: formatRgba(background),
     color: INK_COLOUR[ink],
     zoom: scale,
   } as CSSProperties;
 
-  const logoBox = (
-    <span className="credential-card__logo">
-      {logo && DRAWABLE_LOGO.test(logo) && <img src={logo} alt="" style={{ filter: INK_FILTER[ink] }} />}
-    </span>
-  );
+  const logoBox = <CardLogo logo={logo} ink={ink} className="credential-card__logo" />;
   const text = (
     <div className="credential-card__text">
       {name !== null && <p className="credential-card__name">{name}</p>}
       {summary.length > 0 && (
         <p className="credential-card__summary">
-          {summary.map((segment, index) =>
-            segment.kind === 'text' ? (
-              segment.text
-            ) : (
-              <span key={index} className="credential-card__placeholder">
-                ‹{segment.label}›
-              </span>
-            ),
-          )}
+          <SummaryText segments={summary} />
         </p>
       )}
     </div>
@@ -67,6 +52,7 @@ export function CredentialCard({ label, layout, background, ink, name, summary, 
 
   return (
     <figure className={`credential-card credential-card--text-${layout.textPosition}`} style={style} aria-label={label} data-ink={ink}>
+      <GradientLayers gradients={layout.gradients} width={layout.referenceWidth} height={layout.referenceWidth / layout.aspectRatio} />
       {layout.textPosition === 'top' ? (
         <>
           {text}

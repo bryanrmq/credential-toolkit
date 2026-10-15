@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { selectBranding } from '../../core/card/branding';
 import { type CardDifference, cardDifferences, otherPlatform } from '../../core/card/differences';
-import { CARD_PROFILES, type CardPlatform } from '../../core/card/profiles';
+import { CARD_PROFILES, type CardPlatform, type CardVariant, shownVariant } from '../../core/card/profiles';
 import { cardSummary, summaryText } from '../../core/card/summary';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { CredentialCard } from '../components/CredentialCard';
+import { CredentialHomeRow } from '../components/CredentialHomeRow';
 import { Tabs } from '../components/controls';
 
 function describeDifference(difference: CardDifference, platform: CardPlatform): string {
@@ -48,15 +49,20 @@ export function CardPreview() {
   const { setCardPlatform, setCardVariant } = useStore.getState();
 
   const profile = CARD_PROFILES[platform];
-  const layout = profile.layout[variant];
-  const { ref, scale } = useFitScale(layout.referenceWidth);
+  const shown = shownVariant(profile, variant);
+  const layout = shown === 'offer' && profile.layout.offer ? profile.layout.offer : profile.layout.detail;
+  const { ref, scale } = useFitScale(shown === 'home' ? profile.home.referenceWidth : layout.referenceWidth);
   const { branding, lightShownForDark } = selectBranding(project, lang, theme);
   const name = project.meta[lang]?.name ?? '';
   const other = otherPlatform(platform);
   const summary = cardSummary(project, lang, branding, platform);
   const summaries = { [platform]: summaryText(summary), [other]: summaryText(cardSummary(project, lang, branding, other)) } as Record<CardPlatform, string>;
   const background = profile.parseBackground(branding.primaryBackgroundColor) ?? profile.fallbackBackground;
-  const differences = cardDifferences(platform, { name, background: branding.primaryBackgroundColor, summaries });
+  const ink = profile.textInk(background);
+  const differences = cardDifferences(platform, { variant: shown, name, background: branding.primaryBackgroundColor, summaries });
+  // A wallet that shows its detail card on the offer screen calls it just "Card".
+  const tabName = (option: CardVariant) => (option === 'detail' && !profile.variants.includes('offer') ? 'card' : option);
+  const label = `${t.cardPreview.platforms[platform]} ${t.cardPreview.drawn[tabName(shown)]}`;
 
   return (
     <div className="card-preview">
@@ -74,26 +80,41 @@ export function CardPreview() {
           />
           <Tabs
             label={t.cardPreview.card}
-            value={variant}
+            value={shown}
             onChange={setCardVariant}
-            options={[
-              { value: 'detail', label: t.cardPreview.variants.detail },
-              { value: 'offer', label: t.cardPreview.variants.offer },
-            ]}
+            options={profile.variants.map((option) => ({ value: option, label: t.cardPreview.variants[tabName(option)] }))}
           />
         </div>
       </div>
-      <div ref={ref} className={`card-preview__stage card-preview__stage--${theme}`}>
-        <CredentialCard
-          label={t.cardPreview.cardLabel(t.cardPreview.platforms[platform], t.cardPreview.variants[variant])}
-          layout={layout}
-          background={background}
-          ink={profile.textInk(background)}
-          name={name || profile.missingName}
-          summary={summary}
-          logo={branding.logo}
-          scale={scale}
-        />
+      <div
+        ref={ref}
+        className={`card-preview__stage card-preview__stage--${theme}`}
+        style={shown === 'home' ? { background: profile.home.colours[theme].page } : undefined}
+      >
+        {shown === 'home' ? (
+          <CredentialHomeRow
+            label={label}
+            layout={profile.home}
+            theme={theme}
+            background={background}
+            ink={ink}
+            name={name || profile.home.missingName}
+            summary={summary}
+            logo={branding.logo}
+            scale={scale}
+          />
+        ) : (
+          <CredentialCard
+            label={label}
+            layout={layout}
+            background={background}
+            ink={ink}
+            name={name || profile.missingName}
+            summary={summary}
+            logo={branding.logo}
+            scale={scale}
+          />
+        )}
       </div>
       {lightShownForDark && <p className="note">{t.cardPreview.lightForDark}</p>}
       {summary.some((segment) => segment.kind === 'placeholder') && <p className="note">{t.cardPreview.noSample}</p>}

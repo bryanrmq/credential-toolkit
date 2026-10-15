@@ -1,4 +1,4 @@
-import { CARD_PROFILES, type CardPlatform, type Ink, formatHex } from './profiles';
+import { CARD_PROFILES, type CardPlatform, type CardProfile, type CardVariant, type Ink, formatHex } from './profiles';
 
 /** How the other platform's card would differ; every variant describes that other platform. */
 export type CardDifference =
@@ -13,13 +13,15 @@ export function otherPlatform(platform: CardPlatform): CardPlatform {
 }
 
 /**
- * Where the other wallet would draw these card inputs differently from `current`. `summaries` holds the summary
- * line each platform resolves (their template index rules differ).
+ * Where the other wallet would draw these card inputs differently from `current`. `variant` defaults to a card
+ * (the home row has its own missing-name text); `summaries` holds the summary line each platform resolves
+ * (their template index rules differ).
  */
 export function cardDifferences(
   current: CardPlatform,
-  inputs: { name: string; background?: string; summaries?: Record<CardPlatform, string> },
+  inputs: { variant?: CardVariant; name: string; background?: string; summaries?: Record<CardPlatform, string> },
 ): CardDifference[] {
+  const missingName = (profile: CardProfile) => (inputs.variant === 'home' ? profile.home.missingName : profile.missingName);
   const other = otherPlatform(current);
   const here = CARD_PROFILES[current];
   const there = CARD_PROFILES[other];
@@ -32,7 +34,7 @@ export function cardDifferences(
     const ink = there.textInk(thereColour);
     if (ink !== here.textInk(hereColour)) differences.push({ kind: 'ink', ink });
   }
-  if (inputs.name === '' && here.missingName !== there.missingName) differences.push({ kind: 'name', text: there.missingName });
+  if (inputs.name === '' && missingName(here) !== missingName(there)) differences.push({ kind: 'name', text: missingName(there) });
   const { summaries } = inputs;
   if (summaries && summaries[current] !== summaries[other]) differences.push({ kind: 'summary', text: summaries[other] });
   return differences;

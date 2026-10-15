@@ -1,15 +1,17 @@
 /**
  * How each swiyu wallet draws the credential card, reduced to what an issuer can see: colour parsing and
- * fallback, black or white content, the missing-name text and the card geometry. Ported from the wallet
- * source (iOS `CredentialCard.swift`, `Color+Hex.swift`, `Color+Luminance.swift`; Android
- * `CredentialCardCreditFormat.kt`, `MediumCredentialCard.kt`, `GetCredentialCardStateImpl.kt`,
- * `GetContrastedColorImpl.kt`).
+ * fallback, black or white content, the missing-name text, the card geometry and gradients, and the home list
+ * row. Ported from the wallet source (iOS `CredentialCard.swift`, `VerifiableCredentialCellV1.swift`,
+ * `Color+Hex.swift`, `Color+Luminance.swift`; Android `CredentialCardCreditFormat.kt`, `MediumCredentialCard.kt`,
+ * `CredentialCardListItem.kt`, `Gradients.kt`, `GetCredentialCardStateImpl.kt`, `GetContrastedColorImpl.kt`).
  */
 
 import type { ClaimsPath } from '../model';
+import type { Gradient } from './gradients';
 
 export type CardPlatform = 'ios' | 'android';
-export type CardVariant = 'detail' | 'offer';
+/** Detail and offer cards, and the row in the home list. */
+export type CardVariant = 'detail' | 'offer' | 'home';
 export type Ink = 'black' | 'white';
 
 /** Channels 0–255, alpha 0–1. */
@@ -37,6 +39,34 @@ export interface CardLayout {
   lineHeight: number | 'normal';
   /** Detail cards put the text at the top, offer cards at the bottom. */
   textPosition: 'top' | 'bottom';
+  /** Shading drawn over the card colour, bottom to top. */
+  gradients: Gradient[];
+}
+
+export interface HomeRowColours {
+  /** The list background behind the row. */
+  page: string;
+  row: string;
+  name: string;
+  summary: string;
+}
+
+/** The home list row: a logo-only card thumbnail, then the name and summary in the app's own text style. */
+export interface HomeRowLayout {
+  /** The row's width in px on a typical phone; the preview scales it down to fit. */
+  referenceWidth: number;
+  thumbnail: { width: number; height: number; radius: number; logo: { width: number; height: number }; gradients: Gradient[] };
+  /** Space between the thumbnail and the text. */
+  gap: number;
+  padding: { vertical: number; horizontal: number };
+  radius: number;
+  nameSize: number;
+  summarySize: number;
+  lineHeight: number | 'normal';
+  chevron: boolean;
+  /** Shown when the name is empty; null draws no name. */
+  missingName: string | null;
+  colours: Record<'light' | 'dark', HomeRowColours>;
 }
 
 export interface CardProfile {
@@ -46,11 +76,20 @@ export interface CardProfile {
   fallbackBackground: Rgba;
   /** Black or white content on this background; alpha is ignored, as on both wallets. */
   textInk(background: Rgba): Ink;
-  /** Shown when the name is empty; null draws no name. */
+  /** Shown on a card when the name is empty; null draws no name. */
   missingName: string | null;
   /** Applies a template's `[N]` or `[null]` suffix to an attribute's claims path; null when nothing can match. */
   indexPath(path: ClaimsPath, index: number | null): ClaimsPath | null;
-  layout: Record<CardVariant, CardLayout>;
+  /** The variants this wallet has, in tab order. */
+  variants: CardVariant[];
+  /** Card layouts; a wallet without an offer layout shows its detail card on the offer screen. */
+  layout: { detail: CardLayout; offer?: CardLayout };
+  home: HomeRowLayout;
+}
+
+/** The variant to draw: one the platform has, otherwise its detail card. */
+export function shownVariant(profile: CardProfile, variant: CardVariant): CardVariant {
+  return profile.variants.includes(variant) ? variant : 'detail';
 }
 
 const HEX6 = /^[0-9A-Fa-f]{6}$/;
@@ -128,6 +167,49 @@ function androidIndexPath(path: ClaimsPath, index: number | null): ClaimsPath {
   return [...base, index];
 }
 
+/** iOS: `[black, clear]` from `UnitPoint(angle: 110°)` to `UnitPoint(angle: 290°)` at opacity 0.25, on every size. */
+const IOS_LINEAR: Gradient = {
+  kind: 'linear',
+  start: [0.318, 0],
+  end: [0.682, 1],
+  stops: [
+    { at: 0, alpha: 1 },
+    { at: 1, alpha: 0 },
+  ],
+  opacity: 0.25,
+};
+
+/**
+ * iOS: `EllipticalGradient([black, black, clear], center: .bottomLeading)` scaled by 0.8 × 0.5 from the bottom
+ * left, opacity 0.15, blur 6, on cards larger than `.small`.
+ */
+const IOS_ELLIPSE: Gradient = {
+  kind: 'ellipse',
+  center: [0, 1],
+  radii: [0.8, 0.5],
+  stops: [
+    { at: 0, alpha: 1 },
+    { at: 0.5, alpha: 1 },
+    { at: 1, alpha: 0 },
+  ],
+  opacity: 0.15,
+  blur: 6,
+};
+
+const fade = (alpha: number) => [
+  { at: 0, alpha },
+  { at: 1, alpha: 0 },
+];
+
+/** Android `diagonalCredentialBrush`: black at 0.3 from the top-left corner to clear at the bottom-right. */
+const ANDROID_DIAGONAL: Gradient = { kind: 'linear', start: [0, 0], end: [1, 1], stops: fade(0.3), opacity: 1 };
+/** Android `leftBottomRadialCredentialBrush` (offer card). */
+const ANDROID_LEFT_BOTTOM: Gradient = { kind: 'radial', center: [0.18, 1.04], radius: 0.5, radiusOf: 'shorterSide', stops: fade(0.3) };
+/** Android `leftBottomRadialLargeCredentialBrush` (detail card). */
+const ANDROID_LEFT_BOTTOM_LARGE: Gradient = { kind: 'radial', center: [0, 1], radius: 0.6, radiusOf: 'width', stops: fade(0.3) };
+/** Android `bottomCenterRadialCredentialBrush` (detail card). */
+const ANDROID_BOTTOM_CENTER: Gradient = { kind: 'radial', center: [0.55, 0.9], radius: 0.3, radiusOf: 'shorterSide', stops: fade(0.1) };
+
 export const CARD_PROFILES: Record<CardPlatform, CardProfile> = {
   ios: {
     platform: 'ios',
@@ -136,8 +218,9 @@ export const CARD_PROFILES: Record<CardPlatform, CardProfile> = {
     textInk: iosTextInk,
     missingName: 'n/a',
     indexPath: iosIndexPath,
+    variants: ['detail', 'home'],
     layout: {
-      // CredentialCard .large, credential detail screen
+      // CredentialCard .large: credential detail screen, and the offer screen of the current app
       detail: {
         referenceWidth: 361,
         aspectRatio: 1.586,
@@ -149,19 +232,24 @@ export const CARD_PROFILES: Record<CardPlatform, CardProfile> = {
         nameWeight: 500,
         lineHeight: 'normal',
         textPosition: 'top',
+        gradients: [IOS_LINEAR, IOS_ELLIPSE],
       },
-      // CredentialCard .regular, credential offer screen
-      offer: {
-        referenceWidth: 233,
-        aspectRatio: 0.681,
-        radius: 20,
-        padding: { top: 20, end: 20, bottom: 20, start: 20 },
-        logo: { width: 60, height: 21 },
-        logoGap: 0,
-        textGap: 4,
-        nameWeight: 500,
-        lineHeight: 'normal',
-        textPosition: 'bottom',
+    },
+    // VerifiableCredentialCellV1 in an inset grouped list, with CredentialCard .small as thumbnail
+    home: {
+      referenceWidth: 361,
+      thumbnail: { width: 72, height: 96, radius: 12, logo: { width: 64, height: 21 }, gradients: [IOS_LINEAR] },
+      gap: 12,
+      padding: { vertical: 12, horizontal: 16 },
+      radius: 10,
+      nameSize: 17,
+      summarySize: 16,
+      lineHeight: 'normal',
+      chevron: false,
+      missingName: 'Credential',
+      colours: {
+        light: { page: '#F1F5FC', row: '#FFFFFF', name: '#0A2841', summary: 'rgba(10, 40, 65, 0.68)' },
+        dark: { page: '#1C1C1E', row: '#2C2C2E', name: '#FFFFFF', summary: 'rgba(235, 235, 245, 0.6)' },
       },
     },
   },
@@ -172,6 +260,7 @@ export const CARD_PROFILES: Record<CardPlatform, CardProfile> = {
     textInk: androidTextInk,
     missingName: null,
     indexPath: androidIndexPath,
+    variants: ['detail', 'offer', 'home'],
     layout: {
       // CredentialCardCreditFormat, credential detail screen
       detail: {
@@ -185,6 +274,7 @@ export const CARD_PROFILES: Record<CardPlatform, CardProfile> = {
         nameWeight: 400,
         lineHeight: 22,
         textPosition: 'top',
+        gradients: [ANDROID_DIAGONAL, ANDROID_LEFT_BOTTOM_LARGE, ANDROID_BOTTOM_CENTER],
       },
       // MediumCredentialCard, credential offer screen
       offer: {
@@ -198,6 +288,24 @@ export const CARD_PROFILES: Record<CardPlatform, CardProfile> = {
         nameWeight: 400,
         lineHeight: 22,
         textPosition: 'bottom',
+        gradients: [ANDROID_DIAGONAL, ANDROID_LEFT_BOTTOM],
+      },
+    },
+    // CredentialCardListItem (Material3 ListItem) with CredentialCardVerySmall as thumbnail
+    home: {
+      referenceWidth: 380,
+      thumbnail: { width: 48, height: 64, radius: 8, logo: { width: 24, height: 24 }, gradients: [ANDROID_DIAGONAL] },
+      gap: 16,
+      padding: { vertical: 12, horizontal: 16 },
+      radius: 16,
+      nameSize: 16,
+      summarySize: 16,
+      lineHeight: 24,
+      chevron: true,
+      missingName: null,
+      colours: {
+        light: { page: '#FFFFFF', row: '#FFFFFF', name: '#092740', summary: '#41484D' },
+        dark: { page: '#0F1316', row: '#242A30', name: '#FFFFFF', summary: '#C1C7CE' },
       },
     },
   },
@@ -205,4 +313,8 @@ export const CARD_PROFILES: Record<CardPlatform, CardProfile> = {
 
 export function formatHex({ r, g, b }: Rgba): string {
   return `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, '0')).join('')}`.toUpperCase();
+}
+
+export function formatRgba({ r, g, b, a }: Rgba): string {
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
 }

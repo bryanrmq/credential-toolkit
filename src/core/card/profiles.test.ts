@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CARD_PROFILES, type CardPlatform, formatHex } from './profiles';
+import { CARD_PROFILES, type CardPlatform, formatHex, formatRgba, shownVariant } from './profiles';
 
 const ink = (platform: CardPlatform, hex: string) => {
   const profile = CARD_PROFILES[platform];
@@ -90,13 +90,36 @@ describe('profiles', () => {
     expect(CARD_PROFILES.android.missingName).toBeNull();
   });
 
-  it('lays out the detail card in landscape and the offer card in portrait', () => {
-    for (const platform of ['ios', 'android'] as const) {
-      const { detail, offer } = CARD_PROFILES[platform].layout;
-      expect(detail.aspectRatio).toBeGreaterThan(1);
-      expect(detail.textPosition).toBe('top');
-      expect(offer.aspectRatio).toBeLessThan(1);
-      expect(offer.textPosition).toBe('bottom');
-    }
+  it('offers Card and Home on iOS, whose offer screen uses the detail card, and Detail, Offer and Home on Android', () => {
+    expect(CARD_PROFILES.ios.variants).toEqual(['detail', 'home']);
+    expect(CARD_PROFILES.android.variants).toEqual(['detail', 'offer', 'home']);
+    expect(CARD_PROFILES.ios.layout.offer).toBeUndefined();
+  });
+
+  it('lays out detail cards in landscape and the Android offer card in portrait', () => {
+    expect(CARD_PROFILES.ios.layout.detail.aspectRatio).toBeGreaterThan(1);
+    expect(CARD_PROFILES.android.layout.detail.aspectRatio).toBeGreaterThan(1);
+    expect(CARD_PROFILES.android.layout.offer?.aspectRatio).toBeLessThan(1);
+    expect(CARD_PROFILES.android.layout.offer?.textPosition).toBe('bottom');
+  });
+
+  it('shows the detail card for a variant the platform does not have', () => {
+    expect(shownVariant(CARD_PROFILES.ios, 'offer')).toBe('detail');
+    expect(shownVariant(CARD_PROFILES.ios, 'home')).toBe('home');
+    expect(shownVariant(CARD_PROFILES.android, 'offer')).toBe('offer');
+  });
+
+  it('draws the home row like each wallet list', () => {
+    const { ios, android } = { ios: CARD_PROFILES.ios.home, android: CARD_PROFILES.android.home };
+    expect(ios.thumbnail).toMatchObject({ width: 72, height: 96, radius: 12, logo: { width: 64, height: 21 } });
+    expect(android.thumbnail).toMatchObject({ width: 48, height: 64, radius: 8, logo: { width: 24, height: 24 } });
+    expect([ios.chevron, android.chevron]).toEqual([false, true]);
+    expect([ios.missingName, android.missingName]).toEqual(['Credential', null]);
+    expect(ios.colours.dark).toEqual({ page: '#1C1C1E', row: '#2C2C2E', name: '#FFFFFF', summary: 'rgba(235, 235, 245, 0.6)' });
+    expect(android.colours.light).toEqual({ page: '#FFFFFF', row: '#FFFFFF', name: '#092740', summary: '#41484D' });
+  });
+
+  it('writes a colour as CSS rgba', () => {
+    expect(formatRgba({ r: 59, g: 130, b: 246, a: 0.5 })).toBe('rgba(59, 130, 246, 0.5)');
   });
 });

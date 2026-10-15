@@ -24,10 +24,10 @@ beforeEach(() => {
 });
 
 describe('CardPreview', () => {
-  it('starts on the iOS detail card and switches platform and card', async () => {
+  it('starts on the iOS card and switches platform and card', async () => {
     const user = userEvent.setup();
     render(<CardPreview />);
-    expect(screen.getByRole('figure', { name: 'iOS detail card' })).toHaveTextContent('Hundebewilligung');
+    expect(screen.getByRole('figure', { name: 'iOS card' })).toHaveTextContent('Hundebewilligung');
     expect(card()).toHaveTextContent('Für Hundehalter');
     expect(card()).toHaveAttribute('data-ink', 'black');
     expect(screen.getByText('Android: white text')).toBeInTheDocument();
@@ -39,6 +39,47 @@ describe('CardPreview', () => {
     await user.click(screen.getByRole('tab', { name: 'Offer' }));
     expect(screen.getByRole('figure', { name: 'Android offer card' })).toBeInTheDocument();
     expect(useStore.getState()).toMatchObject({ cardPlatform: 'android', cardVariant: 'offer' });
+  });
+
+  it('offers Card and Home on iOS, which shows its card for Offer, and keeps Offer for Android', async () => {
+    const user = userEvent.setup();
+    useStore.setState({ cardPlatform: 'android', cardVariant: 'offer' });
+    render(<CardPreview />);
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['iOS', 'Android', 'Detail', 'Offer', 'Home']);
+
+    await user.click(screen.getByRole('tab', { name: 'iOS' }));
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['iOS', 'Android', 'Card', 'Home']);
+    expect(screen.getByRole('tab', { name: 'Card' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('figure', { name: 'iOS card' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Android' }));
+    expect(screen.getByRole('figure', { name: 'Android offer card' })).toBeInTheDocument();
+  });
+
+  it('draws the home row on each platform list background', async () => {
+    const user = userEvent.setup();
+    render(<CardPreview />);
+    await user.click(screen.getByRole('tab', { name: 'Home' }));
+    const row = screen.getByRole('figure', { name: 'iOS home row' });
+    expect(row).toHaveTextContent('Hundebewilligung');
+    expect(row).toHaveTextContent('Für Hundehalter');
+    expect(row.closest('.card-preview__stage')).toHaveStyle({ background: 'rgb(241, 245, 252)' });
+
+    act(() => useStore.getState().setBrandingTheme('dark'));
+    expect(row.closest('.card-preview__stage')).toHaveStyle({ background: 'rgb(28, 28, 30)' });
+  });
+
+  it('names the home row fallback title when the name is empty', async () => {
+    const user = userEvent.setup();
+    render(<CardPreview />);
+    await user.click(screen.getByRole('tab', { name: 'Home' }));
+    act(() => useStore.getState().setEditLang('en-GB'));
+    expect(card()).toHaveTextContent('Credential');
+    expect(screen.getByText('Android: no text when the name is empty')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Android' }));
+    expect(card()).not.toHaveTextContent('Credential');
+    expect(screen.getByText('iOS: shows "Credential" when the name is empty')).toBeInTheDocument();
   });
 
   it('follows the editing language, including one with no name or branding yet', async () => {
