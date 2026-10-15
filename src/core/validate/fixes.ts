@@ -1,7 +1,9 @@
-import { type ClaimsPath, type Entries, type NodeVisit, type Project, findNode, isArrayType } from '../model';
-import { renameNode, sourcePrefixFor, uniqueKey } from '../operations';
+import { inferPrimitive } from '../import/sample';
+import { DEFAULT_LANGUAGES } from '../langs';
+import { type Branding, type ClaimsPath, type Entries, KNOWN_STANDARDS, type NodeVisit, type Project, findNode, isArrayType } from '../model';
+import { renameLanguage, renameNode, sourcePrefixFor, uniqueKey } from '../operations';
 import { formatPath } from '../paths';
-import { FORBIDDEN_KEY_CHARACTERS, type Issue } from './index';
+import { FORBIDDEN_KEY_CHARACTERS, type Issue, pathExists, valuesAt } from './index';
 
 export interface Fix {
   /** Says what will change, e.g. 'Rename to "birth_date"'. */
@@ -71,6 +73,68 @@ function secureUrl(url: string): string | undefined {
   }
   if (trimmed === '' || /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)) return undefined;
   return `https://${trimmed}`;
+}
+
+/** The light or dark branding a credential issue points to. */
+function brandingAt(project: Project, issue: Issue): Branding | undefined {
+  const target = issue.target;
+  if (target.kind !== 'credential') return undefined;
+  const pair = project.branding[target.lang];
+  return target.theme === 'dark' ? pair?.dark : pair?.light;
+}
+
+/** `#RRGGBB` for `#RGB`, `#RGBA`, `#RRGGBB` and `#RRGGBBAA`, with or without `#`; undefined otherwise. */
+function normalizeColor(value: string): string | undefined {
+  const hex = value.trim().replace(/^#/, '');
+  if (!/^(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(hex)) return undefined;
+  const rgb = hex.length <= 4 ? [...hex.slice(0, 3)].map((digit) => digit + digit).join('') : hex.slice(0, 6);
+  return `#${rgb.toUpperCase()}`;
+}
+
+/** `de_ch` → `de-CH`; undefined when the tag is not a two-letter language with an optional two-letter region. */
+function normalizeLanguageTag(tag: string): string | undefined {
+  const match = /^([a-z]{2})(?:[-_]([a-z]{2}))?$/i.exec(tag.trim());
+  if (!match) return undefined;
+  return match[2] ? `${match[1].toLowerCase()}-${match[2].toUpperCase()}` : match[1].toLowerCase();
+}
+
+/** The default tag for a language (`en` → `en-GB`), otherwise its Swiss form. */
+function withRegion(tag: string): string {
+  return DEFAULT_LANGUAGES.find((candidate) => candidate.startsWith(`${tag}-`)) ?? `${tag}-CH`;
+}
+
+function renameLanguageFix(project: Project, from: string | undefined, to: string | undefined): Fix[] {
+  if (!from || !to || to === from || project.languages.includes(to)) return [];
+  return [{ label: `Rename to "${to}"`, apply: (draft) => renameLanguage(draft, from, to) }];
+}
+
+/** The date standard the sample's values use, when they all agree. */
+function sampleDateStandard(values: unknown[]): string | undefined {
+  const present = values
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .filter((value) => value !== null && value !== undefined);
+  if (present.length === 0) return undefined;
+  if (present.every((value) => typeof value === 'number')) return KNOWN_STANDARDS.unixEpoch;
+  if (present.every((value) => inferPrimitive(value).standard === KNOWN_STANDARDS.iso8601)) return KNOWN_STANDARDS.iso8601;
+  return undefined;
+}
+
+/** Every distinct path in `data` whose last name is `key`, with array items written as null. */
+function pathsEndingWith(data: unknown, key: string): ClaimsPath[] {
+  const found = new Map<string, ClaimsPath>();
+  const walk = (value: unknown, path: ClaimsPath) => {
+    if (Array.isArray(value)) {
+      for (const item of value) walk(item, [...path, null]);
+    } else if (typeof value === 'object' && value !== null) {
+      for (const [name, child] of Object.entries(value)) {
+        const next = [...path, name];
+        if (name === key) found.set(JSON.stringify(next), next);
+        walk(child, next);
+      }
+    }
+  };
+  walk(data, []);
+  return [...found.values()];
 }
 
 const FIXES: Record<string, FixFactory> = {
@@ -203,6 +267,66 @@ const FIXES: Record<string, FixFactory> = {
           if (draft.hosting.mode !== 'url') return;
           const url = secureUrl(draft.hosting.url);
           if (url) draft.hosting.url = url;
+        },
+      },
+    ];
+  },
+
+  'color-format': (issue, project) => {
+    const color = brandingAt(project, issue)?.primaryBackgroundColor;
+    const next = color === undefined ? undefined : normalizeColor(color);
+    if (!next) return [];
+    return [
+      {
+        label: `Use "${next}"`,
+        apply: (draft) => {
+          const branding = brandingAt(draft, issue);
+          const value = branding?.primaryBackgroundColor;
+          const normalized = value === undefined ? undefined : normalizeColor(value);
+          if (branding && normalized) branding.primaryBackgroundColor = normalized;
+        },
+      },
+    ];
+  },
+
+  'language-invalid': (issue, project) =>
+    renameLanguageFix(project, issue.subject, issue.subject === undefined ? undefined : normalizeLanguageTag(issue.subject)),
+
+  'language-no-region': (issue, project) =>
+    renameLanguageFix(project, issue.subject, issue.subject === undefined ? undefined : withRegion(issue.subject)),
+
+  'datetime-standard': (issue, project) => {
+    const node = nodeAt(project, issue)?.node;
+    if (node?.kind !== 'attribute') return [];
+    const choose = (label: string, standard: string): Fix => ({
+      label,
+      apply: (draft) => {
+        const current = nodeAt(draft, issue)?.node;
+        if (current?.kind === 'attribute' && !current.standard) current.standard = standard;
+      },
+    });
+    const iso = choose('Use ISO 8601', KNOWN_STANDARDS.iso8601);
+    const unix = choose('Use Unix time', KNOWN_STANDARDS.unixEpoch);
+    const detected = project.sample === undefined ? undefined : sampleDateStandard(valuesAt(project.sample, node.source));
+    if (detected === KNOWN_STANDARDS.iso8601) return [iso];
+    if (detected === KNOWN_STANDARDS.unixEpoch) return [unix];
+    return [iso, unix];
+  },
+
+  'source-not-in-sample': (issue, project) => {
+    const visit = nodeAt(project, issue);
+    if (!visit || project.sample === undefined || !visit.node.key) return [];
+    const matches = pathsEndingWith(project.sample, visit.node.key);
+    if (matches.length !== 1) return [];
+    const source: ClaimsPath = isArrayNode(visit) ? [...matches[0], null] : matches[0];
+    return [
+      {
+        label: `Set source to ${formatPath(source)}`,
+        apply: (draft) => {
+          const current = nodeAt(draft, issue);
+          if (current && draft.sample !== undefined && !pathExists(draft.sample, current.node.source ?? [])) {
+            current.node.source = [...source];
+          }
         },
       },
     ];

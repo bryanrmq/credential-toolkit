@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { pngDataUrl } from '../../test/images';
-import { type Project, emptyProject, newAttribute, newGroupLink } from '../model';
+import { KNOWN_STANDARDS, type Project, emptyProject, newAttribute, newGroupLink } from '../model';
 import { type FixTools, fixesFor } from './fixes';
 import { type Issue, validate } from './index';
 
@@ -227,5 +227,137 @@ describe('structural fixes', () => {
     const project = clean();
     project.hosting = { mode: 'url', url: 'ftp://issuer.example.ch/oca.json' };
     expect(labels(project, 'hosting-url-insecure')).toEqual([]);
+  });
+});
+
+describe('value fixes', () => {
+  it('normalises a background colour', async () => {
+    const cases: Array<[string, string]> = [
+      ['#abc', '#AABBCC'],
+      ['#1A2B3C80', '#1A2B3C'],
+      ['1a2b3c', '#1A2B3C'],
+      [' #ABCD ', '#AABBCC'],
+    ];
+    for (const [input, expected] of cases) {
+      const project = clean();
+      project.branding['de-CH'].light.primaryBackgroundColor = input;
+      expect(labels(project, 'color-format')).toEqual([`Use "${expected}"`]);
+      const result = await fixed(project, 'color-format');
+      expect(result.branding['de-CH'].light.primaryBackgroundColor).toBe(expected);
+      expect(codes(result)).toEqual([]);
+    }
+  });
+
+  it('fixes the colour of the theme the issue is about', async () => {
+    const project = clean();
+    project.branding['de-CH'].dark = { primaryBackgroundColor: '#123' };
+    const result = await fixed(project, 'color-format');
+    expect(result.branding['de-CH']).toEqual({ light: {}, dark: { primaryBackgroundColor: '#112233' } });
+  });
+
+  it('offers nothing for a colour name', () => {
+    const project = clean();
+    project.branding['de-CH'].light.primaryBackgroundColor = 'red';
+    expect(labels(project, 'color-format')).toEqual([]);
+  });
+
+  /** Adds a language with complete content, so the only issue is about its tag. */
+  function withLanguage(tag: string): Project {
+    const project = clean();
+    project.languages.push(tag);
+    project.meta[tag] = { name: 'Permis', description: 'Pour les détenteurs' };
+    project.branding[tag] = { light: {} };
+    project.root.children[0].labels[tag] = 'Nom';
+    return project;
+  }
+
+  it('renames an invalid language tag everywhere', async () => {
+    const project = withLanguage('FR_ch');
+    expect(labels(project, 'language-invalid')).toEqual(['Rename to "fr-CH"']);
+    const result = await fixed(project, 'language-invalid');
+    expect(result.languages).toEqual(['de-CH', 'fr-CH']);
+    expect(result.meta['fr-CH'].name).toBe('Permis');
+    expect(result.root.children[0].labels).toEqual({ 'de-CH': 'Name', 'fr-CH': 'Nom' });
+    expect(codes(result)).toEqual([]);
+  });
+
+  it('offers no rename for an unreadable tag or one that already exists', () => {
+    expect(labels(withLanguage('gsw'), 'language-invalid')).toEqual([]);
+    expect(labels(withLanguage('DE-CH'), 'language-invalid')).toEqual([]);
+  });
+
+  it('adds the usual region to a language without one', async () => {
+    const project = withLanguage('en');
+    expect(labels(project, 'language-no-region')).toEqual(['Rename to "en-GB"']);
+    const result = await fixed(project, 'language-no-region');
+    expect(result.languages).toEqual(['de-CH', 'en-GB']);
+    expect(codes(result)).toEqual([]);
+    expect(labels(withLanguage('es'), 'language-no-region')).toEqual(['Rename to "es-CH"']);
+  });
+
+  it('offers no region when the regional tag is already listed', () => {
+    const project = withLanguage('fr');
+    project.languages.push('fr-CH');
+    project.meta['fr-CH'] = { name: 'Permis', description: 'Pour' };
+    project.branding['fr-CH'] = { light: {} };
+    project.root.children[0].labels['fr-CH'] = 'Nom';
+    expect(labels(project, 'language-no-region')).toEqual([]);
+  });
+
+  function withDate(sample?: unknown, type: 'DateTime' | { array: 'DateTime' } = 'DateTime'): Project {
+    const project = clean();
+    const array = typeof type === 'object';
+    project.root.children.push(
+      newAttribute(array ? 'dates' : 'birth', { type, source: array ? ['dates', null] : ['birth'], labels: { 'de-CH': 'Datum' } }),
+    );
+    if (sample !== undefined) project.sample = sample;
+    return project;
+  }
+
+  it('lets the issuer choose the date format when there is no sample', async () => {
+    const project = withDate();
+    expect(labels(project, 'datetime-standard')).toEqual(['Use ISO 8601', 'Use Unix time']);
+    const result = await fixed(project, 'datetime-standard', 'Use Unix time');
+    const birth = result.root.children[1];
+    expect(birth.kind === 'attribute' && birth.standard).toBe(KNOWN_STANDARDS.unixEpoch);
+    expect(codes(result)).toEqual([]);
+  });
+
+  it('reads the date format from the sample', () => {
+    expect(labels(withDate({ name: 'Rex', birth: '2001-02-03' }), 'datetime-standard')).toEqual(['Use ISO 8601']);
+    expect(labels(withDate({ name: 'Rex', birth: 981158400 }), 'datetime-standard')).toEqual(['Use Unix time']);
+    expect(labels(withDate({ name: 'Rex', dates: [1, 2] }, { array: 'DateTime' }), 'datetime-standard')).toEqual(['Use Unix time']);
+    expect(labels(withDate({ name: 'Rex', dates: [1, '2001-02-03'] }, { array: 'DateTime' }), 'datetime-standard')).toEqual([
+      'Use ISO 8601',
+      'Use Unix time',
+    ]);
+  });
+
+  it('points a source at the only sample path that ends with the key', async () => {
+    const project = clean();
+    project.sample = { name: 'Rex', person: { email: 'a@b.ch' } };
+    project.root.children.push(newAttribute('email', { source: ['email'], labels: { 'de-CH': 'E-Mail' } }));
+    expect(labels(project, 'source-not-in-sample')).toEqual(['Set source to person.email']);
+    const result = await fixed(project, 'source-not-in-sample');
+    expect(result.root.children[1].source).toEqual(['person', 'email']);
+    expect(codes(result)).toEqual([]);
+  });
+
+  it('writes array items as null and ends an array attribute with null', () => {
+    const items = clean();
+    items.sample = { name: 'Rex', pets: [{ race: 'Cat' }, { race: 'Dog' }] };
+    items.root.children.push(newAttribute('race', { source: ['race'], labels: { 'de-CH': 'Rasse' } }));
+    expect(labels(items, 'source-not-in-sample')).toEqual(['Set source to pets[].race']);
+    const tags = clean();
+    tags.sample = { name: 'Rex', tags: ['a', 'b'] };
+    tags.root.children.push(newAttribute('tags', { type: { array: 'Text' }, source: ['labels'], labels: { 'de-CH': 'Tags' } }));
+    expect(labels(tags, 'source-not-in-sample')).toEqual(['Set source to tags[]']);
+  });
+
+  it('offers nothing when several sample paths end with the key', () => {
+    const project = clean();
+    project.sample = { name: 'Rex', home: { city: 'Bern' }, work: { city: 'Biel' } };
+    project.root.children.push(newAttribute('city', { source: ['city'], labels: { 'de-CH': 'Ort' } }));
+    expect(labels(project, 'source-not-in-sample')).toEqual([]);
   });
 });
