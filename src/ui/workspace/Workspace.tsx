@@ -1,4 +1,4 @@
-import { type CSSProperties, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { validate } from '../../core/validate';
 import { storageAvailable } from '../../state/persistence';
 import { useStore } from '../../state/store';
@@ -12,28 +12,30 @@ import {
   DEFAULT_PANE_WIDTHS,
   PANE_LIMITS,
   type ResizablePane,
+  type WorkspacePane,
   clampPaneWidth,
   loadPaneWidths,
   savePaneWidths,
 } from '../lib/paneLayout';
+import { loadTourSeen } from '../lib/tour';
 import { Inspector } from './Inspector';
 import { LanguagesDialog } from './LanguagesDialog';
 import { OutputPanel } from './OutputPanel';
 import { ReportBanner } from './ReportBanner';
 import { StructurePane } from './StructurePane';
 import { TopBar } from './TopBar';
+import { Tour } from './Tour';
 import { TranslationsView } from './TranslationsView';
-
-type Pane = 'structure' | 'inspector' | 'output';
 
 export function Workspace() {
   const project = useStore((state) => state.project);
   const view = useStore((state) => state.view);
   const languagesOpen = useStore((state) => state.languagesOpen);
+  const tourOpen = useStore((state) => state.tourOpen);
   const saveFailed = useStore((state) => state.draftSaveFailed);
   const issues = useMemo(() => (project ? validate(project) : []), [project]);
   const exportState = useExport(project);
-  const [pane, setPane] = useState<Pane>('inspector');
+  const [pane, setPane] = useState<WorkspacePane>('inspector');
   const panesRef = useRef<HTMLDivElement>(null);
   const [widths, setWidths] = useState(loadPaneWidths);
   const widthsRef = useRef(widths);
@@ -61,6 +63,10 @@ export function Workspace() {
     />
   );
   const [canSave] = useState(storageAvailable);
+  // The tour starts by itself until this browser has finished or skipped it once.
+  useEffect(() => {
+    if (!loadTourSeen()) useStore.getState().setTourOpen(true);
+  }, []);
   if (!project) return null;
 
   return (
@@ -95,21 +101,22 @@ export function Workspace() {
               ref={panesRef}
               style={{ '--structure-width': `${widths.structure}px`, '--output-width': `${widths.output}px` } as CSSProperties}
             >
-              <section className="pane pane--structure" aria-label={t.structure.title}>
+              <section className="pane pane--structure" aria-label={t.structure.title} data-tour="structure">
                 <StructurePane onSelect={() => setPane('inspector')} />
               </section>
               {resizer('structure', t.workspace.resizeStructure, 1)}
-              <section className="pane pane--inspector" aria-label={t.workspace.panes.inspector}>
+              <section className="pane pane--inspector" aria-label={t.workspace.panes.inspector} data-tour="edit">
                 <Inspector />
               </section>
               {resizer('output', t.workspace.resizeOutput, -1)}
-              <section className="pane pane--output" aria-label={t.output.title}>
+              <section className="pane pane--output" aria-label={t.output.title} data-tour="output">
                 <OutputPanel exportState={exportState} />
               </section>
             </div>
           </>
         )}
         {languagesOpen && <LanguagesDialog />}
+        {tourOpen && <Tour pane={pane} onPane={setPane} />}
         <FixToast />
       </div>
     </IssuesContext.Provider>

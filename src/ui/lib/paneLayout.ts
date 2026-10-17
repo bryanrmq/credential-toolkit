@@ -1,3 +1,5 @@
+/** The pane a narrow window shows (below 1000 px only one fits). */
+export type WorkspacePane = 'structure' | 'inspector' | 'output';
 export type ResizablePane = 'structure' | 'output';
 export type PaneWidths = Record<ResizablePane, number>;
 

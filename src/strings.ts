@@ -231,6 +231,76 @@ export const t = {
     done: 'Done',
     first: 'Default',
   },
+  tour: {
+    label: 'Workspace tour',
+    start: 'Take the tour',
+    next: 'Next',
+    back: 'Back',
+    done: 'Done',
+    skip: 'Skip tour',
+    progress: (step: number, total: number) => `${step} of ${total}`,
+    /** What each area of the workspace is for (body) and what it can do (features). */
+    steps: {
+      welcome: {
+        title: 'Welcome to the workspace',
+        body: 'You build the bundle in three areas: list the attributes in Structure, write their texts and branding in Edit, then check and download the result in Output.',
+        features: [
+          'The draft is saved in this browser as you type. Nothing is uploaded.',
+          'Replay this tour any time from the ⋯ menu in the top bar.',
+        ],
+      },
+      structure: {
+        title: 'Structure',
+        body: 'The attributes of the credential, in the order the wallet lists them.',
+        features: [
+          'Add an attribute, a group or a list of objects with the buttons at the top. New items go into the selected group.',
+          'Drag the handle beside an item to reorder it.',
+          'Select Credential to edit the name and branding, or an item to edit it.',
+          'A red or yellow dot marks an item with an error or a warning.',
+        ],
+      },
+      edit: {
+        title: 'Edit',
+        body: 'Edits what you selected in Structure, in the editing language.',
+        features: [
+          'Credential: name, description, logo, background colour and primary field, with a card preview for iOS and Android.',
+          'Attribute: key, label, type, source path, value translations and the sensitive flag. A group has a headline instead of a label.',
+          'Type [[{{]] in the primary field or a list headline to insert an attribute value.',
+          'With several languages, the Translations panel beside the form shows the item in each one. Click a language to edit in it.',
+        ],
+      },
+      output: {
+        title: 'Output',
+        body: 'Checks the bundle and gives you what to publish.',
+        features: [
+          'Attach a sample credential to check that every source path exists. It is never exported.',
+          'Issues: click one to jump to its field. Fix and Fix all repair the issues that do not need your own text.',
+          'Bundle: choose where it will be hosted, then copy the JSON and its uri#integrity value.',
+          'VCT snippet: the display entries to add to your SD-JWT VC Type Metadata.',
+        ],
+      },
+      topbar: {
+        title: 'Top bar',
+        body: 'Language, view and download, for the whole project.',
+        features: [
+          'Switch the editing language. Add, remove or reorder languages from the ⋯ menu.',
+          'Switch between the Editor and the Translations view.',
+          'The badges count errors and warnings. Download bundle works once there are no errors.',
+          'The ⋯ menu also starts a new project and replays this tour.',
+        ],
+      },
+      translations: {
+        title: 'Translations view',
+        body: 'Every text of the credential in every language, in one table.',
+        features: [
+          'One row per text, one column per language.',
+          'Empty cells are highlighted, so missing translations stand out.',
+          'Edit in place. The Editor shows your changes right away.',
+          'Go back to the Editor from the top bar.',
+        ],
+      },
+    },
+  },
   crash: {
     title: 'Something went wrong',
     body: 'The editor hit an unexpected error. Your draft is still saved in this browser.',

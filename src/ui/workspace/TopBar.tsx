@@ -17,7 +17,7 @@ export function TopBar({ exportState }: { exportState: ExportState }) {
   const project = useStore((state) => state.project)!;
   const editLang = useStore((state) => state.editLang);
   const view = useStore((state) => state.view);
-  const { setEditLang, setView, setLanguagesOpen, close } = useStore.getState();
+  const { setEditLang, setView, setLanguagesOpen, setTourOpen, close } = useStore.getState();
   const groups = groupIssues(useIssues());
   const errors = groups.filter((group) => group.severity === 'error').length;
   const warnings = groups.length - errors;
@@ -35,7 +35,7 @@ export function TopBar({ exportState }: { exportState: ExportState }) {
           {name}
         </span>
       </div>
-      <div className="topbar__actions">
+      <div className="topbar__actions" data-tour="topbar">
         <Segmented
           className="wide-only"
           label={t.workspace.editingLanguage}
@@ -83,6 +83,7 @@ export function TopBar({ exportState }: { exportState: ExportState }) {
             { label: t.workspace.manageLanguages, onSelect: () => setLanguagesOpen(true) },
             { label: t.workspace.editorView, className: 'narrow-only', onSelect: () => setView('editor') },
             { label: t.workspace.translationsView, className: 'narrow-only', onSelect: () => setView('translations') },
+            { label: t.tour.start, onSelect: () => setTourOpen(true) },
             {
               label: t.workspace.newProject,
               onSelect: () => {

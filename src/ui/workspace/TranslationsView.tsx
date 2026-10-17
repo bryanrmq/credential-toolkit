@@ -7,7 +7,7 @@ export function TranslationsView() {
   const update = useStore((state) => state.update);
   const rows = allRows(project);
   return (
-    <div className="translations">
+    <div className="translations" data-tour="translations">
       <table>
         <thead>
           <tr>

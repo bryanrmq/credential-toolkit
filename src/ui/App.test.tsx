@@ -6,9 +6,11 @@ import { emptyProject } from '../core/model';
 import { loadDraft, saveDraft } from '../state/persistence';
 import { useStore } from '../state/store';
 import { App } from './App';
+import { TOUR_SEEN_KEY, loadTourSeen } from './lib/tour';
 
 beforeEach(() => {
   localStorage.clear();
+  localStorage.setItem(TOUR_SEEN_KEY, '1');
   useStore.getState().close();
 });
 
@@ -69,5 +71,27 @@ describe('App', () => {
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Open in editor' }));
     expect(screen.getByRole('heading', { name: 'Untitled credential' })).toBeInTheDocument();
     confirm.mockRestore();
+  });
+
+  it('shows the workspace tour the first time a project opens, and not after it was skipped', async () => {
+    localStorage.removeItem(TOUR_SEEN_KEY);
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /Start blank/ }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Start blank' })).getByRole('button', { name: 'Open in editor' }));
+    const tour = screen.getByRole('dialog', { name: 'Workspace tour' });
+    expect(within(tour).getByRole('heading', { name: 'Welcome to the workspace' })).toBeInTheDocument();
+
+    await user.click(within(tour).getByRole('button', { name: 'Skip tour' }));
+    expect(screen.queryByRole('dialog', { name: 'Workspace tour' })).not.toBeInTheDocument();
+    expect(loadTourSeen()).toBe(true);
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'New project' }));
+    await user.click(screen.getByRole('button', { name: /Start blank/ }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Start blank' })).getByRole('button', { name: 'Open in editor' }));
+    expect(screen.queryByRole('dialog', { name: 'Workspace tour' })).not.toBeInTheDocument();
+    vi.restoreAllMocks();
   });
 });

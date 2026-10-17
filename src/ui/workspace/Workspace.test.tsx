@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProject, newAttribute } from '../../core/model';
 import { useStore } from '../../state/store';
+import { TOUR_SEEN_KEY } from '../lib/tour';
 import { Workspace } from './Workspace';
 
 function loadProject() {
@@ -18,6 +19,7 @@ function loadProject() {
 
 beforeEach(() => {
   localStorage.clear();
+  localStorage.setItem(TOUR_SEEN_KEY, '1');
   loadProject();
 });
 
