@@ -100,6 +100,10 @@ describe('Tour', () => {
     await user.click(screen.getByRole('button', { name: 'More actions' }));
     await user.click(screen.getByRole('menuitem', { name: 'Take the tour' }));
     expect(heading()).toBe('Welcome to the workspace');
+
+    // Focus goes back to the menu button that opened the tour, not to the page.
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('button', { name: 'More actions' })).toHaveFocus();
   });
 
   it('starts from the translations view and returns to it', async () => {
