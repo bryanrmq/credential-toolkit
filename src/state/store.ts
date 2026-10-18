@@ -19,6 +19,7 @@ export interface AppState {
   view: View;
   brandingTheme: Theme;
   languagesOpen: boolean;
+  tourOpen: boolean;
   outputTab: OutputTab;
   cardPlatform: CardPlatform;
   cardVariant: CardVariant;
@@ -37,6 +38,7 @@ export interface AppState {
   setView: (view: View) => void;
   setBrandingTheme: (theme: Theme) => void;
   setLanguagesOpen: (open: boolean) => void;
+  setTourOpen: (open: boolean) => void;
   setOutputTab: (tab: OutputTab) => void;
   setCardPlatform: (platform: CardPlatform) => void;
   setCardVariant: (variant: CardVariant) => void;
@@ -63,6 +65,7 @@ export const useStore = create<AppState>()((set, get) => ({
   view: 'editor',
   brandingTheme: 'light',
   languagesOpen: false,
+  tourOpen: false,
   outputTab: 'issues',
   cardPlatform: 'ios',
   cardVariant: 'detail',
@@ -82,7 +85,7 @@ export const useStore = create<AppState>()((set, get) => ({
       undo: null,
       fixNotice: null,
     }),
-  close: () => set({ project: null, report: null, selection: { kind: 'credential' }, languagesOpen: false, undo: null, fixNotice: null }),
+  close: () => set({ project: null, report: null, selection: { kind: 'credential' }, languagesOpen: false, tourOpen: false, undo: null, fixNotice: null }),
   update: (recipe) => {
     const current = get().project;
     if (!current) return;
@@ -96,6 +99,7 @@ export const useStore = create<AppState>()((set, get) => ({
   setView: (view) => set({ view }),
   setBrandingTheme: (brandingTheme) => set({ brandingTheme }),
   setLanguagesOpen: (languagesOpen) => set({ languagesOpen }),
+  setTourOpen: (tourOpen) => set({ tourOpen }),
   setOutputTab: (outputTab) => set({ outputTab }),
   setCardPlatform: (cardPlatform) => set({ cardPlatform }),
   setCardVariant: (cardVariant) => set({ cardVariant }),

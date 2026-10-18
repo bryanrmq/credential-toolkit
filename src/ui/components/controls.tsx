@@ -179,6 +179,9 @@ export function Menu({ label, items }: { label: string; items: MenuItem[] }) {
               className={`menu__item ${item.className ?? ''}`.trim()}
               onClick={() => {
                 setOpen(false);
+                // The item is about to disappear: give focus back to the trigger first, so whatever the item
+                // opens (a dialog, the tour) can hand it back there when it closes.
+                ref.current?.querySelector<HTMLElement>('[aria-haspopup="menu"]')?.focus();
                 item.onSelect();
               }}
             >
