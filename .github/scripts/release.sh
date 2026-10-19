@@ -24,14 +24,29 @@ else
 fi
 
 subjects="$(git log --no-merges --format='%s' "$range")"
-bodies="$(git log --no-merges --format='%b' "$range")"
 if [[ -z "$subjects" ]]; then
   echo "No commits since $last_tag, nothing to release."
   exit 0
 fi
 
+breaking_re='^[a-z]+(\([^)]*\))?!:'
+feat_re='^feat(\([^)]*\))?:'
+fix_re='^(fix|perf)(\([^)]*\))?:'
+
+# Breaking commits are flagged either with "!" in the subject or with a
+# BREAKING CHANGE footer in the body.
+breaking="$(
+  {
+    grep -E "$breaking_re" <<<"$subjects" || true
+    git log --no-merges --format='%x1e%s%n%b' "$range" |
+      awk 'BEGIN { RS = "\x1e" } NF && /\nBREAKING[ -]CHANGE:/ { sub(/\n.*/, ""); print }'
+  } | awk 'NF && !seen[$0]++'
+)"
+others="$(grep -vxF -f <(printf '%s\n' "$breaking") <<<"$subjects" || true)"
+[[ -z "$breaking" ]] && others="$subjects"
+
 bump=none
-if grep -qE '^[a-z]+(\([^)]*\))?!:' <<<"$subjects" || grep -qE '^BREAKING[ -]CHANGE:' <<<"$bodies"; then
+if [[ -n "$breaking" ]]; then
   bump=major
 elif grep -qE '^feat(\([^)]*\))?:' <<<"$subjects"; then
   bump=minor
@@ -60,10 +75,6 @@ else
 fi
 tag="v$next"
 
-breaking_re='^[a-z]+(\([^)]*\))?!:'
-feat_re='^feat(\([^)]*\))?:'
-fix_re='^(fix|perf)(\([^)]*\))?:'
-
 # Prints one notes section, stripping the type prefix and linking the
 # "(#123)" suffix that squash merges add.
 section() {
@@ -79,10 +90,10 @@ section() {
 }
 
 notes="$(
-  section 'Breaking changes' "$(grep -E "$breaking_re" <<<"$subjects" || true)"
-  section 'Features' "$(grep -E "$feat_re" <<<"$subjects" | grep -vE "$breaking_re" || true)"
-  section 'Fixes' "$(grep -E "$fix_re" <<<"$subjects" | grep -vE "$breaking_re" || true)"
-  section 'Other changes' "$(grep -vE "$breaking_re|$feat_re|$fix_re" <<<"$subjects" || true)"
+  section 'Breaking changes' "$breaking"
+  section 'Features' "$(grep -E "$feat_re" <<<"$others" || true)"
+  section 'Fixes' "$(grep -E "$fix_re" <<<"$others" || true)"
+  section 'Other changes' "$(grep -vE "$feat_re|$fix_re" <<<"$others" || true)"
   if [[ -n "$last_tag" ]]; then
     printf '**Full changelog:** %s/compare/%s...%s\n' "$repo_url" "$last_tag" "$tag"
   fi
