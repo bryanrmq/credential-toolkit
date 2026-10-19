@@ -235,16 +235,29 @@ function matchRank(candidate: string, query: string): number | undefined {
   return undefined;
 }
 
+export interface MatchOptions {
+  /**
+   * Match names in this language only. A concept with no name in it is matched on all its names,
+   * so a language I14Y rarely fills (Romansh) still finds something. Every language when omitted.
+   */
+  language?: I14yLanguage;
+  /** Also match the identifier. Default true. */
+  identifier?: boolean;
+  limit?: number;
+}
+
 /**
- * The concepts in `catalogue` whose identifier or name in any language matches `query`, best
- * first: exact, prefix, word start, anywhere, then by registration status. Needs two characters.
+ * The concepts in `catalogue` whose identifier or name matches `query`, best first: exact, prefix,
+ * word start, anywhere, then by registration status. Needs two characters.
  */
-export function matchConcepts(catalogue: I14yHit[], query: string, limit = 6): I14yHit[] {
+export function matchConcepts(catalogue: I14yHit[], query: string, { language, identifier = true, limit = 6 }: MatchOptions = {}): I14yHit[] {
   const folded = fold(query.trim());
   if (folded.length < 2) return [];
   const ranked: { hit: I14yHit; rank: number }[] = [];
   for (const hit of catalogue) {
-    const ranks = [hit.identifier, ...Object.values(hit.name)].map((candidate) => matchRank(candidate, folded)).filter((rank) => rank !== undefined);
+    const names = language && hit.name[language] ? [hit.name[language]] : Object.values(hit.name);
+    const candidates = identifier ? [hit.identifier, ...names] : names;
+    const ranks = candidates.map((candidate) => matchRank(candidate, folded)).filter((rank) => rank !== undefined);
     if (ranks.length) ranked.push({ hit, rank: Math.min(...ranks) });
   }
   ranked.sort((a, b) => a.rank - b.rank || STATUS_RANK.indexOf(a.hit.registrationStatus) - STATUS_RANK.indexOf(b.hit.registrationStatus));

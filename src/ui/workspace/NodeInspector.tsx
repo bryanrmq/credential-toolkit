@@ -1,5 +1,5 @@
 import { TrashIcon } from '@phosphor-icons/react';
-import { type FillOptions, fillFromConcept, matchConcepts, textIn } from '../../core/import/i14y';
+import { type FillOptions, fillFromConcept, i14yLanguage, matchConcepts, textIn } from '../../core/import/i14y';
 import {
   type AttrType,
   type AttributeNode,
@@ -83,16 +83,19 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
   const paths = templatePaths(parent);
   const targets = moveTargets(project.root, node);
   const { catalogue, request } = useI14yCatalogue();
-  const i14y = (options: FillOptions): SuggestionSource | undefined =>
+  // Labels match names in the editing language; keys also match I14Y identifiers.
+  const i14y = (field: 'key' | 'label'): SuggestionSource | undefined =>
     node.kind === 'attribute'
       ? {
           heading: t.i14y.suggestHeading,
           prepare: request,
           find: (text) =>
-            catalogue
-              ? matchConcepts(catalogue, text).map((hit) => ({ id: hit.id, label: textIn(hit.name, lang) || hit.identifier, detail: hit.identifier }))
-              : [],
-          pick: (suggestion) => void fillFromI14y(node.id, suggestion.id, options),
+            (catalogue ? matchConcepts(catalogue, text, { language: i14yLanguage(lang), identifier: field === 'key' }) : []).map((hit) => ({
+              id: hit.id,
+              label: textIn(hit.name, lang) || hit.identifier,
+              detail: hit.identifier,
+            })),
+          pick: (suggestion) => void fillFromI14y(node.id, suggestion.id, field === 'key' ? { replaceKey: true } : { replaceLabelIn: lang }),
         }
       : undefined;
 
@@ -111,7 +114,7 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
           mono
           value={node.key}
           onCommit={(value) => update((draft) => renameNode(draft, node.id, value))}
-          suggestions={i14y({ replaceKey: true })}
+          suggestions={i14y('key')}
         />
       </Field>
 
@@ -125,7 +128,7 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
           value={node.labels[lang] ?? ''}
           paths={paths}
           placeholder={node.key}
-          suggestions={i14y({ replaceLabelIn: lang })}
+          suggestions={i14y('label')}
           onChange={(value) =>
             edit((draft) => {
               if (value) draft.labels[lang] = value;

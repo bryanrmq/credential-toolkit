@@ -84,6 +84,20 @@ describe('I14Y suggestions', () => {
     expect(fetchMock.mock.calls.some(([url]) => url.includes(concepts.sex.data.id))).toBe(false);
   });
 
+  it('matches labels in the editing language only', async () => {
+    stubI14y();
+    editAttribute();
+    useStore.getState().setEditLang('fr-CH');
+    const user = userEvent.setup();
+    render(<Workspace />);
+    const label = screen.getByLabelText('Label');
+    await user.type(label, 'Sexe');
+    expect(await screen.findByRole('option', { name: /^Sexe/ })).toBeInTheDocument();
+    await user.clear(label);
+    await user.type(label, 'Gesch');
+    expect(screen.queryByRole('option', { name: /Geschlecht|Sexe/ })).not.toBeInTheDocument();
+  });
+
   it('never sends what is typed to I14Y', async () => {
     const fetchMock = stubI14y();
     editAttribute();

@@ -172,8 +172,26 @@ describe('matchConcepts', () => {
   });
 
   it('lists at most `limit` concepts', () => {
-    expect(matchConcepts(catalogue, 'e', 3)).toEqual([]);
-    expect(matchConcepts(catalogue, 'er', 3)).toHaveLength(3);
+    expect(matchConcepts(catalogue, 'e', { limit: 3 })).toEqual([]);
+    expect(matchConcepts(catalogue, 'er', { limit: 3 })).toHaveLength(3);
+  });
+
+  it('matches names only in the given language', () => {
+    const inLanguage = (query: string, language: 'de' | 'fr') => matchConcepts(catalogue, query, { language }).map((hit) => hit.identifier);
+    expect(inLanguage('geschl', 'de')).toEqual(['sex']);
+    expect(inLanguage('geschl', 'fr')).toEqual([]);
+    expect(inLanguage('sexe', 'fr')).toEqual(['sex']);
+  });
+
+  it('matches every name of a concept that has none in the given language', () => {
+    const hit = (identifier: string, name: I14yHit['name']): I14yHit => ({ id: identifier, identifier, name, conceptType: 'Date', registrationStatus: 'Standard', publisher: {} });
+    const list = [hit('dateOfBirth', { de: 'Geburtsdatum', rm: 'Data da naschientscha' }), hit('birthPlace', { de: 'Geburtsort' })];
+    expect(matchConcepts(list, 'geburt', { language: 'rm' }).map((entry) => entry.identifier)).toEqual(['birthPlace']);
+  });
+
+  it('leaves identifiers out when asked', () => {
+    expect(matchConcepts(catalogue, 'personOfficial', { identifier: false })).toEqual([]);
+    expect(matchConcepts(catalogue, 'personOfficial').map((hit) => hit.identifier)).toEqual(['personOfficialName']);
   });
 });
 
