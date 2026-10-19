@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProject } from '../core/model';
@@ -70,6 +70,32 @@ describe('App', () => {
     confirm.mockReturnValue(true);
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Open in editor' }));
     expect(screen.getByRole('heading', { name: 'Untitled credential' })).toBeInTheDocument();
+    confirm.mockRestore();
+  });
+
+  it('opens the learner-driver permit example in the editor', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const example = await screen.findByRole('button', { name: /Learner-driver permit/ });
+    expect(example).toHaveTextContent('17 attributes');
+    await user.click(example);
+
+    expect(await screen.findByText('Import report')).toBeInTheDocument();
+    expect(screen.getByText('licenceNumber')).toBeInTheDocument();
+  });
+
+  it('asks before the example replaces the saved draft', async () => {
+    const draft = emptyProject(['de-CH']);
+    draft.meta['de-CH'].name = 'Hundebewilligung';
+    saveDraft(draft);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: /Learner-driver permit/ }));
+
+    await waitFor(() => expect(confirm).toHaveBeenCalledOnce());
+    expect(useStore.getState().project).toBeNull();
+    expect(loadDraft()?.meta['de-CH'].name).toBe('Hundebewilligung');
     confirm.mockRestore();
   });
 

@@ -32,6 +32,18 @@ export const t = {
         body: 'Add attributes one by one.',
       },
     },
+    examples: {
+      title: 'Real examples',
+      intro: 'Open a bundle from the swiyu program and change it to fit your credential.',
+      open: 'Open',
+      attributes: (count: number) => `${count} ${count === 1 ? 'attribute' : 'attributes'}`,
+      items: {
+        elfa: {
+          title: 'Learner-driver permit',
+          body: 'The electronic learner-driver permit (elfa): nested attributes, images, five languages.',
+        },
+      },
+    },
   },
   importDialog: {
     paste: 'Paste JSON or choose a file',
