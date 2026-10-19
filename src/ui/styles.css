@@ -581,6 +581,11 @@ input[type='checkbox'] {
   font-weight: 400;
   color: var(--text-muted);
   letter-spacing: 0;
+  text-decoration: none;
+}
+.wordmark__version:hover {
+  color: var(--text);
+  text-decoration: underline;
 }
 .start__hero {
   display: grid;

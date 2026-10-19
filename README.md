@@ -43,6 +43,9 @@ their own; they appear in the next release's notes. The first release uses the v
 `package.json`. To release anyway, run the Release workflow by hand with "force" ticked.
 Preview the next release locally with `DRY_RUN=true .github/scripts/release.sh`.
 
+The app shows the latest release next to its name, linked to the release notes. It reads it from
+the GitHub API in the browser and caches it for an hour, so a new release shows without a rebuild.
+
 ## License
 
 [MIT](LICENSE) © 2026 Bryan Reymonenq.

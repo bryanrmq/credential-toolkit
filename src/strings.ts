@@ -2,8 +2,7 @@
 export const t = {
   appName: 'OCA Generator',
   beta: 'Beta',
-  version: (version: string) => `v${version}`,
-  versionTitle: 'Version of this tool',
+  versionTitle: 'Latest release of this tool: see what changed',
   start: {
     title: 'Design how your credential looks in swiyu',
     intro:
