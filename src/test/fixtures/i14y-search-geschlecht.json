@@ -1,0 +1,151 @@
+{
+  "data": [
+    {
+      "id": "86365acd-3ad1-40a3-a76a-447653a4da6f",
+      "identifier": "sex",
+      "conceptType": "CodeList",
+      "registrationStatus": "Standard",
+      "title": {
+        "de": "Geschlecht",
+        "en": "Sex",
+        "fr": "Sexe",
+        "it": "Sesso"
+      },
+      "type": "Concept",
+      "publisher": {
+        "name": {
+          "de": "Bundesamt für Statistik (BFS)",
+          "en": "Federal Statistical Office (FSO)",
+          "fr": "Office Fédéral de la Statistique (OFS)",
+          "it": "Ufficio federale di statistica (UFS)"
+        }
+      }
+    },
+    {
+      "id": "08dae1d6-4aab-d80c-96cc-4400b6cdae38",
+      "identifier": "DV_SEXE",
+      "conceptType": "CodeList",
+      "registrationStatus": "Retired",
+      "title": {
+        "de": "Geschlecht",
+        "en": "Sex",
+        "fr": "Sexe",
+        "it": "Sesso"
+      },
+      "type": "Concept",
+      "publisher": {
+        "name": {
+          "de": "Bundesamt für Statistik (BFS)",
+          "en": "Federal Statistical Office (FSO)",
+          "fr": "Office Fédéral de la Statistique (OFS)",
+          "it": "Ufficio federale di statistica (UFS)"
+        }
+      }
+    },
+    {
+      "id": "08db7950-ee52-c9de-884d-084d10bdeb94",
+      "identifier": "DV_EPD_DocumentEntry.sourcePatientInfo.PID-8",
+      "conceptType": "CodeList",
+      "registrationStatus": "Superseded",
+      "title": {
+        "de": "DocumentEntry.sourcePatientInfo.PID-8",
+        "en": "DocumentEntry.sourcePatientInfo.PID-8",
+        "fr": "DocumentEntry.sourcePatientInfo.PID-8",
+        "it": "DocumentEntry.sourcePatientInfo.PID-8"
+      },
+      "type": "Concept",
+      "publisher": {
+        "name": {
+          "de": "eHealth Suisse",
+          "en": "eHealth Suisse",
+          "fr": "eHealth Suisse",
+          "it": "eHealth Suisse"
+        }
+      }
+    },
+    {
+      "id": "08dd632d-ada3-bda0-be32-f270bf291810",
+      "identifier": "2.16.840.1.113883.4.642.3.1",
+      "conceptType": "CodeList",
+      "registrationStatus": "Recorded",
+      "title": {
+        "de": "DocumentEntry.sourcePatientInfo.PID-8",
+        "en": "DocumentEntry.sourcePatientInfo.PID-8",
+        "fr": "DocumentEntry.sourcePatientInfo.PID-8",
+        "it": "DocumentEntry.sourcePatientInfo.PID-8"
+      },
+      "type": "Concept",
+      "publisher": {
+        "name": {
+          "de": "eHealth Suisse",
+          "en": "eHealth Suisse",
+          "fr": "eHealth Suisse",
+          "it": "eHealth Suisse"
+        }
+      }
+    },
+    {
+      "id": "08dbcbbc-6826-fad6-973d-c76ab6ff6579",
+      "identifier": "AHVN13",
+      "conceptType": "Numeric",
+      "registrationStatus": "PreferredStandard",
+      "title": {
+        "de": "AHV-Nummer (AHVN oder AHVN13)",
+        "en": "OASI number (OASIN or OASIN13)",
+        "fr": "Numéro AVS (NAVS ou NAVS13)",
+        "it": "Numero AVS (NAVS o NAVS13)"
+      },
+      "type": "Concept",
+      "publisher": {
+        "name": {
+          "de": "Zentrale Ausgleichsstelle (ZAS)",
+          "en": "Centrale de compensation (CdC)",
+          "fr": "Centrale de compensation (CdC)",
+          "it": "Ufficio centrale di compensazione (UCC)"
+        }
+      }
+    },
+    {
+      "id": "ba63f2b7-eaad-4ed0-9a99-096b6d390575",
+      "identifier": "AHVN13",
+      "conceptType": "Numeric",
+      "registrationStatus": "Qualified",
+      "title": {
+        "de": "AHV-Nummer (AHVN oder AHVN13)",
+        "en": "OASI number (OASIN or OASIN13)",
+        "fr": "Numéro AVS (NAVS ou NAVS13)",
+        "it": "Numero AVS (NAVS o NAVS13)"
+      },
+      "type": "Concept",
+      "publisher": {
+        "name": {
+          "de": "Zentrale Ausgleichsstelle (ZAS)",
+          "en": "Centrale de compensation (CdC)",
+          "fr": "Centrale de compensation (CdC)",
+          "it": "Ufficio centrale di compensazione (UCC)"
+        }
+      }
+    },
+    {
+      "id": "5bfa278f-fdc5-4304-9e0e-0b31e5981a68",
+      "identifier": "COUPLE_GENDER_CONST",
+      "conceptType": "CodeList",
+      "registrationStatus": "Recorded",
+      "title": {
+        "de": "Paar: Geschlechterkonstellation",
+        "en": "Couple: gender constellation",
+        "fr": "Couple: constellation de genre",
+        "it": "Coppia: costituzione di genere"
+      },
+      "type": "Concept",
+      "publisher": {
+        "name": {
+          "de": "Bundesamt für Statistik (BFS)",
+          "en": "Federal Statistical Office (FSO)",
+          "fr": "Office Fédéral de la Statistique (OFS)",
+          "it": "Ufficio federale di statistica (UFS)"
+        }
+      }
+    }
+  ]
+}

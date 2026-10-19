@@ -19,6 +19,7 @@ import {
   ImageIcon,
   ListBulletsIcon,
   LockSimpleIcon,
+  MagnifyingGlassIcon,
   PlusIcon,
   StackIcon,
   TextTIcon,
@@ -41,6 +42,7 @@ import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
 import { fieldId, focusField, useIssues } from '../issues';
+import { I14yDialog } from './I14yDialog';
 import { SampleDialog } from './SampleControl';
 
 function nodeIcon(node: Node): ReactNode {
@@ -121,6 +123,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
   const selection = useStore((state) => state.selection);
   const { update, select, setReport } = useStore.getState();
   const [filling, setFilling] = useState(false);
+  const [i14yGroupId, setI14yGroupId] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
   const add = (kind: 'attribute' | 'group' | 'list') => {
@@ -136,6 +139,8 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     onSelect();
     focusField(fieldId({ kind: 'node', nodeId: node.id, field: 'key' }));
   };
+
+  const openI14y = () => setI14yGroupId(targetGroup(project, selection.kind === 'node' ? selection.id : null).id);
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
@@ -157,6 +162,9 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
         <div className="row">
           <Button size="small" variant="ghost" onClick={() => add('attribute')} title={t.structure.addAttribute}>
             <PlusIcon /> {t.structure.addAttribute}
+          </Button>
+          <Button size="small" variant="ghost" onClick={openI14y} title={t.structure.addFromI14yTitle}>
+            <MagnifyingGlassIcon /> {t.structure.addFromI14y}
           </Button>
           <Button size="small" variant="ghost" onClick={() => add('group')} aria-label={t.structure.addGroup} title={t.structure.addGroup}>
             <FolderSimpleIcon />
@@ -192,12 +200,26 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
               <Button size="small" onClick={() => setFilling(true)}>
                 {t.structure.fillFromSample}
               </Button>
+              <Button size="small" onClick={openI14y}>
+                <MagnifyingGlassIcon /> {t.structure.addFromI14yTitle}
+              </Button>
             </div>
           </div>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <NodeList group={project.root} onSelect={onSelect} />
           </DndContext>
+        )}
+        {i14yGroupId && (
+          <I14yDialog
+            groupId={i14yGroupId}
+            onAdded={(nodeIds) => {
+              if (nodeIds.length === 0) return;
+              select({ kind: 'node', id: nodeIds[0] });
+              onSelect();
+            }}
+            onClose={() => setI14yGroupId(null)}
+          />
         )}
         {filling && (
           <SampleDialog

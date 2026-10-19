@@ -1699,3 +1699,98 @@ input[type='checkbox'] {
     padding: 20px;
   }
 }
+
+/* I14Y dialog */
+.i14y-results {
+  min-height: 48px;
+  max-height: min(360px, 45vh);
+  overflow: auto;
+  margin-top: 8px;
+}
+.i14y-results__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.i14y-results__list li + li {
+  border-top: 1px solid var(--border);
+}
+.i14y-hit {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.i14y-hit:hover {
+  background: var(--surface-muted);
+}
+.i14y-hit input {
+  margin-top: 3px;
+}
+.i14y-hit__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.i14y-hit__name {
+  color: var(--text-strong);
+}
+.i14y-hit__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.i14y-hit__meta .mono {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.i14y-hit__publisher {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.i14y-selected {
+  margin-right: auto;
+  align-self: center;
+}
+
+/* Suggestions from outside the project (I14Y) under the key and label inputs */
+.suggest-input {
+  position: relative;
+}
+.suggestions--sourced ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.suggestions--sourced li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+.suggestions__heading {
+  margin: 2px 8px 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.suggestions__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.suggestions__detail {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}

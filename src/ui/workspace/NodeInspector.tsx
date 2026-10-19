@@ -1,4 +1,5 @@
 import { TrashIcon } from '@phosphor-icons/react';
+import { type FillOptions, fillFromConcept, matchConcepts, textIn } from '../../core/import/i14y';
 import {
   type AttrType,
   type AttributeNode,
@@ -16,8 +17,9 @@ import { templatePaths } from '../../core/templates';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Button, Field, Toggle } from '../components/controls';
-import { CommitInput, PathInput, TemplateInput } from '../components/inputs';
+import { CommitInput, PathInput, type SuggestionSource, TemplateInput } from '../components/inputs';
 import { fieldId } from '../issues';
+import { fetchConcept, useI14yCatalogue } from '../lib/i14y';
 import { EntriesEditor } from './EntriesEditor';
 import { InspectorHeader } from './InspectorHeader';
 
@@ -49,6 +51,19 @@ function standardOptions(type: PrimitiveType): Array<{ value: string; label: str
   return [];
 }
 
+/** Fills the attribute from an I14Y concept and reports what is still missing, or that I14Y could not be reached. */
+async function fillFromI14y(nodeId: string, conceptId: string, options: FillOptions): Promise<void> {
+  const { update, setReport } = useStore.getState();
+  try {
+    const concept = await fetchConcept(conceptId);
+    let report: ReturnType<typeof fillFromConcept> = [];
+    update((draft) => void (report = fillFromConcept(draft, nodeId, concept, options)));
+    setReport(report);
+  } catch {
+    setReport([{ level: 'warning', message: t.i14y.unreachable }]);
+  }
+}
+
 function defaultStandard(type: PrimitiveType, current?: string): string | undefined {
   const options = standardOptions(type).map((option) => option.value);
   if (current !== undefined && options.includes(current)) return current || undefined;
@@ -67,6 +82,19 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
     });
   const paths = templatePaths(parent);
   const targets = moveTargets(project.root, node);
+  const { catalogue, request } = useI14yCatalogue();
+  const i14y = (options: FillOptions): SuggestionSource | undefined =>
+    node.kind === 'attribute'
+      ? {
+          heading: t.i14y.suggestHeading,
+          prepare: request,
+          find: (text) =>
+            catalogue
+              ? matchConcepts(catalogue, text).map((hit) => ({ id: hit.id, label: textIn(hit.name, lang) || hit.identifier, detail: hit.identifier }))
+              : [],
+          pick: (suggestion) => void fillFromI14y(node.id, suggestion.id, options),
+        }
+      : undefined;
 
   return (
     <>
@@ -78,7 +106,13 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
       />
 
       <Field id={id('key')} label={t.inspector.key} hint={t.inspector.keyHint}>
-        <CommitInput id={id('key')} mono value={node.key} onCommit={(value) => update((draft) => renameNode(draft, node.id, value))} />
+        <CommitInput
+          id={id('key')}
+          mono
+          value={node.key}
+          onCommit={(value) => update((draft) => renameNode(draft, node.id, value))}
+          suggestions={i14y({ replaceKey: true })}
+        />
       </Field>
 
       <Field
@@ -91,6 +125,7 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
           value={node.labels[lang] ?? ''}
           paths={paths}
           placeholder={node.key}
+          suggestions={i14y({ replaceLabelIn: lang })}
           onChange={(value) =>
             edit((draft) => {
               if (value) draft.labels[lang] = value;
