@@ -1,5 +1,5 @@
 import { ArrowRightIcon, BracketsCurlyIcon, FilePlusIcon, IdentificationCardIcon, ShieldCheckIcon, StackIcon } from '@phosphor-icons/react';
-import { type ReactNode, useRef, useState } from 'react';
+import { type ReactNode, Suspense, lazy, useRef, useState } from 'react';
 import { loadDraft } from '../../state/persistence';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
@@ -7,6 +7,8 @@ import { useReveal } from '../lib/reveal';
 import { Wordmark } from '../Wordmark';
 import { CredentialSketch } from './CredentialSketch';
 import { ImportDialog, type ImportKind } from './ImportDialog';
+
+const Examples = lazy(() => import('./Examples').then((module) => ({ default: module.Examples })));
 
 const ENTRIES: Array<{ kind: ImportKind; icon: ReactNode; tone: string; wide?: boolean }> = [
   { kind: 'sample', icon: <BracketsCurlyIcon size={18} />, tone: 'var(--blue-bg)', wide: true },
@@ -69,6 +71,9 @@ export function StartScreen() {
             </button>
           ))}
         </div>
+        <Suspense fallback={null}>
+          <Examples />
+        </Suspense>
         <footer className="start__footer">
           {t.start.footer}{' '}
           <a href="https://swiyu-admin-ch.github.io/specifications/oca-v1-0/" target="_blank" rel="noreferrer">
