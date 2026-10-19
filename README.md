@@ -32,6 +32,17 @@ push and pull request.
 The site runs on Vercel's Hobby plan, which is for personal, non-commercial use. If an
 organisation takes the project over, move it to that organisation's account or a paid plan.
 
+## Releases
+
+Every push to `main` that passes the Test workflow can publish a GitHub Release.
+`.github/workflows/release.yml` reads the Conventional Commit titles of the PRs merged since
+the last `v*` tag: `feat` bumps the minor version, `fix`, `perf` and `refactor` bump the patch
+version, and a `!` or `BREAKING CHANGE` bumps the major version (the minor version while still
+on `0.x`). Merges that only contain `chore`, `docs`, `ci` and similar commits do not release on
+their own; they appear in the next release's notes. The first release uses the version in
+`package.json`. To release anyway, run the Release workflow by hand with "force" ticked.
+Preview the next release locally with `DRY_RUN=true .github/scripts/release.sh`.
+
 ## License
 
 [MIT](LICENSE) © 2026 Bryan Reymonenq.
