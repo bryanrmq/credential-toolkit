@@ -1,4 +1,4 @@
-import { type AttrType, type AttributeNode, type Entries, type LangTag, type Project, KNOWN_STANDARDS, findGroup, findNode, newAttribute } from '../model';
+import { type AttrType, type AttributeNode, type Entries, type I14yLink, type LangTag, type Project, KNOWN_STANDARDS, findGroup, findNode, newAttribute } from '../model';
 import { PLACEHOLDER_KEY, insertNode, renameNode, sourcePrefixFor, uniqueKey } from '../operations';
 import { FORBIDDEN_KEY_CHARACTERS } from '../validate';
 import { ImportError, type ReportNote, isPlainObject } from './report';
@@ -25,6 +25,8 @@ export interface I14yConcept {
   identifier: string;
   name: I14yText;
   conceptType: I14yConceptType;
+  registrationStatus: string;
+  publisher: I14yText;
   entries: { code: string; name: I14yText }[];
 }
 
@@ -88,7 +90,15 @@ export function parseConcept(body: unknown): I14yConcept {
   const entries = (Array.isArray(data.codeListEntries) ? data.codeListEntries : [])
     .filter((entry) => isPlainObject(entry) && typeof entry.code === 'string')
     .map((entry) => ({ code: entry.code as string, name: readText(entry.name) }));
-  return { id, identifier, name: readText(data.name), conceptType: conceptType as I14yConceptType, entries };
+  return {
+    id,
+    identifier,
+    name: readText(data.name),
+    conceptType: conceptType as I14yConceptType,
+    registrationStatus: typeof data.registrationStatus === 'string' ? data.registrationStatus : '',
+    publisher: readText(isPlainObject(data.publisher) ? data.publisher.name : undefined),
+    entries,
+  };
 }
 
 /** An attribute key made from an I14Y identifier: characters the bundle forbids become underscores. */
@@ -116,6 +126,36 @@ function conceptFields(concept: I14yConcept, languages: LangTag[]) {
   return { type, standard, labels, entries };
 }
 
+function linkFor(concept: I14yConcept): I14yLink {
+  return {
+    conceptId: concept.id,
+    identifier: concept.identifier,
+    registrationStatus: concept.registrationStatus,
+    name: { ...concept.name },
+    publisher: { ...concept.publisher },
+    values: Object.fromEntries(concept.entries.map((entry) => [entry.code, { ...entry.name }])),
+  };
+}
+
+/** I14Y's label for `node` in `lang` when the attribute is linked to a concept that has one. */
+export function i14yLabel(node: AttributeNode, lang: LangTag): string | undefined {
+  const i14yLang = i14yLanguage(lang);
+  return (i14yLang && node.i14y?.name[i14yLang]) || undefined;
+}
+
+/** I14Y's label for the value `code` of `node` in `lang`, when it has one. */
+export function i14yValueLabel(node: AttributeNode, lang: LangTag, code: string): string | undefined {
+  const i14yLang = i14yLanguage(lang);
+  return (i14yLang && node.i14y?.values[code]?.[i14yLang]) || undefined;
+}
+
+/** How a text compares with I14Y's: unchanged, edited, or left empty. Undefined when I14Y has no text for it. */
+export function compareWithI14y(current: string, i14yText: string | undefined): 'same' | 'edited' | 'empty' | undefined {
+  if (i14yText === undefined) return undefined;
+  if (current === '') return 'empty';
+  return current === i14yText ? 'same' : 'edited';
+}
+
 /** The project languages in which `node` still lacks its label or a value label. */
 function emptyLanguages(node: AttributeNode, languages: LangTag[]): LangTag[] {
   return languages.filter((tag) => !node.labels[tag] || (node.entries?.codes ?? []).some((code) => !node.entries?.labels[tag]?.[code]));
@@ -140,7 +180,14 @@ export function addConcepts(project: Project, groupId: string, concepts: I14yCon
   for (const concept of concepts) {
     const key = uniqueKey(group, keyFor(concept.identifier));
     const { type, standard, labels, entries } = conceptFields(concept, project.languages);
-    const node = newAttribute(key, { type, source: [...prefix, key], labels, ...(standard && { standard }), ...(entries && { entries }) });
+    const node = newAttribute(key, {
+      type,
+      source: [...prefix, key],
+      labels,
+      ...(standard && { standard }),
+      ...(entries && { entries }),
+      i14y: linkFor(concept),
+    });
     insertNode(project, group.id, node);
     nodes.push(node);
     report.push(...missingNote(node, project.languages));
@@ -165,6 +212,7 @@ export function fillFromConcept(project: Project, nodeId: string, concept: I14yC
   if (!visit || visit.node.kind !== 'attribute') return [];
   const node = visit.node;
   const fields = conceptFields(concept, project.languages);
+  node.i14y = linkFor(concept);
   node.type = fields.type;
   if (fields.standard) node.standard = fields.standard;
   else delete node.standard;

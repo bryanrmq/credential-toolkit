@@ -1,5 +1,5 @@
 import { TrashIcon } from '@phosphor-icons/react';
-import { type FillOptions, fillFromConcept, i14yLanguage, matchConcepts, textIn } from '../../core/import/i14y';
+import { type FillOptions, compareWithI14y, fillFromConcept, i14yLabel, i14yLanguage, matchConcepts, textIn } from '../../core/import/i14y';
 import {
   type AttrType,
   type AttributeNode,
@@ -21,6 +21,7 @@ import { CommitInput, PathInput, type SuggestionSource, TemplateInput } from '..
 import { fieldId } from '../issues';
 import { fetchConcept, useI14yCatalogue } from '../lib/i14y';
 import { EntriesEditor } from './EntriesEditor';
+import { I14yLabelHint, I14yLinkLine } from './I14yLink';
 import { InspectorHeader } from './InspectorHeader';
 
 /** Every group a node may move to: all groups except the node's own subtree. */
@@ -82,6 +83,9 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
     });
   const paths = templatePaths(parent);
   const targets = moveTargets(project.root, node);
+  const label = node.labels[lang] ?? '';
+  const linkedLabel = node.kind === 'attribute' ? i14yLabel(node, lang) : undefined;
+  const labelStatus = compareWithI14y(label, linkedLabel);
   const { catalogue, request } = useI14yCatalogue();
   // Labels match names in the editing language; keys also match I14Y identifiers.
   const i14y = (field: 'key' | 'label'): SuggestionSource | undefined =>
@@ -108,6 +112,10 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
         technicalKey={node.key}
       />
 
+      {node.kind === 'attribute' && node.i14y && (
+        <I14yLinkLine link={node.i14y} lang={lang} onUnlink={() => edit((draft) => void (draft.kind === 'attribute' && delete draft.i14y))} />
+      )}
+
       <Field id={id('key')} label={t.inspector.key} hint={t.inspector.keyHint}>
         <CommitInput
           id={id('key')}
@@ -121,7 +129,13 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
       <Field
         id={id('label')}
         label={node.kind === 'group' ? t.inspector.headline : t.inspector.label}
-        hint={node.kind === 'group' ? t.inspector.headlineHint : undefined}
+        hint={
+          node.kind === 'group'
+            ? t.inspector.headlineHint
+            : labelStatus === 'edited' || labelStatus === 'empty'
+              ? <I14yLabelHint current={label} i14yText={linkedLabel} onReset={(text) => edit((draft) => void (draft.labels[lang] = text))} />
+              : undefined
+        }
       >
         <TemplateInput
           id={id('label')}

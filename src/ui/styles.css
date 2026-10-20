@@ -1794,3 +1794,71 @@ input[type='checkbox'] {
   font-size: 12px;
   color: var(--text-muted);
 }
+
+/* I14Y link: tag in the structure, concept line in the inspector, reset markers */
+.tree__tag {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 16px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--blue-bg);
+  color: var(--blue-text);
+}
+.i14y-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-bottom: 20px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+}
+.i14y-link__concept {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+}
+.i14y-link__from,
+.i14y-link__publisher {
+  color: var(--text-muted);
+}
+.i14y-link__publisher {
+  font-size: 12px;
+}
+.i14y-link__name {
+  color: var(--text-strong);
+  font-weight: 500;
+}
+.text-button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--text-strong);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.i14y-link a.btn {
+  text-decoration: none;
+}
+.i14y-reset {
+  color: var(--blue-text);
+}
+.translations__cell {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.translations-aside__row {
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+}

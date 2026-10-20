@@ -4,22 +4,11 @@ import type { ReportNote } from '../../core/import/report';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Badge, Button, Dialog } from '../components/controls';
-import { fetchConcept, searchConcepts } from '../lib/i14y';
+import { fetchConcept, searchConcepts, statusLabel, statusTone } from '../lib/i14y';
 
 const SEARCH_DELAY_MS = 300;
 
 type SearchState = { kind: 'idle' } | { kind: 'searching' } | { kind: 'done'; hits: I14yHit[] } | { kind: 'failed' };
-
-function statusTone(status: string): 'green' | 'blue' | 'gray' {
-  if (status === 'PreferredStandard' || status === 'Standard') return 'green';
-  return status === 'Qualified' ? 'blue' : 'gray';
-}
-
-/** "PreferredStandard" → "Preferred standard". */
-function statusLabel(status: string): string {
-  const words = status.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
-  return words.charAt(0).toUpperCase() + words.slice(1);
-}
 
 /** Searches I14Y and adds the picked concepts as attributes at the end of the group `groupId`. */
 export function I14yDialog({ groupId, onAdded, onClose }: { groupId: string; onAdded: (nodeIds: string[]) => void; onClose: () => void }) {

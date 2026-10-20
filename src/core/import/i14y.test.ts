@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vitest';
 import catalogueResponse from '../../test/fixtures/i14y-catalogue.json';
 import concepts from '../../test/fixtures/i14y-concepts.json';
 import search from '../../test/fixtures/i14y-search-geschlecht.json';
+import { buildBundle, serializeBundle } from '../export/bundle';
 import { type AttributeNode, KNOWN_STANDARDS, emptyProject, newAttribute, newGroupLink } from '../model';
 import { insertNode } from '../operations';
 import {
   type I14yConcept,
   type I14yHit,
   addConcepts,
+  compareWithI14y,
   fillFromConcept,
+  i14yLabel,
+  i14yValueLabel,
   matchConcepts,
   parseCatalogue,
   parseConcept,
@@ -86,8 +90,9 @@ describe('addConcepts', () => {
 });
 
 describe('parseConcept', () => {
-  it('reads the identifier, name, type and code list entries', () => {
-    expect(sex).toMatchObject({ id: '86365acd-3ad1-40a3-a76a-447653a4da6f', identifier: 'sex', conceptType: 'CodeList' });
+  it('reads the identifier, name, type, status, publisher and code list entries', () => {
+    expect(sex).toMatchObject({ id: '86365acd-3ad1-40a3-a76a-447653a4da6f', identifier: 'sex', conceptType: 'CodeList', registrationStatus: 'Standard' });
+    expect(sex.publisher.fr).toBe('Office Fédéral de la Statistique (OFS)');
     expect(sex.name.de).toBe('Geschlecht');
     expect(sex.entries).toHaveLength(3);
     expect(dateOfBirth.entries).toEqual([]);
@@ -286,5 +291,55 @@ describe('fillFromConcept', () => {
     expect(fillFromConcept(projectWith(node, ['de-CH', 'rm-CH']), node.id, sex)).toEqual([
       { level: 'warning', message: 'sex: I14Y has no text in rm-CH. Fill it in the Translations view.' },
     ]);
+  });
+});
+
+describe('I14Y link', () => {
+  it('is kept on every attribute added from a concept', () => {
+    const { nodes } = addToRoot([sex]);
+    expect(nodes[0].i14y).toEqual({
+      conceptId: '86365acd-3ad1-40a3-a76a-447653a4da6f',
+      identifier: 'sex',
+      registrationStatus: 'Standard',
+      name: { de: 'Geschlecht', fr: 'Sexe', it: 'Sesso', en: 'Sex' },
+      publisher: expect.objectContaining({ de: 'Bundesamt für Statistik (BFS)' }),
+      values: {
+        '1': { de: 'Männlich', fr: 'Masculin', it: 'Maschile', en: 'Male' },
+        '2': { de: 'Weiblich', fr: 'Féminin', it: 'Femminile', en: 'Female' },
+        '3': { de: 'Unbestimmt', fr: 'Indéterminé', it: 'Indeterminato', en: 'Undefined' },
+      },
+    });
+  });
+
+  it('is kept on an attribute filled from a concept', () => {
+    const project = emptyProject(['de-CH']);
+    const node = newAttribute('dob', { labels: { 'de-CH': 'Geb. Datum' } });
+    insertNode(project, project.root.id, node);
+    fillFromConcept(project, node.id, dateOfBirth);
+    expect((project.root.children[0] as AttributeNode).i14y).toMatchObject({ identifier: 'dateOfBirth', values: {} });
+  });
+
+  it("gives I14Y's text for a label or value in a project language", () => {
+    const [node] = addToRoot([sex]).nodes;
+    expect(i14yLabel(node, 'fr-CH')).toBe('Sexe');
+    expect(i14yValueLabel(node, 'en-GB', '2')).toBe('Female');
+    expect(i14yLabel(node, 'rm-CH')).toBeUndefined();
+    expect(i14yValueLabel(node, 'de-CH', '9')).toBeUndefined();
+    expect(i14yLabel(newAttribute('sex', { labels: { 'de-CH': 'Geschlecht' } }), 'de-CH')).toBeUndefined();
+  });
+
+  it('tells whether a text still matches I14Y', () => {
+    expect(compareWithI14y('Geschlecht', 'Geschlecht')).toBe('same');
+    expect(compareWithI14y('Sex (official)', 'Geschlecht')).toBe('edited');
+    expect(compareWithI14y('', 'Geschlecht')).toBe('empty');
+    expect(compareWithI14y('Anything', undefined)).toBeUndefined();
+  });
+
+  it('is never exported in the bundle', async () => {
+    const { project } = addToRoot([sex]);
+    const json = serializeBundle((await buildBundle(project)).bundle);
+    expect(json).toContain('Geschlecht');
+    expect(json).not.toContain(sex.id);
+    expect(json).not.toContain('i14y');
   });
 });

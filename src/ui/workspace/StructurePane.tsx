@@ -96,6 +96,11 @@ function NodeRow({ node, onSelect }: { node: Node; onSelect: () => void }) {
         </button>
         {nodeIcon(node)}
         <span className="tree__key">{node.key || '—'}</span>
+        {node.kind === 'attribute' && node.i14y && (
+          <span className="tree__tag" title={t.i14yLink.tagTitle(node.i14y.identifier)}>
+            {t.i14yLink.tag}
+          </span>
+        )}
         {node.sensitive && <LockSimpleIcon size={12} aria-label={t.inspector.sensitive} />}
         <span className="tree__label">{node.labels[editLang]}</span>
         {severity && <span className={`tree__dot tree__dot--${severity}`} aria-hidden="true" />}

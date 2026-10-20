@@ -1,5 +1,6 @@
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
+import { I14yReset } from './I14yLink';
 import type { TranslationRow } from './translationRows';
 
 /**
@@ -38,6 +39,7 @@ export function TranslationsAside({ rows }: { rows: TranslationRow[] }) {
                   value={value}
                   onChange={(event) => update((draft) => row.set(draft, lang, event.target.value))}
                 />
+                <I14yReset current={value} i14yText={row.i14y?.(project, lang)} onReset={(text) => update((draft) => row.set(draft, lang, text))} />
               </div>
             );
           })}

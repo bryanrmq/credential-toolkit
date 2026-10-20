@@ -16,6 +16,23 @@ export async function searchConcepts(query: string, language: I14yLanguage, sign
   return parseSearchResults(await getJson(`${I14Y_API}/search?${params}`, signal)).slice(0, MAX_HITS);
 }
 
+export function statusTone(status: string): 'green' | 'blue' | 'gray' {
+  if (status === 'PreferredStandard' || status === 'Standard') return 'green';
+  return status === 'Qualified' ? 'blue' : 'gray';
+}
+
+/** "PreferredStandard" → "Preferred standard". */
+export function statusLabel(status: string): string {
+  const words = status.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** The concept's page on the I14Y website, in the editing language when the site has it. */
+export function conceptPageUrl(conceptId: string, language: I14yLanguage | undefined): string {
+  const lang = language && language !== 'rm' ? language : 'de';
+  return `https://www.i14y.admin.ch/${lang}/catalog/concepts/${encodeURIComponent(conceptId)}/description`;
+}
+
 /** One concept with its code list values. */
 export async function fetchConcept(id: string, signal?: AbortSignal): Promise<I14yConcept> {
   return parseConcept(await getJson(`${I14Y_API}/concepts/${encodeURIComponent(id)}?includeCodeListEntries=true`, signal));
