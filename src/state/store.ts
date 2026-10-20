@@ -25,11 +25,13 @@ export interface AppState {
   cardVariant: CardVariant;
   draftSaveFailed: boolean;
   report: ReportNote[] | null;
+  /** The project was just opened from a bundle: offer to link its attributes that look like I14Y concepts. */
+  i14yReview: boolean;
   /** The project as it was before the last fix, while the toast still offers Undo. */
   undo: Project | null;
   fixNotice: FixNotice | null;
   fixing: boolean;
-  load: (project: Project, report?: ReportNote[]) => void;
+  load: (project: Project, report?: ReportNote[], options?: { reviewI14y?: boolean }) => void;
   close: () => void;
   /** Applies `recipe` to a copy of the project, so every change produces a new object. */
   update: (recipe: (draft: Project) => void) => void;
@@ -45,6 +47,7 @@ export interface AppState {
   setDraftSaveFailed: (failed: boolean) => void;
   setReport: (report: ReportNote[]) => void;
   dismissReport: () => void;
+  dismissI14yReview: () => void;
   /** Applies each group of fixes (one group per listed issue) to one copy of the project; Undo restores it. */
   applyFixes: (groups: Fix[][]) => Promise<void>;
   undoFix: () => void;
@@ -71,13 +74,15 @@ export const useStore = create<AppState>()((set, get) => ({
   cardVariant: 'detail',
   draftSaveFailed: false,
   report: null,
+  i14yReview: false,
   undo: null,
   fixNotice: null,
   fixing: false,
-  load: (project, report) =>
+  load: (project, report, options) =>
     set({
       project,
       report: report && report.length ? report : null,
+      i14yReview: options?.reviewI14y ?? false,
       selection: { kind: 'credential' },
       editLang: project.languages[0] ?? '',
       view: 'editor',
@@ -85,7 +90,7 @@ export const useStore = create<AppState>()((set, get) => ({
       undo: null,
       fixNotice: null,
     }),
-  close: () => set({ project: null, report: null, selection: { kind: 'credential' }, languagesOpen: false, tourOpen: false, undo: null, fixNotice: null }),
+  close: () => set({ project: null, report: null, i14yReview: false, selection: { kind: 'credential' }, languagesOpen: false, tourOpen: false, undo: null, fixNotice: null }),
   update: (recipe) => {
     const current = get().project;
     if (!current) return;
@@ -106,6 +111,7 @@ export const useStore = create<AppState>()((set, get) => ({
   setDraftSaveFailed: (draftSaveFailed) => set({ draftSaveFailed }),
   setReport: (report) => set({ report: report.length ? report : null }),
   dismissReport: () => set({ report: null }),
+  dismissI14yReview: () => set({ i14yReview: false }),
   applyFixes: async (groups) => {
     const before = get().project;
     if (!before || get().fixing || groups.length === 0) return;

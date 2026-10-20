@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
-import { I14Y_API, type I14yConcept, type I14yHit, type I14yLanguage, parseCatalogue, parseConcept, parseSearchResults } from '../../core/import/i14y';
+import { useCallback, useEffect, useState } from 'react';
+import { I14Y_API, type I14yConcept, type I14yHit, type I14yLanguage, linkConcept, parseCatalogue, parseConcept, parseSearchResults } from '../../core/import/i14y';
+import { useStore } from '../../state/store';
+import { t } from '../../strings';
 
 /** I14Y answers every search in full; the dialog lists this many at most. */
 const MAX_HITS = 50;
@@ -108,18 +110,30 @@ export function loadCatalogue(): Promise<I14yHit[] | null> {
 
 /**
  * The I14Y catalogue once loaded. Nothing is fetched until `request` is called, for example when a
- * field gets focus; after a failed load, the next request tries again.
+ * field gets focus, or right away with `load`; after a failed load, the next request tries again.
  */
-export function useI14yCatalogue(): { catalogue: I14yHit[] | null; request: () => void } {
+export function useI14yCatalogue(load = false): { catalogue: I14yHit[] | null; request: () => void } {
   const [current, setCurrent] = useState(catalogue);
   const [requests, setRequests] = useState(0);
   useEffect(() => {
-    if (requests === 0 || current) return;
+    if ((requests === 0 && !load) || current) return;
     let active = true;
     void loadCatalogue().then((loaded) => active && setCurrent(loaded));
     return () => {
       active = false;
     };
-  }, [requests, current]);
-  return { catalogue: current, request: () => setRequests((count) => count + 1) };
+  }, [requests, load, current]);
+  const request = useCallback(() => setRequests((count) => count + 1), []);
+  return { catalogue: current, request };
+}
+
+/** Links attributes to I14Y concepts, fetching each concept for its value labels. Texts stay as they are. */
+export async function linkToI14y(links: { nodeId: string; conceptId: string }[]): Promise<void> {
+  const { update, setReport } = useStore.getState();
+  try {
+    const concepts = await Promise.all(links.map((link) => fetchConcept(link.conceptId)));
+    update((draft) => links.forEach((link, index) => linkConcept(draft, link.nodeId, concepts[index])));
+  } catch {
+    setReport([{ level: 'warning', message: t.i14y.unreachable }]);
+  }
 }

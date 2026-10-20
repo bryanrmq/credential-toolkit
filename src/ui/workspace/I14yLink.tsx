@@ -1,5 +1,5 @@
 import { ArrowCounterClockwiseIcon, ArrowSquareOutIcon } from '@phosphor-icons/react';
-import { compareWithI14y, i14yLanguage, textIn } from '../../core/import/i14y';
+import { type I14yHit, compareWithI14y, i14yLanguage, textIn } from '../../core/import/i14y';
 import type { I14yLink, LangTag } from '../../core/model';
 import { t } from '../../strings';
 import { Badge, Button } from '../components/controls';
@@ -56,5 +56,27 @@ export function I14yReset({ current, i14yText, onReset }: { current: string; i14
     <Button size="icon" variant="ghost" className="i14y-reset" aria-label={label} title={label} onClick={() => onReset(i14yText)}>
       <ArrowCounterClockwiseIcon />
     </Button>
+  );
+}
+
+/** For an unlinked attribute: the I14Y concepts it looks like, each with a Link button. */
+export function I14yMatchLine({ hits, lang, onLink }: { hits: I14yHit[]; lang: LangTag; onLink: (hit: I14yHit) => void }) {
+  return (
+    <section className="i14y-link i14y-link--match" aria-label={t.i14yMatch.region}>
+      <div className="i14y-link__matches">
+        {hits.map((hit) => (
+          <p key={hit.id} className="i14y-link__concept">
+            <span className="i14y-link__from">{t.i14yMatch.looksLike}</span>
+            <span className="i14y-link__name">{textIn(hit.name, lang) || hit.identifier}</span>
+            <code className="tag-mono">{hit.identifier}</code>
+            <Badge tone={statusTone(hit.registrationStatus)}>{statusLabel(hit.registrationStatus)}</Badge>
+            <Button size="small" variant="secondary" aria-label={t.i14yMatch.linkTo(hit.identifier)} onClick={() => onLink(hit)}>
+              {t.i14yMatch.link}
+            </Button>
+          </p>
+        ))}
+        <p className="field__hint">{t.i14yMatch.linkHint}</p>
+      </div>
+    </section>
   );
 }

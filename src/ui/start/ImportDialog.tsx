@@ -52,7 +52,7 @@ export function ImportDialog({ kind, onClose }: { kind: ImportKind; onClose: () 
         setBusy(false);
         return;
       }
-      load(result.project, result.report);
+      load(result.project, result.report, { reviewI14y: kind === 'bundle' });
     } catch (caught) {
       setError(caught instanceof ImportError ? caught.message : `Unexpected error: ${String(caught)}`);
       setBusy(false);

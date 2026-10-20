@@ -1,5 +1,5 @@
 import { TrashIcon } from '@phosphor-icons/react';
-import { type FillOptions, compareWithI14y, fillFromConcept, i14yLabel, i14yLanguage, matchConcepts, textIn } from '../../core/import/i14y';
+import { type FillOptions, compareWithI14y, fillFromConcept, i14yLabel, i14yLanguage, matchConcepts, suggestLinks, textIn } from '../../core/import/i14y';
 import {
   type AttrType,
   type AttributeNode,
@@ -19,9 +19,9 @@ import { t } from '../../strings';
 import { Button, Field, Toggle } from '../components/controls';
 import { CommitInput, PathInput, type SuggestionSource, TemplateInput } from '../components/inputs';
 import { fieldId } from '../issues';
-import { fetchConcept, useI14yCatalogue } from '../lib/i14y';
+import { fetchConcept, linkToI14y, useI14yCatalogue } from '../lib/i14y';
 import { EntriesEditor } from './EntriesEditor';
-import { I14yLabelHint, I14yLinkLine } from './I14yLink';
+import { I14yLabelHint, I14yLinkLine, I14yMatchLine } from './I14yLink';
 import { InspectorHeader } from './InspectorHeader';
 
 /** Every group a node may move to: all groups except the node's own subtree. */
@@ -86,7 +86,10 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
   const label = node.labels[lang] ?? '';
   const linkedLabel = node.kind === 'attribute' ? i14yLabel(node, lang) : undefined;
   const labelStatus = compareWithI14y(label, linkedLabel);
-  const { catalogue, request } = useI14yCatalogue();
+  const unlinked = node.kind === 'attribute' && !node.i14y;
+  // An unlinked attribute loads the catalogue to show the concepts it looks like.
+  const { catalogue, request } = useI14yCatalogue(unlinked);
+  const matches = unlinked && catalogue ? suggestLinks(node, catalogue, project.languages) : [];
   // Labels match names in the editing language; keys also match I14Y identifiers.
   const i14y = (field: 'key' | 'label'): SuggestionSource | undefined =>
     node.kind === 'attribute'
@@ -115,6 +118,7 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
       {node.kind === 'attribute' && node.i14y && (
         <I14yLinkLine link={node.i14y} lang={lang} onUnlink={() => edit((draft) => void (draft.kind === 'attribute' && delete draft.i14y))} />
       )}
+      {matches.length > 0 && <I14yMatchLine hits={matches} lang={lang} onLink={(hit) => void linkToI14y([{ nodeId: node.id, conceptId: hit.id }])} />}
 
       <Field id={id('key')} label={t.inspector.key} hint={t.inspector.keyHint}>
         <CommitInput

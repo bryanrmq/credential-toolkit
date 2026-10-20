@@ -29,7 +29,7 @@ beforeEach(() => {
 describe('I14Y link', () => {
   it('tags the attribute in the structure and names its concept in the panel', () => {
     render(<Workspace />);
-    expect(within(screen.getByRole('region', { name: 'Structure' })).getByTitle('Filled from the I14Y concept sex')).toHaveTextContent('I14Y');
+    expect(within(screen.getByRole('region', { name: 'Structure' })).getByTitle('Linked to the I14Y concept sex')).toHaveTextContent('I14Y');
     const line = screen.getByRole('region', { name: 'I14Y concept' });
     expect(line).toHaveTextContent('From I14Y');
     expect(line).toHaveTextContent('Standard');
@@ -78,6 +78,6 @@ describe('I14Y link', () => {
     expect(sex().i14y).toBeUndefined();
     expect(sex().labels['de-CH']).toBe('Geschlecht');
     expect(screen.queryByRole('region', { name: 'I14Y concept' })).not.toBeInTheDocument();
-    expect(screen.queryByTitle('Filled from the I14Y concept sex')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Linked to the I14Y concept sex')).not.toBeInTheDocument();
   });
 });

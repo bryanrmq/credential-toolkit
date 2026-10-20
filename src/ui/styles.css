@@ -1862,3 +1862,16 @@ input[type='checkbox'] {
 .translations-aside__row {
   grid-template-columns: 52px minmax(0, 1fr) auto;
 }
+.i14y-link--match {
+  background: var(--surface);
+  border-style: dashed;
+}
+.i14y-link__matches {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.report__text {
+  margin: 0;
+  font-size: 13px;
+}

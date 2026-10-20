@@ -9,14 +9,17 @@ import {
   type I14yConcept,
   type I14yHit,
   addConcepts,
+  clearLink,
   compareWithI14y,
   fillFromConcept,
   i14yLabel,
   i14yValueLabel,
+  linkConcept,
   matchConcepts,
   parseCatalogue,
   parseConcept,
   parseSearchResults,
+  suggestLinks,
 } from './i14y';
 import { ImportError } from './report';
 
@@ -341,5 +344,56 @@ describe('I14Y link', () => {
     expect(json).toContain('Geschlecht');
     expect(json).not.toContain(sex.id);
     expect(json).not.toContain('i14y');
+  });
+});
+
+describe('suggestLinks', () => {
+  const catalogue = parseCatalogue(catalogueResponse);
+  const LANGUAGES = ['de-CH', 'fr-CH'];
+  const identifiers = (node: AttributeNode) => suggestLinks(node, catalogue, LANGUAGES).map((hit) => hit.identifier);
+  const hit = (identifier: string, name: I14yHit['name']): I14yHit => ({ id: identifier, identifier, name, conceptType: 'String', registrationStatus: 'Standard', publisher: {} });
+
+  it('suggests the concept whose identifier is the key, ignoring case and underscores', () => {
+    expect(identifiers(newAttribute('date_of_birth'))).toEqual(['dateOfBirth']);
+    expect(identifiers(newAttribute('SEX'))).toEqual(['sex']);
+  });
+
+  it('suggests a concept whose name is a label in the same language', () => {
+    expect(identifiers(newAttribute('gender', { labels: { 'fr-CH': 'Sexe' } }))).toEqual(['sex']);
+    expect(identifiers(newAttribute('gender', { labels: { 'de-CH': 'Sexe' } }))).toEqual([]);
+  });
+
+  it('ignores partial matches', () => {
+    expect(identifiers(newAttribute('birth', { labels: { 'de-CH': 'Geburts' } }))).toEqual([]);
+  });
+
+  it('suggests nothing for an attribute that is already linked', () => {
+    const [linked] = addToRoot([sex], LANGUAGES).nodes;
+    expect(identifiers(linked)).toEqual([]);
+  });
+
+  it('lists the concepts that match on more points first', () => {
+    const list = [hit('gender', {}), hit('sex', { de: 'Geschlecht', fr: 'Sexe' })];
+    const node = newAttribute('gender', { labels: { 'de-CH': 'Geschlecht', 'fr-CH': 'Sexe' } });
+    expect(suggestLinks(node, list, LANGUAGES).map((entry) => entry.identifier)).toEqual(['sex', 'gender']);
+  });
+
+  it('names a clear link only when one concept matches best', () => {
+    const list = [hit('gender', {}), hit('sex', { de: 'Geschlecht' })];
+    expect(clearLink(newAttribute('gender', { labels: { 'de-CH': 'Geschlecht' } }), list, LANGUAGES)).toBeUndefined();
+    expect(clearLink(newAttribute('gender', { labels: { 'fr-CH': 'Genre' } }), list, LANGUAGES)?.identifier).toBe('gender');
+  });
+});
+
+describe('linkConcept', () => {
+  it('records the concept and leaves the texts, key and type alone', () => {
+    const project = emptyProject(['de-CH']);
+    const node = newAttribute('gender', { labels: { 'de-CH': 'Geschlecht (amtlich)' }, entries: { codes: ['1'], labels: { 'de-CH': { '1': 'Mann' } } } });
+    insertNode(project, project.root.id, node);
+    const before = structuredClone(node);
+    linkConcept(project, node.id, sex);
+    const linked = project.root.children[0] as AttributeNode;
+    expect(linked.i14y?.identifier).toBe('sex');
+    expect({ ...linked, i14y: undefined }).toEqual({ ...before, i14y: undefined });
   });
 });

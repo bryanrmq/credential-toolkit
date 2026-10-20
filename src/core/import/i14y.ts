@@ -311,3 +311,51 @@ export function matchConcepts(catalogue: I14yHit[], query: string, { language, i
   ranked.sort((a, b) => a.rank - b.rank || STATUS_RANK.indexOf(a.hit.registrationStatus) - STATUS_RANK.indexOf(b.hit.registrationStatus));
   return ranked.slice(0, limit).map((entry) => entry.hit);
 }
+
+/** A key or identifier reduced to its letters and digits: date_of_birth and dateOfBirth both become dateofbirth. */
+function compactKey(text: string): string {
+  return fold(text).replace(/[^\p{L}\p{N}]+/gu, '');
+}
+
+/**
+ * How well an unlinked attribute matches a concept: one point when its key is the concept's
+ * identifier (ignoring case and separators), one per label that equals the concept's name in the
+ * same language. Partial matches score nothing.
+ */
+function linkScore(node: AttributeNode, hit: I14yHit, languages: LangTag[]): number {
+  let score = node.key && compactKey(node.key) === compactKey(hit.identifier) ? 1 : 0;
+  for (const tag of languages) {
+    const lang = i14yLanguage(tag);
+    const label = node.labels[tag]?.replace(/\s+/g, ' ').trim();
+    const name = lang && hit.name[lang];
+    if (label && name && fold(label) === fold(name)) score++;
+  }
+  return score;
+}
+
+function scoredLinks(node: AttributeNode, catalogue: I14yHit[], languages: LangTag[]): { hit: I14yHit; score: number }[] {
+  if (node.i14y) return [];
+  return catalogue
+    .map((hit) => ({ hit, score: linkScore(node, hit, languages) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score || STATUS_RANK.indexOf(a.hit.registrationStatus) - STATUS_RANK.indexOf(b.hit.registrationStatus));
+}
+
+/** The I14Y concepts an unlinked attribute looks like, best first. Empty for a linked attribute. */
+export function suggestLinks(node: AttributeNode, catalogue: I14yHit[], languages: LangTag[], limit = 3): I14yHit[] {
+  return scoredLinks(node, catalogue, languages)
+    .slice(0, limit)
+    .map((entry) => entry.hit);
+}
+
+/** The concept an unlinked attribute matches better than any other, if there is one. */
+export function clearLink(node: AttributeNode, catalogue: I14yHit[], languages: LangTag[]): I14yHit | undefined {
+  const [best, next] = scoredLinks(node, catalogue, languages);
+  return best && (!next || best.score > next.score) ? best.hit : undefined;
+}
+
+/** Links the attribute `nodeId` to a concept without changing anything else: the markers then show where its texts differ. */
+export function linkConcept(project: Project, nodeId: string, concept: I14yConcept): void {
+  const node = findNode(project.root, nodeId)?.node;
+  if (node?.kind === 'attribute') node.i14y = linkFor(concept);
+}
