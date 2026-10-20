@@ -18,7 +18,7 @@ export function Examples() {
   const open = async (bundle: unknown) => {
     const result = await importBundle(bundle);
     if (loadDraft() && !window.confirm(t.start.confirmReplaceDraft)) return;
-    load(result.project, result.report);
+    load(result.project, result.report, { reviewI14y: true });
   };
 
   return (

@@ -1,8 +1,10 @@
 import { PlusIcon, XIcon } from '@phosphor-icons/react';
+import { i14yValueLabel } from '../../core/import/i14y';
 import type { AttributeNode, Node } from '../../core/model';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Button, Field, Toggle } from '../components/controls';
+import { I14yReset } from './I14yLink';
 
 /** Codes and their labels in the current language (Entry Code + Entry overlays). */
 export function EntriesEditor({ node, edit, id }: { node: AttributeNode; edit: (recipe: (draft: Node) => void) => void; id: string }) {
@@ -58,6 +60,13 @@ export function EntriesEditor({ node, edit, id }: { node: AttributeNode; edit: (
                         draft.entries!.labels[lang] = { ...(draft.entries!.labels[lang] ?? {}), [code]: event.target.value };
                       })
                     }
+                  />
+                </td>
+                <td style={{ width: 32 }}>
+                  <I14yReset
+                    current={entries.labels[lang]?.[code] ?? ''}
+                    i14yText={i14yValueLabel(node, lang, code)}
+                    onReset={(text) => change((draft) => void (draft.entries!.labels[lang] = { ...(draft.entries!.labels[lang] ?? {}), [code]: text }))}
                   />
                 </td>
                 <td style={{ width: 32 }}>

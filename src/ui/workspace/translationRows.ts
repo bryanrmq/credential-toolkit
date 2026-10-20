@@ -1,4 +1,5 @@
-import { type Group, type LangTag, type Node, type Project, findNode } from '../../core/model';
+import { i14yLabel, i14yValueLabel } from '../../core/import/i14y';
+import { type AttributeNode, type Group, type LangTag, type Node, type Project, findNode } from '../../core/model';
 import { t } from '../../strings';
 
 /** One translatable text with an accessor per language. Shared by the Translations table and column. */
@@ -9,6 +10,13 @@ export interface TranslationRow {
   label: string;
   get: (project: Project, lang: LangTag) => string;
   set: (draft: Project, lang: LangTag, value: string) => void;
+  /** I14Y's text for this row, when it belongs to an attribute linked to an I14Y concept. */
+  i14y?: (project: Project, lang: LangTag) => string | undefined;
+}
+
+function linkedAttribute(project: Project, nodeId: string): AttributeNode | undefined {
+  const node = findNode(project.root, nodeId)?.node;
+  return node?.kind === 'attribute' && node.i14y ? node : undefined;
 }
 
 function metaRow(field: 'name' | 'description', label: string): TranslationRow {
@@ -53,6 +61,10 @@ export function nodeRows(node: Node, path?: string): TranslationRow[] {
         if (value) target.labels[lang] = value;
         else delete target.labels[lang];
       },
+      i14y: (project, lang) => {
+        const attribute = linkedAttribute(project, nodeId);
+        return attribute && i14yLabel(attribute, lang);
+      },
     },
   ];
   if (node.kind === 'attribute' && node.entries) {
@@ -69,6 +81,10 @@ export function nodeRows(node: Node, path?: string): TranslationRow[] {
           const target = findNode(draft.root, nodeId)?.node;
           if (target?.kind !== 'attribute' || !target.entries) return;
           target.entries.labels[lang] = { ...(target.entries.labels[lang] ?? {}), [code]: value };
+        },
+        i14y: (project, lang) => {
+          const attribute = linkedAttribute(project, nodeId);
+          return attribute && i14yValueLabel(attribute, lang, code);
         },
       });
     }

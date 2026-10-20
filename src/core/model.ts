@@ -38,6 +38,20 @@ export interface Entries {
   labels: Record<LangTag, Record<string, string>>;
 }
 
+/**
+ * The I14Y concept an attribute was filled from, with I14Y's texts at that moment (keyed by I14Y
+ * language: de, fr, it, en, rm). Kept in the draft only; the bundle never contains it.
+ */
+export interface I14yLink {
+  conceptId: string;
+  identifier: string;
+  registrationStatus: string;
+  name: Record<string, string>;
+  publisher: Record<string, string>;
+  /** Code → its label per I14Y language. */
+  values: Record<string, Record<string, string>>;
+}
+
 export interface AttributeNode {
   kind: 'attribute';
   id: string;
@@ -48,6 +62,7 @@ export interface AttributeNode {
   sensitive: boolean;
   labels: Record<LangTag, string>;
   entries?: Entries;
+  i14y?: I14yLink;
 }
 
 export interface GroupLink {

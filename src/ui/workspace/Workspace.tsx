@@ -21,6 +21,7 @@ import { loadTourSeen } from '../lib/tour';
 import { Inspector } from './Inspector';
 import { LanguagesDialog } from './LanguagesDialog';
 import { OutputPanel } from './OutputPanel';
+import { I14yMatchBanner } from './I14yMatchBanner';
 import { ReportBanner } from './ReportBanner';
 import { StructurePane } from './StructurePane';
 import { TopBar } from './TopBar';
@@ -79,6 +80,7 @@ export function Workspace() {
           </p>
         )}
         <ReportBanner />
+        <I14yMatchBanner onReview={() => setPane('inspector')} />
         {view === 'translations' ? (
           <TranslationsView />
         ) : (

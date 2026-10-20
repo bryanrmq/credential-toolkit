@@ -1,0 +1,224 @@
+{
+  "data": [
+    {
+      "id": "ba63f2b7-eaad-4ed0-9a99-096b6d390575",
+      "identifiers": [
+        "AHVN13"
+      ],
+      "conceptType": "Numeric",
+      "name": {
+        "de": "AHV-Nummer (AHVN oder AHVN13)",
+        "en": "OASI number (OASIN or OASIN13)",
+        "fr": "Numéro AVS (NAVS ou NAVS13)",
+        "it": "Numero AVS (NAVS o NAVS13)"
+      },
+      "registrationStatus": "Qualified",
+      "publisher": {
+        "name": {
+          "de": "Zentrale Ausgleichsstelle (ZAS)",
+          "en": "Centrale de compensation (CdC)",
+          "fr": "Centrale de compensation (CdC)",
+          "it": "Ufficio centrale di compensazione (UCC)"
+        }
+      }
+    },
+    {
+      "id": "08dbcbbc-6826-fad6-973d-c76ab6ff6579",
+      "identifiers": [
+        "AHVN13"
+      ],
+      "conceptType": "Numeric",
+      "name": {
+        "de": "AHV-Nummer (AHVN oder AHVN13)",
+        "en": "OASI number (OASIN or OASIN13)",
+        "fr": "Numéro AVS (NAVS ou NAVS13)",
+        "it": "Numero AVS (NAVS o NAVS13)"
+      },
+      "registrationStatus": "PreferredStandard",
+      "publisher": {
+        "name": {
+          "de": "Zentrale Ausgleichsstelle (ZAS)",
+          "en": "Centrale de compensation (CdC)",
+          "fr": "Centrale de compensation (CdC)",
+          "it": "Ufficio centrale di compensazione (UCC)"
+        }
+      }
+    },
+    {
+      "id": "cba34e18-bbed-4119-ae1a-3cf49d3a22ac",
+      "identifiers": [
+        "dateOfBirth"
+      ],
+      "conceptType": "Date",
+      "name": {
+        "de": "Geburtsdatum",
+        "en": "Date of birth",
+        "fr": "Date de naissance",
+        "it": "Data di nascita"
+      },
+      "registrationStatus": "Standard",
+      "publisher": {
+        "name": {
+          "de": "Bundesamt für Statistik (BFS)",
+          "en": "Federal Statistical Office (FSO)",
+          "fr": "Office Fédéral de la Statistique (OFS)",
+          "it": "Ufficio federale di statistica (UFS)"
+        }
+      }
+    },
+    {
+      "id": "08dae1d6-4aab-d80c-96cc-4400b6cdae38",
+      "identifiers": [
+        "DV_SEXE"
+      ],
+      "conceptType": "CodeList",
+      "name": {
+        "de": "Geschlecht",
+        "en": "Sex",
+        "fr": "Sexe",
+        "it": "Sesso"
+      },
+      "registrationStatus": "Retired",
+      "publisher": {
+        "name": {
+          "de": "Bundesamt für Statistik (BFS)",
+          "en": "Federal Statistical Office (FSO)",
+          "fr": "Office Fédéral de la Statistique (OFS)",
+          "it": "Ufficio federale di statistica (UFS)"
+        }
+      }
+    },
+    {
+      "id": "08d94b89-bf4d-a423-8add-dde94d0cd1f4",
+      "identifiers": [
+        "HGDE_KT"
+      ],
+      "conceptType": "CodeList",
+      "name": {
+        "de": "Schweizer Kantone",
+        "en": "Swiss cantons",
+        "fr": "Cantons suisses",
+        "it": "Cantoni svizzeri"
+      },
+      "registrationStatus": "Recorded",
+      "publisher": {
+        "name": {
+          "de": "Bundesamt für Statistik (BFS)",
+          "en": "Federal Statistical Office (FSO)",
+          "fr": "Office Fédéral de la Statistique (OFS)",
+          "it": "Ufficio federale di statistica (UFS)"
+        }
+      }
+    },
+    {
+      "id": "aecd306b-91c0-4854-a508-00dc570cb64b",
+      "identifiers": [
+        "personFirstName"
+      ],
+      "conceptType": "String",
+      "name": {
+        "de": "Amtliche Vornamen",
+        "en": "Official first names",
+        "fr": "Prénoms \nofficiel",
+        "it": "Nomi ufficiali"
+      },
+      "registrationStatus": "Standard",
+      "publisher": {
+        "name": {
+          "de": "Bundesamt für Statistik (BFS)",
+          "en": "Federal Statistical Office (FSO)",
+          "fr": "Office Fédéral de la Statistique (OFS)",
+          "it": "Ufficio federale di statistica (UFS)"
+        }
+      }
+    },
+    {
+      "id": "5fd27bff-8bd7-49d9-a4e3-c68e4f791cef",
+      "identifiers": [
+        "personOfficialName"
+      ],
+      "conceptType": "String",
+      "name": {
+        "de": "Amtlicher Nachname",
+        "en": "Official surname",
+        "fr": "Nom de famille officiel ",
+        "it": "Cognome ufficiale"
+      },
+      "registrationStatus": "Standard",
+      "publisher": {
+        "name": {
+          "de": "Bundesamt für Statistik (BFS)",
+          "en": "Federal Statistical Office (FSO)",
+          "fr": "Office Fédéral de la Statistique (OFS)",
+          "it": "Ufficio federale di statistica (UFS)"
+        }
+      }
+    },
+    {
+      "id": "01a01945-ad64-7572-92a4-6c6a2a5b4091",
+      "identifiers": [
+        "religion"
+      ],
+      "conceptType": "CodeList",
+      "name": {
+        "de": "Konfessionszugehörigkeit",
+        "en": "Religious affiliation",
+        "fr": "Appartenance religieuse",
+        "it": "Appartenenza religiosa"
+      },
+      "registrationStatus": "Standard",
+      "publisher": {
+        "name": {
+          "de": "Bundesamt für Statistik (BFS)",
+          "en": "Federal Statistical Office (FSO)",
+          "fr": "Office Fédéral de la Statistique (OFS)",
+          "it": "Ufficio federale di statistica (UFS)"
+        }
+      }
+    },
+    {
+      "id": "d45a9c23-762a-440f-8c0a-b20b0fc730d2",
+      "identifiers": [
+        "religion"
+      ],
+      "conceptType": "CodeList",
+      "name": {
+        "de": "Konfessionszugehörigkeit",
+        "en": "Religious affiliation",
+        "fr": "Appartenance religieuse",
+        "it": "Appartenenza religiosa"
+      },
+      "registrationStatus": "Superseded",
+      "publisher": {
+        "name": {
+          "de": "Bundesamt für Statistik (BFS)",
+          "en": "Federal Statistical Office (FSO)",
+          "fr": "Office Fédéral de la Statistique (OFS)",
+          "it": "Ufficio federale di statistica (UFS)"
+        }
+      }
+    },
+    {
+      "id": "86365acd-3ad1-40a3-a76a-447653a4da6f",
+      "identifiers": [
+        "sex"
+      ],
+      "conceptType": "CodeList",
+      "name": {
+        "de": "Geschlecht",
+        "en": "Sex",
+        "fr": "Sexe",
+        "it": "Sesso"
+      },
+      "registrationStatus": "Standard",
+      "publisher": {
+        "name": {
+          "de": "Bundesamt für Statistik (BFS)",
+          "en": "Federal Statistical Office (FSO)",
+          "fr": "Office Fédéral de la Statistique (OFS)",
+          "it": "Ufficio federale di statistica (UFS)"
+        }
+      }
+    }
+  ]
+}

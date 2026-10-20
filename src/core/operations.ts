@@ -94,7 +94,7 @@ export function renameLanguage(project: Project, from: LangTag, to: LangTag): vo
 /** Keys the editor gives new items (made unique with `_2`, `_3`…). */
 export const NEW_NODE_KEYS = { attribute: 'attribute', group: 'group', list: 'items' } as const;
 
-const PLACEHOLDER_KEY = new RegExp(`^(?:${Object.values(NEW_NODE_KEYS).join('|')})(?:_\\d+)?$`);
+export const PLACEHOLDER_KEY = new RegExp(`^(?:${Object.values(NEW_NODE_KEYS).join('|')})(?:_\\d+)?$`);
 
 /** `base`, or `base_2`, `base_3`… — the first key not used in `group`. */
 export function uniqueKey(group: Group, base: string): string {

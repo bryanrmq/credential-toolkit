@@ -1,5 +1,6 @@
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
+import { I14yReset } from './I14yLink';
 import { allRows } from './translationRows';
 
 export function TranslationsView() {
@@ -30,13 +31,16 @@ export function TranslationsView() {
                 const value = row.get(project, lang);
                 return (
                   <td key={lang}>
-                    <input
-                      className="input"
-                      aria-label={`${row.path ? `${row.path} ` : ''}${row.label} (${lang})`}
-                      data-empty={value === ''}
-                      value={value}
-                      onChange={(event) => update((draft) => row.set(draft, lang, event.target.value))}
-                    />
+                    <div className="translations__cell">
+                      <input
+                        className="input"
+                        aria-label={`${row.path ? `${row.path} ` : ''}${row.label} (${lang})`}
+                        data-empty={value === ''}
+                        value={value}
+                        onChange={(event) => update((draft) => row.set(draft, lang, event.target.value))}
+                      />
+                      <I14yReset current={value} i14yText={row.i14y?.(project, lang)} onReset={(text) => update((draft) => row.set(draft, lang, text))} />
+                    </div>
                   </td>
                 );
               })}
