@@ -9,34 +9,39 @@ import { fetchConcept, searchConcepts, statusLabel, statusTone } from '../lib/i1
 const SEARCH_DELAY_MS = 300;
 
 type SearchState = { kind: 'idle' } | { kind: 'searching' } | { kind: 'done'; hits: I14yHit[] } | { kind: 'failed' };
+/** The outcome of one search, kept with the query and language it answers. */
+type SearchResult = { key: string; state: SearchState };
 
 /** Searches I14Y and adds the picked concepts as attributes at the end of the group `groupId`. */
 export function I14yDialog({ groupId, onAdded, onClose }: { groupId: string; onAdded: (nodeIds: string[]) => void; onClose: () => void }) {
   const editLang = useStore((state) => state.editLang);
   const { update, setReport } = useStore.getState();
   const [query, setQuery] = useState('');
-  const [search, setSearch] = useState<SearchState>({ kind: 'idle' });
+  const [search, setSearch] = useState<SearchResult | null>(null);
   const [picked, setPicked] = useState<I14yHit[]>([]);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const trimmed = query.trim();
-  const shown: SearchState = trimmed.length < 2 ? { kind: 'idle' } : search;
+  const language = i14yLanguage(editLang) ?? 'de';
+  const searchKey = `${language}:${trimmed}`;
+  // Results for an earlier query are never shown: until this query is answered, it is searching.
+  const shown: SearchState = trimmed.length < 2 ? { kind: 'idle' } : search?.key === searchKey ? search.state : { kind: 'searching' };
 
   useEffect(() => {
     if (trimmed.length < 2) return;
     const controller = new AbortController();
+    const key = `${language}:${trimmed}`;
     const timer = setTimeout(() => {
-      setSearch({ kind: 'searching' });
-      searchConcepts(trimmed, i14yLanguage(editLang) ?? 'de', controller.signal)
-        .then((hits) => setSearch({ kind: 'done', hits }))
-        .catch(() => !controller.signal.aborted && setSearch({ kind: 'failed' }));
+      searchConcepts(trimmed, language, controller.signal)
+        .then((hits) => setSearch({ key, state: { kind: 'done', hits } }))
+        .catch(() => !controller.signal.aborted && setSearch({ key, state: { kind: 'failed' } }));
     }, SEARCH_DELAY_MS);
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [trimmed, editLang]);
+  }, [trimmed, language]);
 
   const toggle = (hit: I14yHit, checked: boolean) =>
     setPicked((current) => (checked ? [...current, hit] : current.filter((existing) => existing.id !== hit.id)));

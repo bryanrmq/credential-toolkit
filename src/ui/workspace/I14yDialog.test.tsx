@@ -53,6 +53,20 @@ describe('I14yDialog', () => {
     expect(searchUrl).toContain('language=de');
   });
 
+  it('hides the previous results as soon as the search changes', async () => {
+    stubI14y();
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(screen.getByRole('button', { name: 'Add attributes from I14Y' }));
+    const search = screen.getByLabelText('Search I14Y');
+    await user.type(search, 'Geschlecht');
+    await screen.findByRole('checkbox', { name: 'Geschlecht (sex)' });
+
+    await user.type(search, 'x');
+    expect(screen.queryByRole('checkbox', { name: 'Geschlecht (sex)' })).not.toBeInTheDocument();
+    expect(screen.getByText('Searching…')).toBeInTheDocument();
+  });
+
   it('says so when I14Y cannot be reached', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new TypeError('Failed to fetch'))));
     const user = userEvent.setup();
