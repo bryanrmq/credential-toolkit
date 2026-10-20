@@ -26,6 +26,7 @@ import {
   ToggleLeftIcon,
 } from '@phosphor-icons/react';
 import { type ReactNode, useState } from 'react';
+import { type PendingLink, pendingLinks, textIn } from '../../core/import/i14y';
 import { importSample } from '../../core/import/sample';
 import {
   type Group,
@@ -36,12 +37,14 @@ import {
   isArrayType,
   newAttribute,
   newGroupLink,
+  walkNodes,
 } from '../../core/model';
 import { NEW_NODE_KEYS, insertNode, moveNode, sourcePrefixFor, uniqueKey } from '../../core/operations';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
 import { fieldId, focusField, useIssues } from '../issues';
+import { useI14yCatalogue } from '../lib/i14y';
 import { I14yDialog } from './I14yDialog';
 import { SampleDialog } from './SampleControl';
 
@@ -65,13 +68,17 @@ function targetGroup(project: Project, selectionId: string | null): Group {
   return visit.node.kind === 'group' ? visit.node.group : visit.parent;
 }
 
-function NodeRow({ node, onSelect }: { node: Node; onSelect: () => void }) {
+/** Unlinked attributes that look like I14Y concepts, by node id. */
+type Matches = Map<string, PendingLink>;
+
+function NodeRow({ node, matches, onSelect }: { node: Node; matches: Matches; onSelect: () => void }) {
   const selected = useStore((state) => state.selection.kind === 'node' && state.selection.id === node.id);
   const editLang = useStore((state) => state.editLang);
   const select = useStore((state) => state.select);
   const issues = useIssues().filter((issue) => issue.target.kind === 'node' && issue.target.nodeId === node.id);
   const severity = issues.some((issue) => issue.severity === 'error') ? 'error' : issues.length ? 'warning' : null;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: node.id });
+  const match = matches.get(node.id)?.hits[0];
 
   return (
     <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} className={isDragging ? 'tree__dragging' : undefined}>
@@ -101,22 +108,27 @@ function NodeRow({ node, onSelect }: { node: Node; onSelect: () => void }) {
             {t.i14yLink.tag}
           </span>
         )}
+        {match && (
+          <span className="tree__tag tree__tag--maybe" title={t.i14yMatch.markerTitle(textIn(match.name, editLang) || match.identifier, match.identifier)}>
+            {t.i14yMatch.marker}
+          </span>
+        )}
         {node.sensitive && <LockSimpleIcon size={12} aria-label={t.inspector.sensitive} />}
         <span className="tree__label">{node.labels[editLang]}</span>
         {severity && <span className={`tree__dot tree__dot--${severity}`} aria-hidden="true" />}
       </div>
-      {node.kind === 'group' && <NodeList group={node.group} onSelect={onSelect} />}
+      {node.kind === 'group' && <NodeList group={node.group} matches={matches} onSelect={onSelect} />}
     </li>
   );
 }
 
-function NodeList({ group, onSelect }: { group: Group; onSelect: () => void }) {
+function NodeList({ group, matches, onSelect }: { group: Group; matches: Matches; onSelect: () => void }) {
   return (
     <SortableContext items={group.children.map((child) => child.id)} strategy={verticalListSortingStrategy}>
       <ul className="tree">
         {group.children.length === 0 && <li className="tree__empty">{t.structure.empty}</li>}
         {group.children.map((child) => (
-          <NodeRow key={child.id} node={child} onSelect={onSelect} />
+          <NodeRow key={child.id} node={child} matches={matches} onSelect={onSelect} />
         ))}
       </ul>
     </SortableContext>
@@ -129,6 +141,10 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
   const { update, select, setReport } = useStore.getState();
   const [filling, setFilling] = useState(false);
   const [i14yGroupId, setI14yGroupId] = useState<string | null>(null);
+  // With unlinked attributes, load the cached I14Y catalogue to mark the ones that look like a concept.
+  const unlinked = [...walkNodes(project.root)].some(({ node }) => node.kind === 'attribute' && !node.i14y);
+  const { catalogue } = useI14yCatalogue(unlinked);
+  const matches: Matches = new Map((catalogue && unlinked ? pendingLinks(project, catalogue) : []).map((pending) => [pending.nodeId, pending]));
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
   const add = (kind: 'attribute' | 'group' | 'list') => {
@@ -212,7 +228,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
           </div>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-            <NodeList group={project.root} onSelect={onSelect} />
+            <NodeList group={project.root} matches={matches} onSelect={onSelect} />
           </DndContext>
         )}
         {i14yGroupId && (

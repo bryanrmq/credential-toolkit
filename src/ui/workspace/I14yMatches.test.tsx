@@ -62,6 +62,17 @@ describe('I14Y matches in the attribute panel', () => {
   });
 });
 
+describe('I14Y matches in the structure', () => {
+  it('marks unlinked attributes that look like a concept', async () => {
+    useStore.getState().load(projectWith(newAttribute('date_of_birth'), newAttribute('permit_number')));
+    render(<Workspace />);
+    const structure = screen.getByRole('region', { name: 'Structure' });
+    const marker = await within(structure).findByTitle('Looks like the I14Y concept Geburtsdatum (dateOfBirth). Open it to link.');
+    expect(marker).toHaveTextContent('I14Y?');
+    expect(within(structure).getAllByText('I14Y?')).toHaveLength(1);
+  });
+});
+
 describe('I14Y matches after opening a bundle', () => {
   function openBundle() {
     const project = projectWith(
@@ -91,6 +102,41 @@ describe('I14Y matches after opening a bundle', () => {
     render(<Workspace />);
     await user.click(within(await screen.findByRole('region', { name: 'I14Y matches' })).getByRole('button', { name: 'Review' }));
     expect(useStore.getState().selection).toEqual({ kind: 'node', id: attributes()[0].id });
+  });
+
+  it('steps through the matches with Back and Next', async () => {
+    openBundle();
+    const user = userEvent.setup();
+    render(<Workspace />);
+    const banner = await screen.findByRole('region', { name: 'I14Y matches' });
+    const selected = () => useStore.getState().selection;
+    const node = (index: number) => ({ kind: 'node', id: attributes()[index].id });
+
+    await user.click(within(banner).getByRole('button', { name: 'Review' }));
+    expect(selected()).toEqual(node(0));
+    expect(banner).toHaveTextContent('1 of 2');
+    await user.click(within(banner).getByRole('button', { name: 'Next' }));
+    expect(selected()).toEqual(node(1));
+    expect(banner).toHaveTextContent('2 of 2');
+    await user.click(within(banner).getByRole('button', { name: 'Next' }));
+    expect(selected()).toEqual(node(0));
+    await user.click(within(banner).getByRole('button', { name: 'Back' }));
+    expect(selected()).toEqual(node(1));
+  });
+
+  it('lists the matches and opens the one clicked', async () => {
+    openBundle();
+    const user = userEvent.setup();
+    render(<Workspace />);
+    const banner = await screen.findByRole('region', { name: 'I14Y matches' });
+    await user.click(within(banner).getByRole('button', { name: 'Show which' }));
+    const list = within(banner).getByRole('list', { name: 'Attributes that look like I14Y concepts' });
+    expect(within(list).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      expect.stringContaining('Geburtsdatum'),
+      expect.stringContaining('Geschlecht'),
+    ]);
+    await user.click(within(list).getByRole('button', { name: 'gender' }));
+    expect(useStore.getState().selection).toEqual({ kind: 'node', id: attributes()[1].id });
   });
 
   it('stays hidden when the project was not opened from a bundle', async () => {

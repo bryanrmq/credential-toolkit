@@ -1,4 +1,4 @@
-import { type AttrType, type AttributeNode, type Entries, type I14yLink, type LangTag, type Project, KNOWN_STANDARDS, findGroup, findNode, newAttribute } from '../model';
+import { type AttrType, type AttributeNode, type Entries, type Group, type I14yLink, type LangTag, type Project, KNOWN_STANDARDS, findGroup, findNode, newAttribute } from '../model';
 import { PLACEHOLDER_KEY, insertNode, renameNode, sourcePrefixFor, uniqueKey } from '../operations';
 import { FORBIDDEN_KEY_CHARACTERS } from '../validate';
 import { ImportError, type ReportNote, isPlainObject } from './report';
@@ -358,4 +358,31 @@ export function clearLink(node: AttributeNode, catalogue: I14yHit[], languages: 
 export function linkConcept(project: Project, nodeId: string, concept: I14yConcept): void {
   const node = findNode(project.root, nodeId)?.node;
   if (node?.kind === 'attribute') node.i14y = linkFor(concept);
+}
+
+/** An unlinked attribute that looks like one or more I14Y concepts, waiting for the issuer to link it or not. */
+export interface PendingLink {
+  nodeId: string;
+  /** Keys from the root, e.g. person.gender. */
+  path: string;
+  hits: I14yHit[];
+  /** The concept it matches better than any other, if there is one. */
+  clear?: I14yHit;
+}
+
+/** Every unlinked attribute that looks like an I14Y concept, in structure order (depth-first). */
+export function pendingLinks(project: Project, catalogue: I14yHit[]): PendingLink[] {
+  const pending: PendingLink[] = [];
+  const visit = (group: Group, prefix: string) => {
+    for (const node of group.children) {
+      const path = prefix ? `${prefix}.${node.key}` : node.key;
+      if (node.kind === 'group') visit(node.group, path);
+      else {
+        const hits = suggestLinks(node, catalogue, project.languages);
+        if (hits.length) pending.push({ nodeId: node.id, path, hits, clear: clearLink(node, catalogue, project.languages) });
+      }
+    }
+  };
+  visit(project.root, '');
+  return pending;
 }

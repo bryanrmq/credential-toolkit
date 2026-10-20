@@ -19,6 +19,7 @@ import {
   parseCatalogue,
   parseConcept,
   parseSearchResults,
+  pendingLinks,
   suggestLinks,
 } from './i14y';
 import { ImportError } from './report';
@@ -395,5 +396,25 @@ describe('linkConcept', () => {
     const linked = project.root.children[0] as AttributeNode;
     expect(linked.i14y?.identifier).toBe('sex');
     expect({ ...linked, i14y: undefined }).toEqual({ ...before, i14y: undefined });
+  });
+});
+
+describe('pendingLinks', () => {
+  it('lists the unlinked attributes that look like concepts, in structure order', () => {
+    const catalogue = parseCatalogue(catalogueResponse);
+    const project = emptyProject(['de-CH', 'fr-CH']);
+    const person = newGroupLink('person', { source: ['person'] });
+    insertNode(project, project.root.id, newAttribute('date_of_birth'));
+    insertNode(project, project.root.id, person);
+    insertNode(project, person.group.id, newAttribute('gender', { labels: { 'fr-CH': 'Sexe' } }));
+    insertNode(project, project.root.id, newAttribute('permit_number', { labels: { 'de-CH': 'Bewilligungsnummer' } }));
+    addConcepts(project, project.root.id, [sex]);
+
+    const pending = pendingLinks(project, catalogue);
+    expect(pending.map(({ path, hits, clear }) => ({ path, hits: hits.map((hit) => hit.identifier), clear: clear?.identifier }))).toEqual([
+      { path: 'date_of_birth', hits: ['dateOfBirth'], clear: 'dateOfBirth' },
+      { path: 'person.gender', hits: ['sex'], clear: 'sex' },
+    ]);
+    expect(pending[0].nodeId).toBe(project.root.children[0].id);
   });
 });
