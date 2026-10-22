@@ -73,30 +73,41 @@ describe('toggleNode', () => {
 describe('extendTo', () => {
   it('selects the range from the anchor in tree order, across groups', () => {
     const { project: p, a, g, b, c, d } = project();
-    expect(normalizeSelection(p, extendTo(p, oneNode(a), c))).toEqual(several(c, [a, g, b, c], a));
-    expect(normalizeSelection(p, extendTo(p, oneNode(d), b))).toEqual(several(b, [b, c, d], d));
+    expect(normalizeSelection(p, extendTo(visibleOrder(p), oneNode(a), c))).toEqual(several(c, [a, g, b, c], a));
+    expect(normalizeSelection(p, extendTo(visibleOrder(p), oneNode(d), b))).toEqual(several(b, [b, c, d], d));
   });
 
   it('keeps the anchor, so a second range replaces the first', () => {
     const { project: p, a, g, b, d } = project();
-    const first = normalizeSelection(p, extendTo(p, oneNode(b), d));
-    expect(normalizeSelection(p, extendTo(p, first, a))).toEqual(several(a, [a, g, b], b));
+    const first = normalizeSelection(p, extendTo(visibleOrder(p), oneNode(b), d));
+    expect(normalizeSelection(p, extendTo(visibleOrder(p), first, a))).toEqual(several(a, [a, g, b], b));
   });
 
   it('selects the node alone when the credential was selected', () => {
     const { project: p, c } = project();
-    expect(normalizeSelection(p, extendTo(p, CREDENTIAL, c))).toEqual(oneNode(c));
+    expect(normalizeSelection(p, extendTo(visibleOrder(p), CREDENTIAL, c))).toEqual(oneNode(c));
+  });
+
+  it('only takes in the rows given, so a collapsed group keeps its children out', () => {
+    const { project: p, a, g, d } = project();
+    expect(normalizeSelection(p, extendTo([a, g, d], oneNode(a), d))).toEqual(several(d, [a, g, d], a));
   });
 });
 
 describe('rowAfter', () => {
   it('steps from the primary through the Credential row and the nodes', () => {
     const { project: p, a, g, d } = project();
-    expect(rowAfter(p, CREDENTIAL, 1)).toBe(a);
-    expect(rowAfter(p, oneNode(a), -1)).toBe('credential');
-    expect(rowAfter(p, several(a, [a, d]), 1)).toBe(g);
-    expect(rowAfter(p, CREDENTIAL, -1)).toBeNull();
-    expect(rowAfter(p, oneNode(d), 1)).toBeNull();
+    expect(rowAfter(visibleOrder(p), CREDENTIAL, 1)).toBe(a);
+    expect(rowAfter(visibleOrder(p), oneNode(a), -1)).toBe('credential');
+    expect(rowAfter(visibleOrder(p), several(a, [a, d]), 1)).toBe(g);
+    expect(rowAfter(visibleOrder(p), CREDENTIAL, -1)).toBeNull();
+    expect(rowAfter(visibleOrder(p), oneNode(d), 1)).toBeNull();
+  });
+
+  it('skips the rows left out of `nodeRows`, such as those inside a collapsed group', () => {
+    const { a, g, d } = project();
+    expect(rowAfter([a, g, d], oneNode(g), 1)).toBe(d);
+    expect(rowAfter([a, g, d], oneNode(d), -1)).toBe(g);
   });
 });
 

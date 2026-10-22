@@ -54,16 +54,24 @@ export interface DropTarget {
  * Where dropping `draggedIds` with the pointer at `y` lands, given the rows on screen:
  * - the middle of a group row (also a list of objects), or an empty group's hint line: inside that group, at its end;
  * - the upper part of a row: just before it, in its group;
- * - the lower part of a group row with children: before its first child (the line shows above that child);
+ * - the lower part of an expanded group row with children: before its first child (the line shows above that child);
  * - the lower part of any other row: just after it, in its group;
  * - below the last row: at the end of the top level.
  * Null when the drop would change nothing or is not allowed (into a dragged group or one of its descendants).
  * With `inside` false (narrow windows), group rows split like any other row and empty groups have no hint line.
+ * A collapsed group (in `collapsed`) does not open while dragging: its lower part drops after it, like an attribute's.
  */
-export function dropTarget(project: Project, draggedIds: string[], rows: RowBox[], y: number, inside: boolean): DropTarget | null {
+export function dropTarget(
+  project: Project,
+  draggedIds: string[],
+  rows: RowBox[],
+  y: number,
+  inside: boolean,
+  collapsed: readonly string[] = [],
+): DropTarget | null {
   const box = rowAt(rows, y);
   if (!box) return null;
-  const target = box === 'end' ? endOfTree(project) : targetOn(project, box, y, inside);
+  const target = box === 'end' ? endOfTree(project) : targetOn(project, box, y, inside, collapsed);
   return target && canMoveNodesTo(project, draggedIds, target.groupId, target.index) ? target : null;
 }
 
@@ -71,7 +79,7 @@ function endOfTree(project: Project): DropTarget {
   return { groupId: project.root.id, index: project.root.children.length, indicator: { kind: 'end' } };
 }
 
-function targetOn(project: Project, box: RowBox, y: number, inside: boolean): DropTarget | null {
+function targetOn(project: Project, box: RowBox, y: number, inside: boolean, collapsed: readonly string[]): DropTarget | null {
   const empty = emptyGroup(project, box.id);
   if (empty) return inside ? { groupId: empty.group.id, index: 0, indicator: { kind: 'inside', row: empty.linkId } } : null;
   const visit = findNode(project.root, box.id);
@@ -83,7 +91,7 @@ function targetOn(project: Project, box: RowBox, y: number, inside: boolean): Dr
   if (node.kind === 'group' && zone === 'inside') {
     return { groupId: node.group.id, index: node.group.children.length, indicator: { kind: 'inside', row: node.id } };
   }
-  const first = node.kind === 'group' ? node.group.children[0] : undefined;
+  const first = node.kind === 'group' && !collapsed.includes(node.id) ? node.group.children[0] : undefined;
   if (node.kind === 'group' && first) return { groupId: node.group.id, index: 0, indicator: { kind: 'line', row: first.id, edge: 'top' } };
   return { groupId: parent.id, index: index + 1, indicator: { kind: 'line', row: node.id, edge: 'bottom' } };
 }

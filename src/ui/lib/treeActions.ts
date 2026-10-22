@@ -1,7 +1,8 @@
 import { type Node, type Project, findGroup, findNode, newAttribute, newGroupLink, walkNodes } from '../../core/model';
 import { NEW_NODE_KEYS, groupNodes, insertNode, moveNodes, removeNodes, sourcePrefixFor, uniqueKey, ungroupNode } from '../../core/operations';
-import { CREDENTIAL, type Selection, type SelectionRequest, selectedIds, visibleOrder } from '../../state/selection';
+import { CREDENTIAL, type Selection, type SelectionRequest, selectedIds } from '../../state/selection';
 import { useStore } from '../../state/store';
+import { visibleRows } from '../../state/treeView';
 import { fieldId, focusField } from '../issues';
 
 /*
@@ -27,14 +28,15 @@ export function newNodePlace(project: Project, selection: Selection): NodePlace 
 
 /**
  * What to select once `removedIds` (and everything inside them) leave `project`: the first row left
- * after the last removed one, else the last row left before it, else the credential.
+ * after the last removed one, else the last row left before it, else the credential. Only the rows the
+ * tree shows count, so the rows inside the `collapsed` groups are passed over.
  */
-export function selectionAfterRemoval(project: Project, removedIds: Iterable<string>): SelectionRequest {
+export function selectionAfterRemoval(project: Project, removedIds: Iterable<string>, collapsed: readonly string[] = []): SelectionRequest {
   const removed = new Set(removedIds);
   for (const { node } of walkNodes(project.root)) {
     if (node.kind === 'group' && removed.has(node.id)) for (const { node: inner } of walkNodes(node.group)) removed.add(inner.id);
   }
-  const order = visibleOrder(project);
+  const order = visibleRows(project, collapsed);
   const last = order.findLastIndex((id) => removed.has(id));
   const next = order.slice(last + 1).find((id) => !removed.has(id)) ?? order.slice(0, Math.max(last, 0)).findLast((id) => !removed.has(id));
   return next ? { kind: 'node', id: next } : CREDENTIAL;
@@ -73,9 +75,9 @@ export function canDeleteSelection(selection: Selection = useStore.getState().se
 
 /** Deletes the given nodes without asking (undo brings them back) and selects the row after them. */
 export function deleteNodes(nodeIds: string[]): void {
-  const { project, update, select } = useStore.getState();
+  const { project, collapsed, update, select } = useStore.getState();
   if (!project || nodeIds.length === 0) return;
-  const next = selectionAfterRemoval(project, nodeIds);
+  const next = selectionAfterRemoval(project, nodeIds, collapsed);
   update((draft) => void removeNodes(draft, nodeIds));
   select(next);
 }
@@ -114,7 +116,7 @@ export function ungroupSelection(): void {
   const state = useStore.getState();
   const { project, selection, update, select } = state;
   if (!project || selection.kind !== 'node' || !canUngroupSelection(state)) return;
-  const next = selectionAfterRemoval(project, [selection.id]);
+  const next = selectionAfterRemoval(project, [selection.id], state.collapsed);
   let lifted: string[] = [];
   update((draft) => void (lifted = ungroupNode(draft, selection.id) ?? []));
   select(lifted.length ? { kind: 'node', id: lifted[0], ids: lifted } : next);

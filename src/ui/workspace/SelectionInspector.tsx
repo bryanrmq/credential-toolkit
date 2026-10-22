@@ -1,12 +1,12 @@
 import { TrashIcon } from '@phosphor-icons/react';
 import { findNode } from '../../core/model';
-import { groupNodes, moveNodesInto, removeNodes } from '../../core/operations';
-import { CREDENTIAL, visibleOrder } from '../../state/selection';
+import { groupNodes, moveNodesInto } from '../../core/operations';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
 import { fieldId, focusField } from '../issues';
 import { usesCommandKey } from '../lib/platform';
+import { deleteNodes } from '../lib/treeActions';
 import { moveTargets } from './moveTargets';
 
 /** How many selected keys the list shows before "+ N more". */
@@ -29,14 +29,7 @@ export function SelectionInspector({ ids }: { ids: string[] }) {
   };
 
   // After a delete the row below the deleted ones is selected, else the one above (Credential at the top).
-  const remove = () => {
-    const rows = ['credential', ...visibleOrder(project)];
-    const last = Math.max(...ids.map((id) => rows.indexOf(id)));
-    update((draft) => void removeNodes(draft, ids));
-    const left = new Set(['credential', ...visibleOrder(useStore.getState().project!)]);
-    const next = rows.slice(last + 1).find((row) => left.has(row)) ?? rows.slice(0, last).findLast((row) => left.has(row));
-    select(next && next !== 'credential' ? { kind: 'node', id: next } : CREDENTIAL);
-  };
+  const remove = () => deleteNodes(ids);
 
   return (
     <>

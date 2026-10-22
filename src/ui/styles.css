@@ -1194,6 +1194,35 @@ input[type='checkbox'] {
 .tree__row svg {
   flex: none;
 }
+/* A group's chevron points right when collapsed and down when expanded; other rows keep its room so icons line up. */
+.tree__toggle {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+span.tree__toggle {
+  cursor: inherit;
+}
+button.tree__toggle:hover {
+  color: var(--text-strong);
+  background: var(--surface-muted);
+}
+.tree__row[aria-expanded='true'] > .tree__toggle svg {
+  transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tree__toggle svg {
+    transition: transform 120ms var(--ease);
+  }
+}
 .tree__key {
   font-family: var(--font-mono);
   font-size: 12.5px;
