@@ -259,6 +259,7 @@ export const t = {
     empty: 'No issues. The bundle is ready.',
     collapse: 'Collapse issues',
     expand: 'Expand issues',
+    resize: 'Resize the issues panel',
     /** Where an issue sits when it is not about an attribute (attributes show their key path). */
     locations: { credential: 'Credential', languages: 'Languages', hosting: 'Hosting' },
   },

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { emptyGroup, emptyProject, newAttribute, newGroupLink } from '../../core/model';
@@ -67,6 +67,48 @@ describe('IssuesPanel', () => {
 
     await user.click(expand);
     expect(within(panel()).getByRole('list')).toBeInTheDocument();
+  });
+
+  it('resizes the list with the keyboard and remembers the height', async () => {
+    useStore.getState().load(cleanProject());
+    const user = userEvent.setup();
+    const { unmount } = render(<Workspace />);
+    const handle = within(panel()).getByRole('separator', { name: 'Resize the issues panel' });
+    expect(handle).toHaveAttribute('aria-orientation', 'horizontal');
+    expect(handle).toHaveAttribute('aria-valuenow', '200');
+    handle.focus();
+    await user.keyboard('{ArrowUp}{ArrowUp}');
+    expect(handle).toHaveAttribute('aria-valuenow', '232');
+    await user.keyboard('{Shift>}{ArrowDown}{/Shift}');
+    expect(handle).toHaveAttribute('aria-valuenow', '168');
+    expect(document.getElementById('issues-panel-body')).toHaveStyle({ height: '168px' });
+
+    unmount();
+    render(<Workspace />);
+    expect(within(panel()).getByRole('separator', { name: 'Resize the issues panel' })).toHaveAttribute('aria-valuenow', '168');
+  });
+
+  it('resizes the list by dragging its top edge and resets it with a double-click', async () => {
+    useStore.getState().load(cleanProject());
+    const user = userEvent.setup();
+    render(<Workspace />);
+    const handle = within(panel()).getByRole('separator', { name: 'Resize the issues panel' });
+    fireEvent.pointerDown(handle, { clientY: 600, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientY: 500, pointerId: 1 });
+    fireEvent.pointerUp(handle, { clientY: 500, pointerId: 1 });
+    expect(handle).toHaveAttribute('aria-valuenow', '300');
+    expect(localStorage.getItem('oca-generator:issues-height')).toBe('300');
+
+    await user.dblClick(handle);
+    expect(handle).toHaveAttribute('aria-valuenow', '200');
+  });
+
+  it('has no resize handle while collapsed', async () => {
+    useStore.getState().load(cleanProject());
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(within(panel()).getByRole('button', { name: 'Collapse issues' }));
+    expect(within(panel()).queryByRole('separator')).not.toBeInTheDocument();
   });
 
   it('jumps to the field when the row is clicked anywhere', async () => {

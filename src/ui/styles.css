@@ -964,6 +964,19 @@ input[type='checkbox'] {
   background: var(--text-muted);
   transform: scaleX(3);
 }
+.pane-resizer--horizontal {
+  cursor: row-resize;
+}
+.pane-resizer--horizontal::before {
+  inset: 2px 0 auto;
+  width: auto;
+  height: 1px;
+}
+.pane-resizer--horizontal:hover::before,
+.pane-resizer--horizontal:focus-visible::before,
+.pane-resizer--horizontal:active::before {
+  transform: scaleY(3);
+}
 .pane--inspector {
   background: var(--surface);
 }
@@ -1000,7 +1013,7 @@ input[type='checkbox'] {
     grid-template-columns: 1fr;
   }
   .pane,
-  .pane-resizer {
+  .panes > .pane-resizer {
     display: none;
   }
   .panes[data-pane='structure'] .pane--structure,
@@ -1483,9 +1496,16 @@ input[type='checkbox'] {
 }
 /* Issues panel: full width under the panes, like an editor's Problems panel. */
 .issues-panel {
+  position: relative;
   flex: none;
   background: var(--canvas);
   border-top: 1px solid var(--border);
+}
+/* The handle straddles the panel's top border, so the line it highlights is that border. */
+.issues-panel > .pane-resizer--horizontal {
+  position: absolute;
+  inset: -3px 0 auto;
+  height: 5px;
 }
 .issues-panel__header {
   height: 36px;
@@ -1513,8 +1533,10 @@ input[type='checkbox'] {
   justify-content: center;
 }
 .issues-panel__body {
-  max-height: min(240px, 35vh);
-  overflow: auto;
+  /* A remembered height can outgrow a window made shorter since: the panes above keep room regardless. */
+  max-height: max(96px, calc(100vh - 260px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border-top: 1px solid var(--border);
 }
 .issues-panel .empty-state {

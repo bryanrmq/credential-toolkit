@@ -1,16 +1,19 @@
 import { CaretDownIcon, CaretUpIcon, CheckCircleIcon, WarningCircleIcon, WarningIcon, WrenchIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Issue } from '../../core/validate';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Badge, Button, IssueFixes } from '../components/controls';
+import { PaneResizer } from '../components/PaneResizer';
 import { fixAllGroups, goToIssue, groupIssues, issueLocation, useIssues } from '../issues';
+import { DEFAULT_ISSUES_HEIGHT, ISSUES_HEIGHT_LIMITS, clampIssuesHeight, loadIssuesHeight, saveIssuesHeight } from '../lib/paneLayout';
 
 const BODY_ID = 'issues-panel-body';
 
 /**
  * The issue list along the bottom of the workspace, under every pane. The header always shows; collapsing it
- * gives the panes the space back. `onJump` runs after a click took the user to an issue's field.
+ * gives the panes the space back. While open, the top edge resizes the list, which scrolls on its own; the height
+ * is remembered like the pane widths. `onJump` runs after a click took the user to an issue's field.
  */
 export function IssuesPanel({ onJump }: { onJump?: (issue: Issue) => void }) {
   const project = useStore((state) => state.project)!;
@@ -21,13 +24,39 @@ export function IssuesPanel({ onJump }: { onJump?: (issue: Issue) => void }) {
   const warnings = groups.length - errors;
   const fixAll = fixAllGroups(groups, project);
   const [open, setOpen] = useState(true);
+  const panelRef = useRef<HTMLElement>(null);
+  const [height, setHeight] = useState(loadIssuesHeight);
+  const heightRef = useRef(height);
+  const resize = (value: number) => {
+    // The room is what the panes above have now plus the list's own height.
+    const panes = panelRef.current?.previousElementSibling?.clientHeight ?? 0;
+    heightRef.current = clampIssuesHeight(value, panes > 0 ? panes + heightRef.current : undefined);
+    setHeight(heightRef.current);
+  };
+  const commit = () => saveIssuesHeight(heightRef.current);
   const jump = (issue: Issue) => {
     goToIssue(issue);
     onJump?.(issue);
   };
 
   return (
-    <section className="issues-panel" aria-label={t.issues.title}>
+    <section className="issues-panel" aria-label={t.issues.title} ref={panelRef}>
+      {open && (
+        <PaneResizer
+          label={t.issues.resize}
+          value={height}
+          min={ISSUES_HEIGHT_LIMITS[0]}
+          max={ISSUES_HEIGHT_LIMITS[1]}
+          direction={-1}
+          orientation="horizontal"
+          onResize={resize}
+          onCommit={commit}
+          onReset={() => {
+            resize(DEFAULT_ISSUES_HEIGHT);
+            commit();
+          }}
+        />
+      )}
       <div className="issues-panel__header">
         <div className="issues-panel__lead">
           <span className="pane__title">{t.issues.title}</span>
@@ -56,7 +85,7 @@ export function IssuesPanel({ onJump }: { onJump?: (issue: Issue) => void }) {
         </div>
       </div>
       {open && (
-        <div className="issues-panel__body" id={BODY_ID}>
+        <div className="issues-panel__body" id={BODY_ID} style={{ height }}>
           {groups.length === 0 ? (
             <p className="empty-state">
               <CheckCircleIcon size={20} style={{ color: 'var(--green-text)' }} />
