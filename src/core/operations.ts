@@ -4,10 +4,12 @@ import {
   type GroupLink,
   type LangTag,
   type Node,
+  type NodeVisit,
   type Project,
   ensureLanguageSlots,
   findGroup,
   findNode,
+  newGroupLink,
   walkNodes,
 } from './model';
 import { renameInTemplate, resolveTemplate, retargetTemplate } from './templates';
@@ -67,6 +69,100 @@ function retargetTemplates(project: Project, resolved: Map<string, (Node | null)
 
 export function parentGroupOf(project: Project, nodeId: string): Group | undefined {
   return findNode(project.root, nodeId)?.parent;
+}
+
+/**
+ * The given nodes in tree order, leaving out any node that sits inside another given node (it
+ * travels with that ancestor). Unknown ids are ignored.
+ */
+function outermostNodes(project: Project, nodeIds: Iterable<string>): NodeVisit[] {
+  const wanted = new Set(nodeIds);
+  const found: NodeVisit[] = [];
+  const visit = (group: Group, depth: number) => {
+    for (const node of group.children) {
+      if (wanted.has(node.id)) found.push({ node, parent: group, depth });
+      else if (node.kind === 'group') visit(node.group, depth + 1);
+    }
+  };
+  visit(project.root, 0);
+  return found;
+}
+
+/** The group link that owns `group`, with the group it sits in; undefined for the root. */
+function linkOfGroup(project: Project, group: Group): { link: GroupLink; parent: Group } | undefined {
+  for (const { node, parent } of walkNodes(project.root)) if (node.kind === 'group' && node.group === group) return { link: node, parent };
+  return undefined;
+}
+
+/**
+ * Wraps the given nodes in a new group without a source path (a visual group, so the wrapped
+ * attributes keep reading the same claims), keyed `group`, `group_2`… The group takes the place of
+ * the first node in tree order, inside that node's parent; the nodes keep their relative order and a
+ * node inside another given node comes along with it. Returns the new group link's id, or
+ * undefined (and changes nothing) when no given id names a node.
+ */
+export function groupNodes(project: Project, nodeIds: Iterable<string>): string | undefined {
+  const visits = outermostNodes(project, nodeIds);
+  if (!visits.length) return undefined;
+  const { node: first, parent } = visits[0];
+  const link = newGroupLink(uniqueKey(parent, NEW_NODE_KEYS.group));
+  parent.children.splice(parent.children.indexOf(first), 0, link);
+  for (const { node } of visits) moveNode(project, node.id, link.group.id, link.group.children.length);
+  return link.id;
+}
+
+/**
+ * Lifts a group's children into its parent at the group's position, in order, and removes the
+ * then empty group. Refuses (returns undefined, changes nothing) a list of objects, whose children
+ * describe the items of an array, and any node that is not a group. Returns the lifted children's ids.
+ */
+export function ungroupNode(project: Project, nodeId: string): string[] | undefined {
+  const visit = findNode(project.root, nodeId);
+  if (!visit || visit.node.kind !== 'group' || visit.node.array) return undefined;
+  const { node: link, parent } = visit;
+  const children = [...link.group.children];
+  const index = parent.children.indexOf(link);
+  children.forEach((child, offset) => moveNode(project, child.id, parent.id, index + offset));
+  removeNode(project, link.id);
+  return children.map((child) => child.id);
+}
+
+/**
+ * Moves the given nodes one place up or down within their group. A node at the top or bottom edge
+ * of a group moves out into the parent group, just before or after that group; a neighbouring group
+ * is passed over, never entered. Nodes at the very top or bottom of the tree stay where they are,
+ * and so do given nodes stacked against them, so the given nodes always keep their relative order.
+ * Returns whether anything moved.
+ */
+export function moveNodes(project: Project, nodeIds: Iterable<string>, direction: 'up' | 'down'): boolean {
+  const visits = outermostNodes(project, nodeIds);
+  const moving = new Set(visits.map(({ node }) => node.id));
+  const step = direction === 'up' ? -1 : 1;
+  let moved = false;
+  // Nodes nearest the edge go first, so a node never overtakes another given node.
+  for (const { node } of direction === 'up' ? visits : visits.reverse()) {
+    const parent = parentGroupOf(project, node.id)!;
+    const index = parent.children.indexOf(node);
+    const neighbour = parent.children[index + step];
+    if (neighbour) {
+      if (moving.has(neighbour.id)) continue;
+      moved = moveNode(project, node.id, parent.id, direction === 'up' ? index - 1 : index + 2) || moved;
+      continue;
+    }
+    const outer = linkOfGroup(project, parent);
+    if (!outer) continue;
+    const linkIndex = outer.parent.children.indexOf(outer.link);
+    moved = moveNode(project, node.id, outer.parent.id, direction === 'up' ? linkIndex : linkIndex + 1) || moved;
+  }
+  return moved;
+}
+
+/** Removes every given node in one go; a node inside another given node goes with it. Returns the removed nodes. */
+export function removeNodes(project: Project, nodeIds: Iterable<string>): Node[] {
+  return outermostNodes(project, nodeIds).map(({ node, parent }) => {
+    parent.children = parent.children.filter((child) => child !== node);
+    return node;
+  });
 }
 
 export function addLanguage(project: Project, lang: LangTag): void {
