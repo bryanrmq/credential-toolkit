@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { treeShortcut } from './treeShortcuts';
+import { treeShortcut, treeShortcutLabel } from './treeShortcuts';
 
 const press = (key: string, modifiers: { alt?: boolean; meta?: boolean; ctrl?: boolean; shift?: boolean; composing?: boolean } = {}) =>
   treeShortcut({
@@ -34,5 +34,18 @@ describe('treeShortcut', () => {
     expect(press('ArrowUp', { alt: true, shift: true })).toBeNull();
     expect(press('Backspace', { meta: true })).toBeNull();
     expect(press('n', { composing: true })).toBeNull();
+  });
+});
+
+describe('treeShortcutLabel', () => {
+  it('shows ⌘ and ⌥ on Apple platforms and Ctrl and Alt elsewhere', () => {
+    expect(treeShortcutLabel('group', true)).toBe('⌘G');
+    expect(treeShortcutLabel('ungroup', true)).toBe('⇧⌘G');
+    expect(treeShortcutLabel('moveUp', true)).toBe('⌥↑');
+    expect(treeShortcutLabel('delete', true)).toBe('⌫');
+    expect(treeShortcutLabel('group', false)).toBe('Ctrl+G');
+    expect(treeShortcutLabel('ungroup', false)).toBe('Ctrl+Shift+G');
+    expect(treeShortcutLabel('moveDown', false)).toBe('Alt+↓');
+    expect(treeShortcutLabel('add', false)).toBe('N');
   });
 });

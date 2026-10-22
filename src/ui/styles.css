@@ -869,6 +869,79 @@ input[type='checkbox'] {
   color: var(--text-strong);
 }
 
+/* Popup menu: right-click menus and dropdowns (PopupMenu), on the same surface as the ⋯ menu. */
+.popup-menu {
+  position: fixed;
+  z-index: 30;
+  min-width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+.popup-menu__separator {
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
+}
+.popup-menu__item {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  border-radius: 4px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+}
+.popup-menu__icon {
+  display: flex;
+  color: var(--text-muted);
+}
+.popup-menu__icon svg {
+  width: 14px;
+  height: 14px;
+}
+.popup-menu__shortcut {
+  margin-left: 16px;
+  text-align: right;
+}
+.popup-menu__item:hover,
+.popup-menu__item:focus-visible,
+.popup-menu__item:focus {
+  background: var(--surface-muted);
+  color: var(--text-strong);
+  outline: none;
+}
+.popup-menu__item--danger,
+.popup-menu__item--danger .popup-menu__icon {
+  color: var(--red-text);
+}
+.popup-menu__item--danger:hover,
+.popup-menu__item--danger:focus-visible,
+.popup-menu__item--danger:focus {
+  background: var(--red-bg);
+  color: var(--red-text);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .popup-menu {
+    animation: popup-menu-in 120ms var(--ease);
+  }
+}
+/* Closing is instant: the menu is simply removed. */
+@keyframes popup-menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
 /* Responsive helpers: wide (> 960px) vs narrow */
 .narrow-only {
   display: none;
@@ -1007,6 +1080,16 @@ input[type='checkbox'] {
 }
 .pane__body {
   padding: 4px 20px 32px;
+}
+/* On wide windows the Structure body fills the pane, so the empty area below the last row takes a right-click. */
+@media (min-width: 1001px) {
+  .pane--structure {
+    display: flex;
+    flex-direction: column;
+  }
+  .pane--structure .pane__body {
+    flex: 1 0 auto;
+  }
 }
 .pane-tabs {
   display: none;
