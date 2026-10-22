@@ -12,7 +12,7 @@ import {
   findNode,
   isArrayType,
 } from '../../core/model';
-import { moveNode, removeNode, renameNode } from '../../core/operations';
+import { moveNode, renameNode } from '../../core/operations';
 import { templatePaths } from '../../core/templates';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
@@ -20,6 +20,7 @@ import { Button, Field, Toggle } from '../components/controls';
 import { CommitInput, PathInput, type SuggestionSource, TemplateInput } from '../components/inputs';
 import { fieldId } from '../issues';
 import { fetchConcept, linkToI14y, useI14yCatalogue } from '../lib/i14y';
+import { deleteNodes } from '../lib/treeActions';
 import { EntriesEditor } from './EntriesEditor';
 import { I14yLabelHint, I14yLinkLine, I14yMatchLine } from './I14yLink';
 import { InspectorHeader } from './InspectorHeader';
@@ -74,7 +75,7 @@ function defaultStandard(type: PrimitiveType, current?: string): string | undefi
 export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
   const project = useStore((state) => state.project)!;
   const lang = useStore((state) => state.editLang);
-  const { update, select } = useStore.getState();
+  const { update } = useStore.getState();
   const id = (field: 'key' | 'type' | 'source' | 'label' | 'entries') => fieldId({ kind: 'node', nodeId: node.id, field });
   const edit = (recipe: (draft: Node) => void) =>
     update((draft) => {
@@ -193,14 +194,7 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
         {node.kind === 'group' && node.group.passthrough.length > 0 && (
           <p className="note">{t.inspector.passthrough(node.group.passthrough.map((overlay) => String(overlay.type)).join(', '))}</p>
         )}
-        <Button
-          variant="danger"
-          onClick={() => {
-            if (node.kind === 'group' && node.group.children.length && !window.confirm(t.inspector.confirmDeleteGroup(node.key))) return;
-            update((draft) => void removeNode(draft, node.id));
-            select({ kind: 'credential' });
-          }}
-        >
+        <Button variant="danger" onClick={() => deleteNodes([node.id])}>
           <TrashIcon /> {t.inspector.delete}
         </Button>
       </div>
