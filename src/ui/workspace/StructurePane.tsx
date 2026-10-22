@@ -17,6 +17,7 @@ import {
   BinaryIcon,
   CalendarBlankIcon,
   CaretDownIcon,
+  CaretRightIcon,
   ClipboardTextIcon,
   CopyIcon,
   CopySimpleIcon,
@@ -51,8 +52,9 @@ import {
   walkNodes,
 } from '../../core/model';
 import { moveNodesTo, outermostIds, renameNode } from '../../core/operations';
-import { CREDENTIAL, extendTo, isSelected, oneNode, rowAfter, selectedIds, toggleNode, visibleOrder } from '../../state/selection';
-import { useStore } from '../../state/store';
+import { CREDENTIAL, extendTo, isSelected, oneNode, rowAfter, selectedIds, toggleNode } from '../../state/selection';
+import { type Selection, useStore } from '../../state/store';
+import { ancestorIds, visibleRows } from '../../state/treeView';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
 import { PopupMenu, type PopupMenuItem } from '../components/PopupMenu';
@@ -122,8 +124,8 @@ const CREDENTIAL_ROW = 'credential';
 
 /**
  * What every row needs from the tree: the I14Y matches, the one row in the tab order, the click
- * handlers, the row being renamed and how a rename ends and, while dragging, the dragged nodes, where
- * a drop would land and whether groups take drops inside (wide windows only).
+ * handlers, the row being renamed and how a rename ends, how a group expands or collapses and, while
+ * dragging, the dragged nodes, where a drop would land and whether groups take drops inside (wide windows only).
  */
 interface RowContext {
   matches: Matches;
@@ -135,6 +137,7 @@ interface RowContext {
   dragged: string[] | null;
   drop: DropIndicator | null;
   inside: boolean;
+  onToggle: (id: string, open: boolean) => void;
 }
 
 /** The `data-drop` value of row `id` for `indicator`: an outline (inside) or an insertion line above or below it. */
@@ -154,6 +157,7 @@ function NodeRow({ node, level, context }: { node: Node; level: number; context:
   const draggable = useDraggable({ id: node.id });
   const droppable = useDroppable({ id: node.id });
   const match = context.matches.get(node.id)?.hits[0];
+  const open = useStore((state) => node.kind === 'group' && !state.collapsed.includes(node.id));
 
   return (
     <li role="none" className={context.dragged?.includes(node.id) ? 'tree__dragging' : undefined}>
@@ -166,6 +170,7 @@ function NodeRow({ node, level, context }: { node: Node; level: number; context:
         role="treeitem"
         aria-level={level}
         aria-selected={selected}
+        aria-expanded={node.kind === 'group' ? open : undefined}
         data-row={node.id}
         data-primary={primary || undefined}
         data-drop={dropMark(context.drop, node.id)}
@@ -184,6 +189,25 @@ function NodeRow({ node, level, context }: { node: Node; level: number; context:
         >
           <DotsSixVerticalIcon />
         </button>
+        {node.kind === 'group' ? (
+          // Also out of the tab order (← / → expand and collapse), and a click on it neither takes focus nor selects the row.
+          <button
+            type="button"
+            className="tree__toggle"
+            aria-label={open ? t.structure.collapse(node.key) : t.structure.expand(node.key)}
+            tabIndex={-1}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={(event) => {
+              event.stopPropagation();
+              context.onToggle(node.id, !open);
+            }}
+            onDoubleClick={(event) => event.stopPropagation()}
+          >
+            <CaretRightIcon size={12} weight="bold" />
+          </button>
+        ) : (
+          <span className="tree__toggle" aria-hidden="true" />
+        )}
         {context.renaming === node.id ? (
           <>
             {nodeIcon(node)}
@@ -206,7 +230,7 @@ function NodeRow({ node, level, context }: { node: Node; level: number; context:
         <span className="tree__label">{node.labels[editLang]}</span>
         {severity && <span className={`tree__dot tree__dot--${severity}`} aria-hidden="true" />}
       </div>
-      {node.kind === 'group' && <NodeList group={node.group} level={level + 1} context={context} />}
+      {node.kind === 'group' && open && <NodeList group={node.group} level={level + 1} context={context} />}
     </li>
   );
 }
@@ -311,7 +335,10 @@ function DragPreview({ project, ids }: { project: Project; ids: string[] }) {
 export function StructurePane({ onSelect }: { onSelect: () => void }) {
   const project = useStore((state) => state.project)!;
   const selection = useStore((state) => state.selection);
-  const { update, select, setReport } = useStore.getState();
+  const collapsed = useStore((state) => state.collapsed);
+  const { update, select, setGroupOpen, setReport } = useStore.getState();
+  // The node rows on screen, in order: arrows, Home / End and ⇧ ranges move over these only.
+  const nodeRows = visibleRows(project, collapsed);
   const [filling, setFilling] = useState(false);
   const [i14yGroupId, setI14yGroupId] = useState<string | null>(null);
   const [menu, setMenu] = useState<TreeMenu | null>(null);
@@ -341,7 +368,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     const current = useStore.getState().selection;
     const multi = wide && pointerType.current !== 'touch' && id !== CREDENTIAL_ROW;
     if (multi && event.shiftKey) {
-      select(extendTo(project, current, id));
+      select(extendTo(nodeRows, current, id));
     } else if (multi && (event.metaKey || event.ctrlKey)) {
       select(toggleNode(project, current, id));
     } else {
@@ -375,6 +402,13 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     if (refocus) refocusTree();
   };
 
+  // A click on a chevron leaves the selection alone, unless collapsing hides selected rows: the group then takes their place.
+  const onToggle = (id: string, open: boolean) => {
+    const focused = treeRef.current?.contains(document.activeElement);
+    setGroupOpen(id, open);
+    if (focused) refocusTree();
+  };
+
   /** Keeps keyboard focus in the tree once a change has re-rendered it: on the primary row, or the Credential row. */
   const refocusTree = () =>
     requestAnimationFrame(() => {
@@ -399,7 +433,26 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     }
   };
 
-  // ↑ / ↓ move the selection and ⇧↑ / ⇧↓ extend it (wide windows only); Home / End go to the first and last rows.
+  /**
+   * → (`inward`) expands the primary row's group when collapsed, else goes to its first child; ← collapses
+   * it when expanded, else goes to the group around the row (ARIA tree pattern).
+   */
+  const stepAcross = (current: Selection, inward: boolean) => {
+    const node = current.kind === 'node' ? findNode(project.root, current.id)?.node : undefined;
+    if (!node) return;
+    const open = node.kind === 'group' && !collapsed.includes(node.id);
+    if (node.kind === 'group' && open !== inward) {
+      setGroupOpen(node.id, inward);
+      return;
+    }
+    const target = inward ? (open ? node.group.children[0]?.id : undefined) : ancestorIds(project, node.id).at(-1);
+    if (!target) return;
+    select({ kind: 'node', id: target });
+    focusRow(target);
+  };
+
+  // ↑ / ↓ move the selection over the rows on screen and ⇧↑ / ⇧↓ extend it (wide windows only); Home / End go
+  // to the first and last rows; ← / → expand, collapse and step across levels (`stepAcross`).
   // On wide windows the tree shortcuts (`treeShortcut`) run too, while a row has focus.
   const onTreeKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.defaultPrevented) return;
@@ -430,16 +483,20 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     }
     const arrow = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
     let target: string | null;
-    if (arrow) target = rowAfter(project, current, arrow);
+    if (arrow) target = rowAfter(nodeRows, current, arrow);
     else if (event.key === 'Home') target = CREDENTIAL_ROW;
-    else if (event.key === 'End') target = visibleOrder(project).at(-1) ?? CREDENTIAL_ROW;
-    else return;
+    else if (event.key === 'End') target = nodeRows.at(-1) ?? CREDENTIAL_ROW;
+    else if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+      event.preventDefault();
+      if (!event.shiftKey) stepAcross(current, event.key === 'ArrowRight');
+      return;
+    } else return;
     event.preventDefault();
     if (target === null) return;
     if (arrow && event.shiftKey && wide && current.kind === 'node') {
       // The credential cannot join a multi-selection.
       if (target === CREDENTIAL_ROW) return;
-      select(extendTo(project, current, target));
+      select(extendTo(nodeRows, current, target));
     } else {
       select(target === CREDENTIAL_ROW ? CREDENTIAL : { kind: 'node', id: target });
     }
@@ -458,6 +515,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     dragged,
     drop: drop?.indicator ?? null,
     inside: wide,
+    onToggle,
   };
 
   const add = (kind: NewNodeKind) => {
@@ -604,7 +662,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
       return rect ? [{ id: String(id), top: rect.top, bottom: rect.bottom }] : [];
     });
     const y = pointerCoordinates?.y ?? collisionRect.top + collisionRect.height / 2;
-    const target = dropTarget(project, dragged ?? draggedFor(String(active.id)), rows, y, wide);
+    const target = dropTarget(project, dragged ?? draggedFor(String(active.id)), rows, y, wide, collapsed);
     if (!target) return [];
     return [{ id: target.indicator.kind === 'end' ? 'end' : target.indicator.row, data: { target } }];
   };

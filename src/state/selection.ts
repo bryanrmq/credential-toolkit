@@ -2,7 +2,8 @@ import { type Project, walkNodes } from '../core/model';
 
 /**
  * What the Structure tree has selected: the credential, or one or more nodes.
- * - `ids`: every selected node, in visible tree order. Never empty, and it holds `id`.
+ * - `ids`: every selected node, in tree order. Never empty, and it holds `id`. None is ever inside a
+ *   collapsed group (the store expands the group instead, see `revealSelection`).
  * - `id`: the primary, the node clicked (or moved to) last. The Edit pane shows it.
  * - `anchor`: where a ⇧-click or ⇧↑/⇧↓ range starts. It may have been deselected since.
  * The credential is never part of a multi-selection.
@@ -19,7 +20,10 @@ export function oneNode(id: string): Selection {
   return { kind: 'node', id, ids: [id], anchor: id };
 }
 
-/** Every node id in the order the tree shows them, which is depth-first pre-order. */
+/**
+ * Every node id in tree order, which is depth-first pre-order, the ones inside collapsed groups too
+ * (`visibleRows` in treeView.ts leaves those out).
+ */
 export function visibleOrder(project: Project): string[] {
   return [...walkNodes(project.root)].map(({ node }) => node.id);
 }
@@ -86,15 +90,21 @@ export function toggleNode(project: Project, selection: Selection, id: string): 
   return { kind: 'node', id: above.at(-1) ?? ids[0], ids, anchor: id };
 }
 
-/** ⇧-click on node `id`, or ⇧↑/⇧↓ to it: selects the range from the anchor to `id` in tree order, across groups. */
-export function extendTo(project: Project, selection: Selection, id: string): SelectionRequest {
+/**
+ * ⇧-click on node `id`, or ⇧↑/⇧↓ to it: selects the range from the anchor to `id` among the node rows
+ * the tree shows (`rows`, see `visibleRows`), across groups.
+ */
+export function extendTo(rows: string[], selection: Selection, id: string): SelectionRequest {
   if (selection.kind === 'credential') return { kind: 'node', id };
-  return { kind: 'node', id, ids: range(visibleOrder(project), selection.anchor, id), anchor: selection.anchor };
+  return { kind: 'node', id, ids: range(rows, selection.anchor, id), anchor: selection.anchor };
 }
 
-/** The row `step` rows away from the primary (`'credential'` for the Credential row), or null past either end. */
-export function rowAfter(project: Project, selection: Selection, step: 1 | -1): string | null {
-  const rows = ['credential', ...visibleOrder(project)];
+/**
+ * The row `step` rows away from the primary among the node rows the tree shows (`nodeRows`, see
+ * `visibleRows`), `'credential'` for the Credential row, or null past either end.
+ */
+export function rowAfter(nodeRows: string[], selection: Selection, step: 1 | -1): string | null {
+  const rows = ['credential', ...nodeRows];
   const at = rows.indexOf(selection.kind === 'node' ? selection.id : 'credential');
   return rows[Math.max(at, 0) + step] ?? null;
 }

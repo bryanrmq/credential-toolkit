@@ -1,9 +1,10 @@
-import { create } from 'zustand';
+import { type StateCreator, create } from 'zustand';
 import type { CardPlatform, CardVariant } from '../core/card/profiles';
 import type { ReportNote } from '../core/import/report';
 import type { LangTag, Project } from '../core/model';
 import type { Fix } from '../core/validate/fixes';
 import { CREDENTIAL, type Selection, type SelectionRequest, normalizeSelection, selectionIn } from './selection';
+import { loadCollapsed, revealSelection, saveCollapsed, selectionOnCollapse } from './treeView';
 
 export type { Selection, SelectionRequest } from './selection';
 export type View = 'editor' | 'translations';
@@ -27,6 +28,11 @@ export const TYPING_PAUSE_MS = 1000;
 export interface AppState {
   project: Project | null;
   selection: Selection;
+  /**
+   * The Structure tree's collapsed groups, by node id, remembered per project. A selected node is never
+   * inside one: whatever selects it (a click, undo, an issue, a new node) expands the groups around it.
+   */
+  collapsed: string[];
   editLang: LangTag;
   view: View;
   brandingTheme: Theme;
@@ -59,6 +65,8 @@ export interface AppState {
   redo: () => void;
   /** Selects the credential, one node, or several nodes (`ids`) with `id` as the primary. */
   select: (selection: SelectionRequest) => void;
+  /** Expands or collapses group node `id`. Collapsing it moves the selected nodes inside it to the group itself. */
+  setGroupOpen: (id: string, open: boolean) => void;
   setEditLang: (lang: LangTag) => void;
   setView: (view: View) => void;
   setBrandingTheme: (theme: Theme) => void;
@@ -125,9 +133,26 @@ function travel(state: AppState, direction: 'undo' | 'redo'): Partial<AppState> 
   };
 }
 
-export const useStore = create<AppState>()((set, get) => ({
+/** Makes every change of the store also expand, in the same change, the groups that would hide a selected node. */
+function revealingSelection(config: StateCreator<AppState>): StateCreator<AppState> {
+  return (set, get, api) =>
+    config(
+      (partial) =>
+        set((state) => {
+          const change = typeof partial === 'function' ? partial(state) : partial;
+          const { project, selection, collapsed } = { ...state, ...change };
+          const revealed = project ? revealSelection(project, selection, collapsed) : collapsed;
+          return revealed === collapsed ? change : { ...change, collapsed: revealed };
+        }),
+      get,
+      api,
+    );
+}
+
+export const useStore = create<AppState>()(revealingSelection((set, get) => ({
   project: null,
   selection: CREDENTIAL,
+  collapsed: [],
   editLang: '',
   view: 'editor',
   brandingTheme: 'light',
@@ -151,6 +176,7 @@ export const useStore = create<AppState>()((set, get) => ({
       report: report && report.length ? report : null,
       i14yReview: options?.reviewI14y ?? false,
       selection: CREDENTIAL,
+      collapsed: loadCollapsed(project),
       editLang: project.languages[0] ?? '',
       view: 'editor',
       brandingTheme: 'light',
@@ -166,6 +192,7 @@ export const useStore = create<AppState>()((set, get) => ({
       report: null,
       i14yReview: false,
       selection: CREDENTIAL,
+      collapsed: [],
       languagesOpen: false,
       tourOpen: false,
       past: [],
@@ -195,6 +222,16 @@ export const useStore = create<AppState>()((set, get) => ({
   undo: () => set(travel(get(), 'undo')),
   redo: () => set(travel(get(), 'redo')),
   select: (selection) => set({ selection: normalizeSelection(get().project, selection) }),
+  setGroupOpen: (id, open) => {
+    const { project, selection, collapsed } = get();
+    if (!project || collapsed.includes(id) !== open) return;
+    if (open) {
+      set({ collapsed: collapsed.filter((groupId) => groupId !== id) });
+      return;
+    }
+    const moved = selectionOnCollapse(project, selection, id);
+    set({ collapsed: [...collapsed, id], ...(moved && { selection: normalizeSelection(project, moved) }) });
+  },
   setEditLang: (editLang) => set({ editLang }),
   setView: (view) => set({ view }),
   setBrandingTheme: (brandingTheme) => set({ brandingTheme }),
@@ -243,4 +280,9 @@ export const useStore = create<AppState>()((set, get) => ({
     }
   },
   dismissFixNotice: () => set({ fixNotice: null }),
-}));
+})));
+
+// The project's collapsed groups are saved whenever they change, however they changed.
+useStore.subscribe((state, previous) => {
+  if (state.project && state.collapsed !== previous.collapsed) saveCollapsed(state.project, state.collapsed);
+});
