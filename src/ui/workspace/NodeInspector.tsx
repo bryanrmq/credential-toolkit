@@ -23,18 +23,7 @@ import { fetchConcept, linkToI14y, useI14yCatalogue } from '../lib/i14y';
 import { EntriesEditor } from './EntriesEditor';
 import { I14yLabelHint, I14yLinkLine, I14yMatchLine } from './I14yLink';
 import { InspectorHeader } from './InspectorHeader';
-
-/** Every group a node may move to: all groups except the node's own subtree. */
-function moveTargets(root: Group, node: Node): Array<{ id: string; label: string }> {
-  const targets: Array<{ id: string; label: string }> = [];
-  const visit = (group: Group, path: string[]) => {
-    if (node.kind === 'group' && group === node.group) return;
-    targets.push({ id: group.id, label: path.length ? path.join(' › ') : t.inspector.root });
-    for (const child of group.children) if (child.kind === 'group') visit(child.group, [...path, child.key]);
-  };
-  visit(root, []);
-  return targets;
-}
+import { moveTargets } from './moveTargets';
 
 function standardOptions(type: PrimitiveType): Array<{ value: string; label: string }> {
   if (type === 'DateTime') {
@@ -82,7 +71,7 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
       if (found) recipe(found.node);
     });
   const paths = templatePaths(parent);
-  const targets = moveTargets(project.root, node);
+  const targets = moveTargets(project.root, [node]);
   const label = node.labels[lang] ?? '';
   const linkedLabel = node.kind === 'attribute' ? i14yLabel(node, lang) : undefined;
   const labelStatus = compareWithI14y(label, linkedLabel);
