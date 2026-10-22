@@ -1,5 +1,5 @@
 import { type Node, type Project, findGroup, findNode, newAttribute, newGroupLink, walkNodes } from '../../core/model';
-import { NEW_NODE_KEYS, groupNodes, insertNode, moveNodes, removeNodes, sourcePrefixFor, uniqueKey, ungroupNode } from '../../core/operations';
+import { NEW_NODE_KEYS, duplicateNodes, groupNodes, insertNode, moveNodes, removeNodes, sourcePrefixFor, uniqueKey, ungroupNode } from '../../core/operations';
 import { CREDENTIAL, type Selection, type SelectionRequest, selectedIds, visibleOrder } from '../../state/selection';
 import { useStore } from '../../state/store';
 import { fieldId, focusField } from '../issues';
@@ -99,6 +99,26 @@ export function groupSelection(): void {
   if (!linkId) return;
   select({ kind: 'node', id: linkId });
   focusKey(linkId);
+}
+
+/** Whether the selection holds nodes to duplicate. */
+export function canDuplicateSelection(selection: Selection = useStore.getState().selection): boolean {
+  return selection.kind === 'node';
+}
+
+/**
+ * Duplicates the selected nodes, each right after its original (`duplicateNodes`), and selects the
+ * copies in place of the originals, the copy of the primary as the primary.
+ */
+export function duplicateSelection(): void {
+  const { selection, update, select } = useStore.getState();
+  if (selection.kind !== 'node') return;
+  let copies = new Map<string, string>();
+  update((draft) => void (copies = duplicateNodes(draft, selection.ids)));
+  const id = copies.get(selection.id);
+  if (!id) return;
+  const ids = selection.ids.flatMap((nodeId) => copies.get(nodeId) ?? []);
+  select({ kind: 'node', id, ids, anchor: copies.get(selection.anchor) });
 }
 
 /** Whether the selection is one group to ungroup; a list of objects never is, its children describe array items. */

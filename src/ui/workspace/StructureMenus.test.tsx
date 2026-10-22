@@ -79,7 +79,7 @@ beforeEach(() => {
 });
 
 describe('Structure right-click menus', () => {
-  it('on an attribute: group, add below, the moves that apply and Delete, with their shortcuts', async () => {
+  it('on an attribute: group, duplicate, add below, the moves that apply and Delete, with their shortcuts', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
     await rightClick(user, row('a'));
@@ -87,7 +87,15 @@ describe('Structure right-click menus', () => {
     expect(selectedKeys()).toEqual(['a']);
     expect(menu()).toHaveAccessibleName('Actions for a');
     // `a` is first: Move up does not apply and is left out rather than disabled.
-    expect(menuContents()).toEqual(['Group selection [Ctrl+G]', 'Add attribute below [N]', '—', 'Move down [Alt+↓]', '—', 'Delete [Del]']);
+    expect(menuContents()).toEqual([
+      'Group selection [Ctrl+G]',
+      'Duplicate [Ctrl+D]',
+      'Add attribute below [N]',
+      '—',
+      'Move down [Alt+↓]',
+      '—',
+      'Delete [Del]',
+    ]);
     expect(item('Delete')).toHaveClass('popup-menu__item--danger');
     expect(item('Group selection')).toHaveFocus();
 
@@ -109,6 +117,7 @@ describe('Structure right-click menus', () => {
 
     await rightClick(user, row('d'));
     expect(selectedKeys()).toEqual(['c', 'd']);
+    expect(menuContents()).toContain('Duplicate 2 items [Ctrl+D]');
     expect(menuContents()).toContain('Delete 2 items [Del]');
     await user.click(item('Delete 2 items'));
     expect(keys()).toEqual(['a', 'person', 'items']);
@@ -142,7 +151,22 @@ describe('Structure right-click menus', () => {
     expect(selectedKeys()).toEqual(['group']);
   });
 
-  it('on a group: adds inside it at its end, ungroups, moves and deletes it', async () => {
+  it('Duplicate copies the selection after the originals and selects the copies', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('a'));
+    await user.keyboard('{Control>}');
+    await user.click(row('person'));
+    await user.keyboard('{/Control}');
+    await rightClick(user, row('person'));
+    await user.click(item('Duplicate 2 items'));
+    expect(keys()).toEqual(['a', 'a_2', 'person', 'person_2', 'd', 'items']);
+    expect(childKeys('person_2')).toEqual(['b', 'c']);
+    expect(selectedKeys()).toEqual(['a_2', 'person_2']);
+    await waitFor(() => expect(row('person_2')).toHaveFocus());
+  });
+
+  it('on a group: adds inside it at its end, duplicates, ungroups, moves and deletes it', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
     await rightClick(user, row('person'));
@@ -153,6 +177,7 @@ describe('Structure right-click menus', () => {
       'Add list of objects here',
       'Add from I14Y…',
       '—',
+      'Duplicate [Ctrl+D]',
       'Ungroup [Ctrl+Shift+G]',
       'Move up [Alt+↑]',
       'Move down [Alt+↓]',
@@ -183,7 +208,7 @@ describe('Structure right-click menus', () => {
     expect(screen.getByRole('dialog', { name: 'I14Y' })).toHaveAttribute('data-group', groupId('person'));
   });
 
-  it('on a list of objects: no Ungroup; Delete group deletes it', async () => {
+  it('on a list of objects: Duplicate but no Ungroup; Delete group deletes it', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
     await rightClick(user, row('items'));
@@ -193,6 +218,7 @@ describe('Structure right-click menus', () => {
       'Add list of objects here',
       'Add from I14Y…',
       '—',
+      'Duplicate [Ctrl+D]',
       'Move up [Alt+↑]',
       '—',
       'Delete group [Del]',
@@ -261,7 +287,7 @@ describe('Structure right-click menus', () => {
     expect(menu()).toHaveAccessibleName('Actions for d');
     expect(item('Group selection')).toHaveFocus();
     await user.keyboard('{ArrowDown}');
-    expect(item('Add attribute below')).toHaveFocus();
+    expect(item('Duplicate')).toHaveFocus();
     await user.keyboard('{ArrowUp}{ArrowUp}');
     expect(item('Delete')).toHaveFocus();
     await user.keyboard('{Home}');
@@ -272,10 +298,10 @@ describe('Structure right-click menus', () => {
     expect(queryMenu()).not.toBeInTheDocument();
     expect(row('d')).toHaveFocus();
 
-    // The context-menu key, then ↓ ↓ to Move up and ⏎.
+    // The context-menu key, then ↓ ↓ ↓ to Move up and ⏎.
     await user.keyboard('{ContextMenu}');
     expect(item('Group selection')).toHaveFocus();
-    await user.keyboard('{ArrowDown}{ArrowDown}{Enter}');
+    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}{Enter}');
     expect(queryMenu()).not.toBeInTheDocument();
     expect(keys()).toEqual(['a', 'd', 'person', 'items']);
     await waitFor(() => expect(row('d')).toHaveFocus());

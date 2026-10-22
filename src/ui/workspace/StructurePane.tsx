@@ -17,6 +17,7 @@ import {
   BinaryIcon,
   CalendarBlankIcon,
   CaretDownIcon,
+  CopyIcon,
   DotsSixVerticalIcon,
   FolderSimpleDashedIcon,
   FolderSimpleIcon,
@@ -58,10 +59,12 @@ import {
   type NewNodeKind,
   addNode,
   canDeleteSelection,
+  canDuplicateSelection,
   canGroupSelection,
   canMoveSelection,
   canUngroupSelection,
   deleteSelection,
+  duplicateSelection,
   editSelection,
   groupSelection,
   moveSelection,
@@ -382,6 +385,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     else {
       if (shortcut === 'delete') deleteSelection();
       else if (shortcut === 'ungroup') ungroupSelection();
+      else if (shortcut === 'duplicate') duplicateSelection();
       else moveSelection(shortcut === 'moveUp' ? 'up' : 'down');
       refocusTree();
     }
@@ -521,12 +525,19 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
       ...when(canMoveSelection('up', state), { label: t.treeMenu.moveUp, icon: <ArrowUpIcon />, shortcut: shortcut('moveUp'), onSelect: () => runShortcut('moveUp') }),
       ...when(canMoveSelection('down', state), { label: t.treeMenu.moveDown, icon: <ArrowDownIcon />, shortcut: shortcut('moveDown'), onSelect: () => runShortcut('moveDown') }),
     ];
+    const duplicate = when(canDuplicateSelection(state.selection), {
+      label: t.treeMenu.duplicate(count),
+      icon: <CopyIcon />,
+      shortcut: shortcut('duplicate'),
+      onSelect: () => runShortcut('duplicate'),
+    });
     const remove = (label: string) =>
       when(canDeleteSelection(state.selection), { label, icon: <TrashIcon />, shortcut: shortcut('delete'), danger: true, onSelect: () => runShortcut('delete') });
     if (node.kind === 'group') {
       return [
         addHere(node.group.id),
         [
+          ...duplicate,
           ...when(canUngroupSelection(state), { label: t.treeMenu.ungroup, icon: <FolderSimpleDashedIcon />, shortcut: shortcut('ungroup'), onSelect: () => runShortcut('ungroup') }),
           ...moves,
         ],
@@ -537,6 +548,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     return [
       [
         ...when(canGroupSelection(state.selection), { label: t.treeMenu.groupSelection, icon: <FolderSimplePlusIcon />, shortcut: shortcut('group'), onSelect: () => runShortcut('group') }),
+        ...duplicate,
         { label: t.treeMenu.addBelow, icon: <PlusIcon />, shortcut: shortcut('add'), onSelect: addTo('attribute', below.groupId, below.index) },
       ],
       moves,
