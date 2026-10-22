@@ -5,14 +5,17 @@ import {
   DEFAULT_PANE_WIDTHS,
   ISSUES_HEIGHT_KEY,
   ISSUES_OPEN_KEY,
+  OUTPUT_OPEN_KEY,
   PANE_LAYOUT_KEY,
   clampIssuesHeight,
   clampPaneWidth,
   loadIssuesHeight,
   loadIssuesOpen,
+  loadOutputOpen,
   loadPaneWidths,
   saveIssuesHeight,
   saveIssuesOpen,
+  saveOutputOpen,
   savePaneWidths,
 } from './paneLayout';
 
@@ -82,5 +85,23 @@ describe('issues panel open state', () => {
     expect(loadIssuesOpen()).toBe(false);
     saveIssuesOpen(true);
     expect(loadIssuesOpen()).toBe(true);
+  });
+});
+
+describe('output pane shown state', () => {
+  it('is shown unless it was saved as hidden', () => {
+    expect(loadOutputOpen()).toBe(true);
+    localStorage.setItem(OUTPUT_OPEN_KEY, 'not json');
+    expect(loadOutputOpen()).toBe(true);
+    localStorage.setItem(OUTPUT_OPEN_KEY, '0');
+    expect(loadOutputOpen()).toBe(true);
+  });
+
+  it('saves and restores the state', () => {
+    saveOutputOpen(false);
+    expect(localStorage.getItem(OUTPUT_OPEN_KEY)).toBe('false');
+    expect(loadOutputOpen()).toBe(false);
+    saveOutputOpen(true);
+    expect(loadOutputOpen()).toBe(true);
   });
 });

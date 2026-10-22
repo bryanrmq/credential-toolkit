@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { validate } from '../../core/validate';
 import { storageAvailable } from '../../state/persistence';
 import { useStore } from '../../state/store';
@@ -15,8 +15,10 @@ import {
   type WorkspacePane,
   clampPaneWidth,
   loadIssuesOpen,
+  loadOutputOpen,
   loadPaneWidths,
   saveIssuesOpen,
+  saveOutputOpen,
   savePaneWidths,
 } from '../lib/paneLayout';
 import { useHistoryShortcuts } from '../lib/historyShortcuts';
@@ -45,8 +47,25 @@ export function Workspace() {
   const panesRef = useRef<HTMLDivElement>(null);
   const [widths, setWidths] = useState(loadPaneWidths);
   const widthsRef = useRef(widths);
+  const wide = useWideWindow();
+  // The store holds whether Output shows, so that going to a hosting issue or the tour can show it again.
+  const outputOpen = useStore((state) => state.outputOpen);
+  useLayoutEffect(() => {
+    useStore.getState().setOutputOpen(loadOutputOpen());
+    return useStore.subscribe((state, previous) => {
+      if (state.outputOpen !== previous.outputOpen) saveOutputOpen(state.outputOpen);
+    });
+  }, []);
+  // A narrow window shows one pane at a time, Output among the tabs, so there it is never hidden.
+  const outputShown = outputOpen || !wide;
+  const topBarRef = useRef<HTMLElement>(null);
+  const hideOutput = () => {
+    useStore.getState().setOutputOpen(false);
+    // The button that was pressed is gone: focus goes to the top-bar toggle, which shows the pane again.
+    topBarRef.current?.querySelector<HTMLElement>('[data-output-toggle]')?.focus();
+  };
   const resize = (target: ResizablePane, value: number) => {
-    const other = target === 'structure' ? widthsRef.current.output : widthsRef.current.structure;
+    const other = target === 'structure' ? (outputShown ? widthsRef.current.output : 0) : widthsRef.current.structure;
     const next = { ...widthsRef.current, [target]: clampPaneWidth(target, value, { container: panesRef.current?.clientWidth ?? 0, other }) };
     widthsRef.current = next;
     setWidths(next);
@@ -68,7 +87,6 @@ export function Workspace() {
       onReset={() => reset(target)}
     />
   );
-  const wide = useWideWindow();
   const [issuesOpen, setIssuesOpen] = useState(loadIssuesOpen);
   const [issuesFocus, setIssuesFocus] = useState(0);
   const openIssues = (open: boolean) => {
@@ -97,7 +115,7 @@ export function Workspace() {
   return (
     <IssuesContext.Provider value={issues}>
       <div className="workspace">
-        <TopBar exportState={exportState} onShowIssues={showIssues} />
+        <TopBar ref={topBarRef} exportState={exportState} onShowIssues={showIssues} />
         {(!canSave || saveFailed) && (
           <p className="note" role="status" style={{ margin: '12px 20px 0' }}>
             {canSave ? t.workspace.saveFailed : t.workspace.storageUnavailable}
@@ -123,7 +141,7 @@ export function Workspace() {
               />
             </div>
             <div
-              className="panes"
+              className={outputShown ? 'panes' : 'panes panes--no-output'}
               data-pane={pane}
               ref={panesRef}
               style={{ '--structure-width': `${widths.structure}px`, '--output-width': `${widths.output}px` } as CSSProperties}
@@ -135,10 +153,14 @@ export function Workspace() {
               <section className="pane pane--inspector" aria-label={t.workspace.panes.inspector} data-tour="edit">
                 <Inspector />
               </section>
-              {resizer('output', t.workspace.resizeOutput, -1)}
-              <section className="pane pane--output" aria-label={t.output.title} data-tour="output">
-                <OutputPanel exportState={exportState} />
-              </section>
+              {outputShown && (
+                <>
+                  {resizer('output', t.workspace.resizeOutput, -1)}
+                  <section className="pane pane--output" aria-label={t.output.title} data-tour="output">
+                    <OutputPanel exportState={exportState} onHide={wide ? hideOutput : undefined} />
+                  </section>
+                </>
+              )}
             </div>
           </>
         )}

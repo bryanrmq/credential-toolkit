@@ -64,6 +64,8 @@ export const t = {
     moreActions: 'More actions',
     resizeStructure: 'Resize the structure pane',
     resizeOutput: 'Resize the output pane',
+    showOutput: 'Show output',
+    hideOutput: 'Hide output',
     resizeHint: 'Drag to resize. Double-click to reset.',
     manageLanguages: 'Manage languages',
     editorView: 'Editor view',

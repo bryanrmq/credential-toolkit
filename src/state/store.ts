@@ -33,6 +33,8 @@ export interface AppState {
   languagesOpen: boolean;
   tourOpen: boolean;
   outputTab: OutputTab;
+  /** Whether a wide window shows the Output pane. The workspace remembers it with the pane layout. */
+  outputOpen: boolean;
   cardPlatform: CardPlatform;
   cardVariant: CardVariant;
   draftSaveFailed: boolean;
@@ -63,6 +65,7 @@ export interface AppState {
   setLanguagesOpen: (open: boolean) => void;
   setTourOpen: (open: boolean) => void;
   setOutputTab: (tab: OutputTab) => void;
+  setOutputOpen: (open: boolean) => void;
   setCardPlatform: (platform: CardPlatform) => void;
   setCardVariant: (variant: CardVariant) => void;
   setDraftSaveFailed: (failed: boolean) => void;
@@ -131,6 +134,7 @@ export const useStore = create<AppState>()((set, get) => ({
   languagesOpen: false,
   tourOpen: false,
   outputTab: 'bundle',
+  outputOpen: true,
   cardPlatform: 'ios',
   cardVariant: 'detail',
   draftSaveFailed: false,
@@ -197,6 +201,7 @@ export const useStore = create<AppState>()((set, get) => ({
   setLanguagesOpen: (languagesOpen) => set({ languagesOpen }),
   setTourOpen: (tourOpen) => set({ tourOpen }),
   setOutputTab: (outputTab) => set({ outputTab }),
+  setOutputOpen: (outputOpen) => set({ outputOpen }),
   setCardPlatform: (cardPlatform) => set({ cardPlatform }),
   setCardVariant: (cardVariant) => set({ cardVariant }),
   setDraftSaveFailed: (draftSaveFailed) => set({ draftSaveFailed }),
