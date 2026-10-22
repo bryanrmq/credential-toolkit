@@ -18,7 +18,9 @@ import {
   CalendarBlankIcon,
   CaretDownIcon,
   CaretRightIcon,
+  ClipboardTextIcon,
   CopyIcon,
+  CopySimpleIcon,
   DotsSixVerticalIcon,
   FolderSimpleDashedIcon,
   FolderSimpleIcon,
@@ -30,6 +32,7 @@ import {
   LockSimpleIcon,
   MagnifyingGlassIcon,
   PlusIcon,
+  ScissorsIcon,
   StackIcon,
   TextTIcon,
   ToggleLeftIcon,
@@ -59,6 +62,7 @@ import { useIssues } from '../issues';
 import { useI14yCatalogue } from '../lib/i14y';
 import {
   type NewNodeKind,
+  type NodePlace,
   addNode,
   canDeleteSelection,
   canDuplicateSelection,
@@ -73,8 +77,9 @@ import {
   newNodePlace,
   ungroupSelection,
 } from '../lib/treeActions';
+import { canCopySelection, canPasteCopied, copySelection, cutSelection, pasteCopied, useTreeClipboard } from '../lib/treeClipboard';
 import { type DropIndicator, type DropTarget, dropTarget, emptyRowId } from '../lib/treeDrop';
-import { type TreeShortcut, treeActionsAvailable, treeShortcut, treeShortcutLabel, treeShortcutsActive } from '../lib/treeShortcuts';
+import { type ClipboardShortcut, type TreeShortcut, treeActionsAvailable, treeShortcut, treeShortcutLabel, treeShortcutsActive } from '../lib/treeShortcuts';
 import { useWideWindow } from '../lib/wideWindow';
 import { I14yDialog } from './I14yDialog';
 import { SampleDialog } from './SampleControl';
@@ -411,6 +416,9 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
       focusRow(current.kind === 'node' ? current.id : CREDENTIAL_ROW);
     });
 
+  // ⌘C, ⌘X and ⌘V while a row has focus; paste puts the nodes where N adds one.
+  useTreeClipboard(treeRef, wide, refocusTree);
+
   // The tree shortcuts other than ⏎, which the Enter branch below handles. Adding and grouping focus the new key field.
   const runShortcut = (shortcut: Exclude<TreeShortcut, 'edit'>) => {
     if (shortcut === 'add') addNode();
@@ -567,18 +575,43 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
       addNode(kind, { groupId, index });
       onSelect();
     };
-    const shortcut = (name: TreeShortcut) => (node ? treeShortcutLabel(name) : undefined);
+    const shortcut = (name: TreeShortcut | ClipboardShortcut) => (node ? treeShortcutLabel(name) : undefined);
     const addHere = (groupId: string): PopupMenuItem[] => [
       { label: t.treeMenu.addAttributeHere, icon: <PlusIcon />, shortcut: shortcut('add'), onSelect: addTo('attribute', groupId) },
       { label: t.treeMenu.addGroupHere, icon: <FolderSimpleIcon />, onSelect: addTo('group', groupId) },
       { label: t.treeMenu.addListHere, icon: <StackIcon />, onSelect: addTo('list', groupId) },
       { label: t.treeMenu.addFromI14y, icon: <MagnifyingGlassIcon />, onSelect: () => setI14yGroupId(groupId) },
     ];
-    if (!node) return [addHere(project.root.id)];
+    const when = (applies: boolean, item: PopupMenuItem) => (applies ? [item] : []);
+    const paste = (place: NodePlace) =>
+      when(canPasteCopied(), {
+        label: t.treeMenu.paste,
+        icon: <ClipboardTextIcon />,
+        shortcut: shortcut('paste'),
+        onSelect: () => {
+          pasteCopied(place);
+          onSelect();
+          refocusTree();
+        },
+      });
+    if (!node) return [addHere(project.root.id), paste({ groupId: project.root.id })];
 
     const state = useStore.getState();
     const count = selectedIds(state.selection).length;
-    const when = (applies: boolean, item: PopupMenuItem) => (applies ? [item] : []);
+    const below = newNodePlace(project, oneNode(node.id));
+    const clipboard = [
+      ...when(canCopySelection(state.selection), {
+        label: t.treeMenu.cut(count),
+        icon: <ScissorsIcon />,
+        shortcut: shortcut('cut'),
+        onSelect: () => {
+          cutSelection();
+          refocusTree();
+        },
+      }),
+      ...when(canCopySelection(state.selection), { label: t.treeMenu.copy(count), icon: <CopySimpleIcon />, shortcut: shortcut('copy'), onSelect: copySelection }),
+      ...paste(below),
+    ];
     const moves = [
       ...when(canMoveSelection('up', state), { label: t.treeMenu.moveUp, icon: <ArrowUpIcon />, shortcut: shortcut('moveUp'), onSelect: () => runShortcut('moveUp') }),
       ...when(canMoveSelection('down', state), { label: t.treeMenu.moveDown, icon: <ArrowDownIcon />, shortcut: shortcut('moveDown'), onSelect: () => runShortcut('moveDown') }),
@@ -599,10 +632,10 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
           ...when(canUngroupSelection(state), { label: t.treeMenu.ungroup, icon: <FolderSimpleDashedIcon />, shortcut: shortcut('ungroup'), onSelect: () => runShortcut('ungroup') }),
           ...moves,
         ],
+        clipboard,
         remove(t.treeMenu.deleteGroup(count)),
       ];
     }
-    const below = newNodePlace(project, oneNode(node.id));
     return [
       [
         ...when(canGroupSelection(state.selection), { label: t.treeMenu.groupSelection, icon: <FolderSimplePlusIcon />, shortcut: shortcut('group'), onSelect: () => runShortcut('group') }),
@@ -610,6 +643,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
         { label: t.treeMenu.addBelow, icon: <PlusIcon />, shortcut: shortcut('add'), onSelect: addTo('attribute', below.groupId, below.index) },
       ],
       moves,
+      clipboard,
       remove(t.treeMenu.delete(count)),
     ];
   };

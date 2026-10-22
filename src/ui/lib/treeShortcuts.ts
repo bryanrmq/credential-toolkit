@@ -4,6 +4,9 @@ import { usesCommandKey } from './platform';
 /** The tree actions the keyboard reaches; ⌘ is Ctrl on Windows and Linux. */
 export type TreeShortcut = 'add' | 'delete' | 'edit' | 'rename' | 'duplicate' | 'group' | 'ungroup' | 'moveUp' | 'moveDown';
 
+/** ⌘C, ⌘X and ⌘V: they run from the browser's copy, cut and paste events, not from `treeShortcut`. */
+export type ClipboardShortcut = 'copy' | 'cut' | 'paste';
+
 /** The tree action `event` asks for: N, ⌫ / Delete, ⏎, F2, ⌘D, ⌘G, ⇧⌘G, ⌥↑ and ⌥↓. */
 export function treeShortcut(event: Pick<KeyboardEvent, 'key' | 'altKey' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'isComposing'>): TreeShortcut | null {
   if (event.isComposing) return null;
@@ -26,7 +29,7 @@ export function treeShortcut(event: Pick<KeyboardEvent, 'key' | 'altKey' | 'meta
   return null;
 }
 
-const APPLE_KEYS: Record<TreeShortcut, string> = {
+const APPLE_KEYS: Record<TreeShortcut | ClipboardShortcut, string> = {
   add: 'N',
   delete: '⌫',
   edit: '⏎',
@@ -36,8 +39,11 @@ const APPLE_KEYS: Record<TreeShortcut, string> = {
   ungroup: '⇧⌘G',
   moveUp: '⌥↑',
   moveDown: '⌥↓',
+  copy: '⌘C',
+  cut: '⌘X',
+  paste: '⌘V',
 };
-const OTHER_KEYS: Record<TreeShortcut, string> = {
+const OTHER_KEYS: Record<TreeShortcut | ClipboardShortcut, string> = {
   add: 'N',
   delete: 'Del',
   edit: 'Enter',
@@ -47,10 +53,13 @@ const OTHER_KEYS: Record<TreeShortcut, string> = {
   ungroup: 'Ctrl+Shift+G',
   moveUp: 'Alt+↑',
   moveDown: 'Alt+↓',
+  copy: 'Ctrl+C',
+  cut: 'Ctrl+X',
+  paste: 'Ctrl+V',
 };
 
 /** How menus show the key of `shortcut`: ⌘G on Apple platforms, Ctrl+G elsewhere. */
-export function treeShortcutLabel(shortcut: TreeShortcut, apple = usesCommandKey()): string {
+export function treeShortcutLabel(shortcut: TreeShortcut | ClipboardShortcut, apple = usesCommandKey()): string {
   return (apple ? APPLE_KEYS : OTHER_KEYS)[shortcut];
 }
 
