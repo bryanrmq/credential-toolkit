@@ -47,7 +47,7 @@ import { t } from '../../strings';
 import { Button } from '../components/controls';
 import { useIssues } from '../issues';
 import { useI14yCatalogue } from '../lib/i14y';
-import { type NewNodeKind, addNode, deleteSelection, editSelection, groupSelection, moveSelection, ungroupSelection } from '../lib/treeActions';
+import { type NewNodeKind, addNode, deleteSelection, duplicateSelection, editSelection, groupSelection, moveSelection, ungroupSelection } from '../lib/treeActions';
 import { type DropIndicator, type DropTarget, dropTarget, emptyRowId } from '../lib/treeDrop';
 import { type TreeShortcut, treeShortcut, treeShortcutsActive } from '../lib/treeShortcuts';
 import { useWideWindow } from '../lib/wideWindow';
@@ -267,6 +267,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     else {
       if (shortcut === 'delete') deleteSelection();
       else if (shortcut === 'ungroup') ungroupSelection();
+      else if (shortcut === 'duplicate') duplicateSelection();
       else moveSelection(shortcut === 'moveUp' ? 'up' : 'down');
       refocusTree();
     }

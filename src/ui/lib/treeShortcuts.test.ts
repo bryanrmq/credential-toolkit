@@ -17,6 +17,8 @@ describe('treeShortcut', () => {
     expect(press('Backspace')).toBe('delete');
     expect(press('Delete')).toBe('delete');
     expect(press('Enter')).toBe('edit');
+    expect(press('d', { meta: true })).toBe('duplicate');
+    expect(press('d', { ctrl: true })).toBe('duplicate');
     expect(press('g', { meta: true })).toBe('group');
     expect(press('g', { ctrl: true })).toBe('group');
     expect(press('G', { meta: true, shift: true })).toBe('ungroup');
@@ -30,6 +32,9 @@ describe('treeShortcut', () => {
     expect(press('n', { meta: true })).toBeNull();
     expect(press('g')).toBeNull();
     expect(press('g', { meta: true, alt: true })).toBeNull();
+    expect(press('d')).toBeNull();
+    expect(press('D', { meta: true, shift: true })).toBeNull();
+    expect(press('d', { meta: true, alt: true })).toBeNull();
     expect(press('ArrowUp')).toBeNull();
     expect(press('ArrowUp', { alt: true, shift: true })).toBeNull();
     expect(press('Backspace', { meta: true })).toBeNull();

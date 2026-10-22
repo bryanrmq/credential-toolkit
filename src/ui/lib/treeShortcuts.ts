@@ -1,14 +1,18 @@
 import { useStore } from '../../state/store';
 
 /** The tree actions the keyboard reaches; ⌘ is Ctrl on Windows and Linux. */
-export type TreeShortcut = 'add' | 'delete' | 'edit' | 'group' | 'ungroup' | 'moveUp' | 'moveDown';
+export type TreeShortcut = 'add' | 'delete' | 'edit' | 'duplicate' | 'group' | 'ungroup' | 'moveUp' | 'moveDown';
 
-/** The tree action `event` asks for: N, ⌫ / Delete, ⏎, ⌘G, ⇧⌘G, ⌥↑ and ⌥↓. */
+/** The tree action `event` asks for: N, ⌫ / Delete, ⏎, ⌘D, ⌘G, ⇧⌘G, ⌥↑ and ⌥↓. */
 export function treeShortcut(event: Pick<KeyboardEvent, 'key' | 'altKey' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'isComposing'>): TreeShortcut | null {
   if (event.isComposing) return null;
   const mod = event.metaKey || event.ctrlKey;
   const key = event.key.toLowerCase();
-  if (mod) return !event.altKey && key === 'g' ? (event.shiftKey ? 'ungroup' : 'group') : null;
+  if (mod) {
+    if (event.altKey) return null;
+    if (key === 'g') return event.shiftKey ? 'ungroup' : 'group';
+    return key === 'd' && !event.shiftKey ? 'duplicate' : null;
+  }
   if (event.altKey) {
     if (event.shiftKey) return null;
     return event.key === 'ArrowUp' ? 'moveUp' : event.key === 'ArrowDown' ? 'moveDown' : null;
