@@ -27,17 +27,27 @@ beforeEach(() => {
 });
 
 describe('I14Y link', () => {
-  it('tags the attribute in the structure and names its concept in the panel', () => {
+  it('tags the attribute in the structure and names its concept on a line under the key', () => {
     render(<Workspace />);
     expect(within(screen.getByRole('region', { name: 'Structure' })).getByTitle('Linked to the I14Y concept sex')).toHaveTextContent('I14Y');
     const line = screen.getByRole('region', { name: 'I14Y concept' });
-    expect(line).toHaveTextContent('From I14Y');
-    expect(line).toHaveTextContent('Standard');
-    expect(line).toHaveTextContent('Bundesamt für Statistik (BFS)');
+    expect(line).toHaveTextContent(/^I14YLinked toGeschlechtsexStandard/);
+    expect(line.previousElementSibling).toHaveClass('inspector__header');
+    expect(within(line).getByText('I14Y')).toHaveClass('tree__tag');
+    expect(within(line).getByText('sex')).toHaveClass('i14y-link__id');
+    expect(within(line).getByText('Standard')).toHaveClass('badge');
     expect(within(line).getByRole('link', { name: /Open in I14Y/ })).toHaveAttribute(
       'href',
       `https://www.i14y.admin.ch/de/catalog/concepts/${SEX_ID}/description`,
     );
+    expect(within(line).getByRole('button', { name: 'Unlink' })).toBeInTheDocument();
+  });
+
+  it('puts the publisher in the tooltip of the concept name', () => {
+    render(<Workspace />);
+    const line = screen.getByRole('region', { name: 'I14Y concept' });
+    expect(within(line).getByText('Geschlecht')).toHaveAttribute('title', 'Published by Bundesamt für Statistik (BFS)');
+    expect(line).not.toHaveTextContent('Bundesamt für Statistik (BFS)');
   });
 
   it('marks an edited label and resets it to I14Y', async () => {
@@ -74,7 +84,7 @@ describe('I14Y link', () => {
   it('unlinks the attribute and keeps its texts', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
-    await user.click(screen.getByRole('button', { name: 'Unlink' }));
+    await user.click(within(screen.getByRole('region', { name: 'I14Y concept' })).getByRole('button', { name: 'Unlink' }));
     expect(sex().i14y).toBeUndefined();
     expect(sex().labels['de-CH']).toBe('Geschlecht');
     expect(screen.queryByRole('region', { name: 'I14Y concept' })).not.toBeInTheDocument();
