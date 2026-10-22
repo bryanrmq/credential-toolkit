@@ -168,3 +168,135 @@ describe('key and source helpers', () => {
     expect(pets.labels.en).toBe('Pet {{animals.name}}');
   });
 });
+
+describe('moving nodes keeps template references', () => {
+  /** Root: given_name, nickname, person { name, address { city } }, pets[] { name }. */
+  function tree() {
+    const p = emptyProject(['de', 'en']);
+    const given = newAttribute('given_name');
+    const nickname = newAttribute('nickname');
+    const name = newAttribute('name');
+    const city = newAttribute('city');
+    const address = newGroupLink('address');
+    address.group.children.push(city);
+    const person = newGroupLink('person');
+    person.group.children.push(name, address);
+    const petName = newAttribute('name');
+    const pets = newGroupLink('pets', { array: true, source: ['pets', null] });
+    pets.group.children.push(petName);
+    p.root.children.push(given, nickname, person, pets);
+    return { p, given, nickname, name, city, address, person, pets, petName };
+  }
+
+  it('rewrites branding fields in every language and theme when a node moves into a group', () => {
+    const { p, given, person } = tree();
+    p.branding.de = { light: { primaryField: '{{given_name}}', secondaryField: 'Hi {{given_name}}' }, dark: { primaryField: '{{given_name}}' } };
+    p.branding.en = { light: { secondaryField: '{{/given_name}}' }, dark: { secondaryField: '{{given_name}} {{nickname}}' } };
+    moveNode(p, given.id, person.group.id, 0);
+    expect(p.branding.de).toEqual({
+      light: { primaryField: '{{person.given_name}}', secondaryField: 'Hi {{person.given_name}}' },
+      dark: { primaryField: '{{person.given_name}}' },
+    });
+    expect(p.branding.en).toEqual({
+      light: { secondaryField: '{{/person.given_name}}' },
+      dark: { secondaryField: '{{person.given_name}} {{nickname}}' },
+    });
+  });
+
+  it('rewrites labels in every language when a node moves into a group', () => {
+    const { p, given, nickname, address, person } = tree();
+    nickname.labels = { de: 'Spitzname von {{given_name}}', en: 'Nickname of {{given_name}}' };
+    address.labels = { en: 'Address of {{/given_name}}' };
+    moveNode(p, given.id, person.group.id, 0);
+    expect(nickname.labels).toEqual({ de: 'Spitzname von {{person.given_name}}', en: 'Nickname of {{person.given_name}}' });
+    expect(address.labels.en).toBe('Address of {{/person.given_name}}');
+  });
+
+  it('rewrites references when a node moves out of a group', () => {
+    const { p, name, nickname, person } = tree();
+    nickname.labels = { en: '{{person.name}}' };
+    person.labels = { en: 'Person {{person.name}}' };
+    p.branding.en = { light: { primaryField: '{{person.name}}' } };
+    moveNode(p, name.id, p.root.id, 0);
+    expect(nickname.labels.en).toBe('{{name}}');
+    expect(person.labels.en).toBe('Person {{name}}');
+    expect(p.branding.en.light.primaryField).toBe('{{name}}');
+  });
+
+  it('rewrites references when a node moves between nested groups', () => {
+    const { p, city, address, person } = tree();
+    person.labels = { en: '{{person.address.city}}' };
+    address.labels = { en: 'Address in {{address.city}}' };
+    p.branding.en = { light: { primaryField: '{{person.address.city}}' } };
+    moveNode(p, city.id, person.group.id, 0);
+    expect(person.labels.en).toBe('{{person.city}}');
+    expect(address.labels.en).toBe('Address in {{city}}');
+    expect(p.branding.en.light.primaryField).toBe('{{person.city}}');
+    moveNode(p, city.id, address.group.id, 0);
+    expect(person.labels.en).toBe('{{person.address.city}}');
+    expect(address.labels.en).toBe('Address in {{address.city}}');
+    expect(p.branding.en.light.primaryField).toBe('{{person.address.city}}');
+  });
+
+  it('rewrites references when a node moves into and out of a list of objects, keeping suffixes', () => {
+    const { p, nickname, pets } = tree();
+    p.branding.en = { light: { primaryField: '{{nickname}}' } };
+    pets.labels = { en: 'Pets of {{nickname}}' };
+    moveNode(p, nickname.id, pets.group.id, 1);
+    expect(p.branding.en.light.primaryField).toBe('{{pets.nickname}}');
+    expect(pets.labels.en).toBe('Pets of {{pets.nickname}}');
+    p.branding.en.light.primaryField = '{{pets.nickname.join(\', \')}} / {{pets.nickname[0]}}';
+    moveNode(p, nickname.id, p.root.id, 1);
+    expect(p.branding.en.light.primaryField).toBe("{{nickname.join(', ')}} / {{nickname[0]}}");
+    expect(pets.labels.en).toBe('Pets of {{nickname}}');
+  });
+
+  it('rewrites references to the descendants of a moved group', () => {
+    const { p, address, nickname, city, person, pets } = tree();
+    p.branding.en = { light: { primaryField: '{{person.address.city}}' } };
+    nickname.labels = { en: '{{/person.address.city}}' };
+    city.labels = { en: 'City ({{/person.address.city}})' };
+    moveNode(p, address.id, pets.group.id, 0);
+    expect(p.branding.en.light.primaryField).toBe('{{pets.address.city}}');
+    expect(nickname.labels.en).toBe('{{/pets.address.city}}');
+    expect(city.labels.en).toBe('City ({{/pets.address.city}})');
+    expect(person.group.children.map((child) => child.key)).toEqual(['name']);
+  });
+
+  it("keeps the moved node's own relative labels pointing to the same nodes", () => {
+    const { p, nickname, person, address } = tree();
+    nickname.labels = { en: '{{given_name}} aka {{person.name}}', de: '{{person.address.city}}' };
+    address.labels = { en: 'Address of {{name}}' };
+    moveNode(p, nickname.id, person.group.id, 0);
+    expect(nickname.labels).toEqual({ en: '{{/given_name}} aka {{name}}', de: '{{address.city}}' });
+    moveNode(p, address.id, p.root.id, 0);
+    expect(address.labels.en).toBe('Address of {{person.name}}');
+  });
+
+  it('leaves references that did not resolve before the move untouched', () => {
+    const { p, given, nickname, person, name } = tree();
+    p.branding.en = { light: { primaryField: '{{missing}} {{refs:abc:given_name}} {{given_name}}' } };
+    nickname.labels = { en: '{{person.missing}}' };
+    name.labels = { en: '{{given_name}}' };
+    moveNode(p, given.id, person.group.id, 0);
+    expect(p.branding.en.light.primaryField).toBe('{{missing}} {{refs:abc:given_name}} {{person.given_name}}');
+    expect(nickname.labels.en).toBe('{{person.missing}}');
+    expect(name.labels.en).toBe('{{given_name}}');
+  });
+
+  it('leaves templates alone when a node is reordered within its group', () => {
+    const { p, given, nickname } = tree();
+    nickname.labels = { en: '{{/given_name}} {{given_name}}' };
+    moveNode(p, given.id, p.root.id, 3);
+    expect(keys(p.root.children)).toEqual(['nickname', 'person', 'given_name', 'pets']);
+    expect(nickname.labels.en).toBe('{{/given_name}} {{given_name}}');
+  });
+
+  it('rewrites references for "Move to" (appending to the target group)', () => {
+    const { p, given, person, nickname } = tree();
+    nickname.labels = { en: '{{given_name}}' };
+    moveNode(p, given.id, person.group.id, Number.MAX_SAFE_INTEGER);
+    expect(keys(person.group.children)).toEqual(['name', 'address', 'given_name']);
+    expect(nickname.labels.en).toBe('{{person.given_name}}');
+  });
+});

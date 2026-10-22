@@ -23,8 +23,9 @@ export function FixToast() {
 }
 
 function Toast({ notice }: { notice: FixNotice }) {
-  const canUndo = useStore((state) => state.undo !== null);
-  const undoFix = useStore((state) => state.undoFix);
+  // Any edit hides the toast, so while it shows, the last undo step is the fix.
+  const canUndo = useStore((state) => state.past.length > 0);
+  const undo = useStore((state) => state.undo);
   const dismiss = useStore((state) => state.dismissFixNotice);
   const [held, setHeld] = useState(false);
 
@@ -47,7 +48,7 @@ function Toast({ notice }: { notice: FixNotice }) {
     >
       <span>{noticeText(notice)}</span>
       {notice.kind === 'fixed' && canUndo && (
-        <Button size="small" variant="ghost" onClick={undoFix}>
+        <Button size="small" variant="ghost" onClick={undo}>
           {t.fixes.undo}
         </Button>
       )}

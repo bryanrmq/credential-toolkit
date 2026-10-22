@@ -1852,37 +1852,77 @@ input[type='checkbox'] {
   background: var(--blue-bg);
   color: var(--blue-text);
 }
+/* Under the attribute key: 8px below the heading (whose 28px margin it pulls up), 20px above the fields */
+.i14y-link,
+.i14y-matches {
+  margin: -20px 0 20px;
+}
 .i14y-link {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 12px;
-  margin-bottom: 20px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-muted);
-}
-.i14y-link__concept {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: 4px 8px;
-  min-width: 0;
-  margin: 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--blue-bg);
   font-size: 13px;
 }
-.i14y-link__from,
-.i14y-link__publisher {
+.i14y-link__lead {
   color: var(--text-muted);
 }
-.i14y-link__publisher {
-  font-size: 12px;
-}
 .i14y-link__name {
+  min-width: 0;
   color: var(--text-strong);
   font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.i14y-link__id {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--blue-text);
+  overflow-wrap: anywhere;
+}
+.i14y-link__actions {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-left: auto;
+}
+.i14y-link__open {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--blue-text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.i14y-link__open:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.i14y-link__unlink {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.i14y-link__unlink:hover {
+  color: var(--text-strong);
+}
+/* An unlinked "looks like" line: dashed like the tree's I14Y? marker, one per candidate */
+.i14y-matches {
+  display: grid;
+  gap: 6px;
+}
+.i14y-matches .i14y-link {
+  margin: 0;
+}
+.i14y-link--match {
+  padding: 3px 9px;
+  border: 1px dashed color-mix(in srgb, var(--blue-text) 50%, transparent);
+  background: transparent;
 }
 .text-button {
   border: 0;
@@ -1894,9 +1934,6 @@ input[type='checkbox'] {
   text-underline-offset: 2px;
   cursor: pointer;
 }
-.i14y-link a.btn {
-  text-decoration: none;
-}
 .i14y-reset {
   color: var(--blue-text);
 }
@@ -1907,15 +1944,6 @@ input[type='checkbox'] {
 }
 .translations-aside__row {
   grid-template-columns: 52px minmax(0, 1fr) auto;
-}
-.i14y-link--match {
-  background: var(--surface);
-  border-style: dashed;
-}
-.i14y-link__matches {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
 }
 .report__text {
   margin: 0;
