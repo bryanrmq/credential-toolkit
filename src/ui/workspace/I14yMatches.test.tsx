@@ -2,6 +2,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { parseConcept } from '../../core/import/i14y';
 import { type AttributeNode, emptyProject, newAttribute } from '../../core/model';
 import { useStore } from '../../state/store';
 import catalogue from '../../test/fixtures/i14y-catalogue.json';
@@ -9,6 +10,7 @@ import concepts from '../../test/fixtures/i14y-concepts.json';
 import simpleBundle from '../../test/fixtures/oca-bundle-simple-sample.json';
 import { TOUR_SEEN_KEY } from '../lib/tour';
 import { ImportDialog } from '../start/ImportDialog';
+import { I14yMatchLine } from './I14yLink';
 import { Workspace } from './Workspace';
 
 /** Answers like the I14Y API: the catalogue for the concept list, and the sex and date-of-birth concepts. */
@@ -52,13 +54,29 @@ describe('I14Y matches in the attribute panel', () => {
     render(<Workspace />);
 
     const match = await screen.findByRole('region', { name: 'Possible I14Y match' });
-    expect(match).toHaveTextContent('Geburtsdatum');
+    expect(match).toHaveTextContent(/^I14Y\?Looks likeGeburtsdatumdateOfBirth/);
+    expect(match.querySelectorAll('.i14y-link--match')).toHaveLength(1);
     await user.click(within(match).getByRole('button', { name: 'Link to dateOfBirth' }));
 
     expect(await screen.findByRole('region', { name: 'I14Y concept' })).toBeInTheDocument();
     expect(attributes()[0]).toMatchObject({ key: 'date_of_birth', labels: { 'de-CH': 'Geb. Datum' }, i14y: { identifier: 'dateOfBirth' } });
     expect(screen.getByText('Edited. I14Y says "Geburtsdatum".')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Possible I14Y match' })).not.toBeInTheDocument();
+  });
+
+  it('gives each candidate its own dashed line with a Link button', async () => {
+    const hits = [parseConcept(concepts.sex), parseConcept(concepts.dateOfBirth)];
+    const onLink = vi.fn();
+    const user = userEvent.setup();
+    render(<I14yMatchLine hits={hits} lang="de-CH" onLink={onLink} />);
+
+    const lines = screen.getByRole('region', { name: 'Possible I14Y match' }).querySelectorAll('.i14y-link--match');
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toHaveTextContent(/^I14Y\?Looks likeGeschlechtsex.*Link$/);
+    expect(lines[1]).toHaveTextContent(/^I14Y\?Looks likeGeburtsdatumdateOfBirth.*Link$/);
+    expect(within(lines[0] as HTMLElement).getByText('Geschlecht')).toHaveAttribute('title', 'Published by Bundesamt für Statistik (BFS)');
+    await user.click(screen.getByRole('button', { name: 'Link to dateOfBirth' }));
+    expect(onLink).toHaveBeenCalledWith(hits[1]);
   });
 });
 

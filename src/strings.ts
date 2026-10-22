@@ -115,7 +115,7 @@ export const t = {
   },
   i14yMatch: {
     region: 'Possible I14Y match',
-    looksLike: 'Looks like I14Y',
+    looksLike: 'Looks like',
     link: 'Link',
     linkTo: (identifier: string) => `Link to ${identifier}`,
     linkHint: 'Linking keeps your texts and marks where they differ from I14Y.',
@@ -137,7 +137,8 @@ export const t = {
   },
   i14yLink: {
     region: 'I14Y concept',
-    from: 'From I14Y',
+    linkedTo: 'Linked to',
+    publishedBy: (publisher: string) => `Published by ${publisher}`,
     open: 'Open in I14Y',
     unlink: 'Unlink',
     unlinkTitle: 'Keep the texts as they are and stop comparing them with I14Y',

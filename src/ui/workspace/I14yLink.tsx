@@ -5,25 +5,35 @@ import { t } from '../../strings';
 import { Badge, Button } from '../components/controls';
 import { conceptPageUrl, statusLabel, statusTone } from '../lib/i14y';
 
-/** Under the attribute's title: which I14Y concept it was filled from, with a link to it and Unlink. */
+/** The tag, lead, concept name (publisher in its tooltip), identifier and status shared by the linked and "looks like" lines. */
+function I14yConceptLine({ lead, maybe, concept, lang }: { lead: string; maybe?: boolean; concept: I14yLink | I14yHit; lang: LangTag }) {
+  const publisher = textIn(concept.publisher, lang);
+  return (
+    <>
+      <span className={maybe ? 'tree__tag tree__tag--maybe' : 'tree__tag'}>{maybe ? t.i14yMatch.marker : t.i14yLink.tag}</span>
+      <span className="i14y-link__lead">{lead}</span>
+      <span className="i14y-link__name" title={publisher ? t.i14yLink.publishedBy(publisher) : undefined}>
+        {textIn(concept.name, lang) || concept.identifier}
+      </span>
+      <code className="i14y-link__id">{concept.identifier}</code>
+      {concept.registrationStatus && <Badge tone={statusTone(concept.registrationStatus)}>{statusLabel(concept.registrationStatus)}</Badge>}
+    </>
+  );
+}
+
+/** Under the attribute's key: the I14Y concept it is linked to, with Open in I14Y and Unlink. */
 export function I14yLinkLine({ link, lang, onUnlink }: { link: I14yLink; lang: LangTag; onUnlink: () => void }) {
   return (
     <section className="i14y-link" aria-label={t.i14yLink.region}>
-      <p className="i14y-link__concept">
-        <span className="i14y-link__from">{t.i14yLink.from}</span>
-        <span className="i14y-link__name">{textIn(link.name, lang) || link.identifier}</span>
-        <code className="tag-mono">{link.identifier}</code>
-        {link.registrationStatus && <Badge tone={statusTone(link.registrationStatus)}>{statusLabel(link.registrationStatus)}</Badge>}
-        <span className="i14y-link__publisher">{textIn(link.publisher, lang)}</span>
-      </p>
-      <div className="row">
-        <a className="btn btn--ghost btn--small" href={conceptPageUrl(link.conceptId, i14yLanguage(lang))} target="_blank" rel="noreferrer">
+      <I14yConceptLine lead={t.i14yLink.linkedTo} concept={link} lang={lang} />
+      <span className="i14y-link__actions">
+        <a className="i14y-link__open" href={conceptPageUrl(link.conceptId, i14yLanguage(lang))} target="_blank" rel="noreferrer">
           {t.i14yLink.open} <ArrowSquareOutIcon />
         </a>
-        <Button size="small" variant="ghost" title={t.i14yLink.unlinkTitle} onClick={onUnlink}>
+        <button type="button" className="i14y-link__unlink" title={t.i14yLink.unlinkTitle} onClick={onUnlink}>
           {t.i14yLink.unlink}
-        </Button>
-      </div>
+        </button>
+      </span>
     </section>
   );
 }
@@ -59,24 +69,20 @@ export function I14yReset({ current, i14yText, onReset }: { current: string; i14
   );
 }
 
-/** For an unlinked attribute: the I14Y concepts it looks like, each with a Link button. */
+/** For an unlinked attribute: one dashed "Looks like" line per I14Y concept it looks like, each with a Link button. */
 export function I14yMatchLine({ hits, lang, onLink }: { hits: I14yHit[]; lang: LangTag; onLink: (hit: I14yHit) => void }) {
   return (
-    <section className="i14y-link i14y-link--match" aria-label={t.i14yMatch.region}>
-      <div className="i14y-link__matches">
-        {hits.map((hit) => (
-          <p key={hit.id} className="i14y-link__concept">
-            <span className="i14y-link__from">{t.i14yMatch.looksLike}</span>
-            <span className="i14y-link__name">{textIn(hit.name, lang) || hit.identifier}</span>
-            <code className="tag-mono">{hit.identifier}</code>
-            <Badge tone={statusTone(hit.registrationStatus)}>{statusLabel(hit.registrationStatus)}</Badge>
-            <Button size="small" variant="secondary" aria-label={t.i14yMatch.linkTo(hit.identifier)} onClick={() => onLink(hit)}>
+    <section className="i14y-matches" aria-label={t.i14yMatch.region}>
+      {hits.map((hit) => (
+        <p key={hit.id} className="i14y-link i14y-link--match">
+          <I14yConceptLine lead={t.i14yMatch.looksLike} maybe concept={hit} lang={lang} />
+          <span className="i14y-link__actions">
+            <Button size="small" variant="secondary" aria-label={t.i14yMatch.linkTo(hit.identifier)} title={t.i14yMatch.linkHint} onClick={() => onLink(hit)}>
               {t.i14yMatch.link}
             </Button>
-          </p>
-        ))}
-        <p className="field__hint">{t.i14yMatch.linkHint}</p>
-      </div>
+          </span>
+        </p>
+      ))}
     </section>
   );
 }

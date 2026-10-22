@@ -17,6 +17,7 @@ import {
   loadPaneWidths,
   savePaneWidths,
 } from '../lib/paneLayout';
+import { useHistoryShortcuts } from '../lib/historyShortcuts';
 import { loadTourSeen } from '../lib/tour';
 import { Inspector } from './Inspector';
 import { LanguagesDialog } from './LanguagesDialog';
@@ -64,6 +65,7 @@ export function Workspace() {
     />
   );
   const [canSave] = useState(storageAvailable);
+  useHistoryShortcuts();
   // The tour starts by itself until this browser has finished or skipped it once.
   useEffect(() => {
     if (!loadTourSeen()) useStore.getState().setTourOpen(true);
