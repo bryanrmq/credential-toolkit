@@ -2,9 +2,9 @@ import { useStore } from '../../state/store';
 import { usesCommandKey } from './platform';
 
 /** The tree actions the keyboard reaches; ⌘ is Ctrl on Windows and Linux. */
-export type TreeShortcut = 'add' | 'delete' | 'edit' | 'rename' | 'duplicate' | 'group' | 'ungroup' | 'moveUp' | 'moveDown';
+export type TreeShortcut = 'add' | 'delete' | 'edit' | 'rename' | 'duplicate' | 'group' | 'ungroup' | 'moveUp' | 'moveDown' | 'filter';
 
-/** The tree action `event` asks for: N, ⌫ / Delete, ⏎, F2, ⌘D, ⌘G, ⇧⌘G, ⌥↑ and ⌥↓. */
+/** The tree action `event` asks for: N, ⌫ / Delete, ⏎, F2, ⌘D, ⌘G, ⇧⌘G, ⌘F, ⌥↑ and ⌥↓. */
 export function treeShortcut(event: Pick<KeyboardEvent, 'key' | 'altKey' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'isComposing'>): TreeShortcut | null {
   if (event.isComposing) return null;
   const mod = event.metaKey || event.ctrlKey;
@@ -12,7 +12,8 @@ export function treeShortcut(event: Pick<KeyboardEvent, 'key' | 'altKey' | 'meta
   if (mod) {
     if (event.altKey) return null;
     if (key === 'g') return event.shiftKey ? 'ungroup' : 'group';
-    return key === 'd' && !event.shiftKey ? 'duplicate' : null;
+    if (event.shiftKey) return null;
+    return key === 'd' ? 'duplicate' : key === 'f' ? 'filter' : null;
   }
   if (event.altKey) {
     if (event.shiftKey) return null;
@@ -36,6 +37,7 @@ const APPLE_KEYS: Record<TreeShortcut, string> = {
   ungroup: '⇧⌘G',
   moveUp: '⌥↑',
   moveDown: '⌥↓',
+  filter: '⌘F',
 };
 const OTHER_KEYS: Record<TreeShortcut, string> = {
   add: 'N',
@@ -47,6 +49,7 @@ const OTHER_KEYS: Record<TreeShortcut, string> = {
   ungroup: 'Ctrl+Shift+G',
   moveUp: 'Alt+↑',
   moveDown: 'Alt+↓',
+  filter: 'Ctrl+F',
 };
 
 /** How menus show the key of `shortcut`: ⌘G on Apple platforms, Ctrl+G elsewhere. */
