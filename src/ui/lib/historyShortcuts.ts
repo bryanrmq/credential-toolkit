@@ -1,10 +1,16 @@
 import { useEffect } from 'react';
 import { endTyping, useStore } from '../../state/store';
+import { usesCommandKey } from './platform';
 
 /** The history action `event` asks for: ⌘Z / Ctrl+Z undoes, with Shift it redoes. */
 export function historyAction(event: KeyboardEvent): 'undo' | 'redo' | null {
   if (event.isComposing || event.altKey || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return null;
   return event.shiftKey ? 'redo' : 'undo';
+}
+
+/** How copy shows the undo key: ⌘Z on Apple platforms, Ctrl+Z elsewhere. */
+export function undoShortcutLabel(apple = usesCommandKey()): string {
+  return apple ? '⌘Z' : 'Ctrl+Z';
 }
 
 /**

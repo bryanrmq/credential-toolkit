@@ -1,3 +1,6 @@
+/** The shortcut keys the tour shows, labelled for the platform: ⌘G on a Mac, Ctrl+G elsewhere. */
+export type TourKeys = Record<'add' | 'delete' | 'group' | 'moveUp' | 'moveDown' | 'undo' | 'output', string>;
+
 /** Every piece of interface copy, in one place so the tool can be translated later. */
 export const t = {
   appName: 'OCA Generator',
@@ -356,7 +359,7 @@ export const t = {
     done: 'Done',
     skip: 'Skip tour',
     progress: (step: number, total: number) => `${step} of ${total}`,
-    /** What each area of the workspace is for (body) and what it can do (features). */
+    /** What each area of the workspace is for (body) and what it can do (features, some with the platform's shortcut keys). */
     steps: {
       welcome: {
         title: 'Welcome to the workspace',
@@ -369,13 +372,13 @@ export const t = {
       structure: {
         title: 'Structure',
         body: 'The attributes of the credential, in the order the wallet lists them.',
-        features: [
+        features: (keys: TourKeys) => [
           'Add an attribute, a group or a list of objects from the Add menu at the top. New items go into the selected group, or right after the selected attribute.',
           'Add from I14Y…, in the right-click menu or on an empty structure, adds standard Swiss attributes with their labels and value lists in every language I14Y has.',
           'Drag the handle beside an item to reorder it, or drop it on the middle of a group to move it inside. Dragging a selected item moves the whole selection.',
-          'Right-click an item, or the space below the last one, for its actions: add, group, move or delete.',
-          'Select Credential to edit the name and branding, or an item to edit it.',
-          'A red or yellow dot marks an item with an error or a warning.',
+          'Right-click an item, or the space below the last one, for its actions: add, duplicate, copy and paste, group, move or delete.',
+          `On a selected item, [[${keys.add}]] adds, [[${keys.delete}]] deletes, [[${keys.group}]] groups and [[${keys.moveUp}]] [[${keys.moveDown}]] move it. [[${keys.undo}]] undoes any change.`,
+          'Select Credential to edit the name and branding, or an item to edit it. A red or yellow dot marks an error or a warning.',
         ],
       },
       edit: {
@@ -391,11 +394,21 @@ export const t = {
       output: {
         title: 'Output',
         body: 'Checks the bundle and gives you what to publish.',
-        features: [
+        features: (keys: TourKeys) => [
           'Attach a sample credential to check that every source path exists. It is never exported.',
-          'The Issues panel along the bottom lists what to fix: click one to jump to its field. Fix and Fix all repair the issues that do not need your own text.',
           'Bundle: choose where it will be hosted, then copy the JSON and its uri#integrity value.',
           'VCT snippet: the display entries to add to your SD-JWT VC Type Metadata.',
+          `On a wide window, [[${keys.output}]] or the button in its header hides it to give Edit more room. The top bar shows it again.`,
+        ],
+      },
+      issues: {
+        title: 'Issues',
+        body: 'What the checks found in the bundle, kept up to date as you edit.',
+        features: [
+          'Errors block the download. Warnings are worth a look but do not.',
+          'Click an issue to jump to its field.',
+          'Fix and Fix all repair the issues that do not need your own text.',
+          'Collapse the panel or drag its top edge to give the panes room. On a narrow window it is a tab of its own.',
         ],
       },
       topbar: {
