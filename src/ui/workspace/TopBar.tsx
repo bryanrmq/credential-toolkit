@@ -11,9 +11,9 @@ import { Wordmark } from '../Wordmark';
 /**
  * One row at every width: names on the left, actions on the right. Below 960 px the language
  * switcher becomes a dropdown and the view toggle moves into the menu (see `.wide-only` /
- * `.narrow-only` in styles.css).
+ * `.narrow-only` in styles.css). The error and warning counts are one button that shows the issues.
  */
-export function TopBar({ exportState }: { exportState: ExportState }) {
+export function TopBar({ exportState, onShowIssues }: { exportState: ExportState; onShowIssues: () => void }) {
   const project = useStore((state) => state.project)!;
   const editLang = useStore((state) => state.editLang);
   const view = useStore((state) => state.view);
@@ -65,10 +65,22 @@ export function TopBar({ exportState }: { exportState: ExportState }) {
             { value: 'translations', label: t.workspace.translations },
           ]}
         />
-        <div className="row hide-phone">
-          {errors > 0 && <Badge tone="red">{t.workspace.errorCount(errors)}</Badge>}
-          {warnings > 0 && <Badge tone="yellow">{t.workspace.warningCount(warnings)}</Badge>}
-        </div>
+        {groups.length > 0 && (
+          <Button
+            variant="ghost"
+            size="small"
+            className="topbar__issues hide-phone"
+            title={t.issues.show}
+            aria-label={t.issues.showCounts([
+              ...(errors > 0 ? [t.workspace.errorCount(errors)] : []),
+              ...(warnings > 0 ? [t.workspace.warningCount(warnings)] : []),
+            ])}
+            onClick={onShowIssues}
+          >
+            {errors > 0 && <Badge tone="red">{t.workspace.errorCount(errors)}</Badge>}
+            {warnings > 0 && <Badge tone="yellow">{t.workspace.warningCount(warnings)}</Badge>}
+          </Button>
+        )}
         <Button
           variant="primary"
           disabled={!canDownload}
