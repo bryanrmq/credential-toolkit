@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { type Group, type GroupLink, emptyProject, findNode, newAttribute, newGroupLink, walkNodes } from './model';
+import { type Group, type GroupLink, emptyProject, findNode, newAttribute, newGroupLink, walkGroups, walkNodes } from './model';
 import {
   addLanguage,
   NEW_NODE_KEYS,
+  cloneNode,
+  duplicateNodes,
   groupNodes,
   insertNode,
   moveLanguage,
@@ -630,5 +632,158 @@ describe('group, ungroup, move up/down and delete several', () => {
       expect(removeNodes(p, [x.id, g.id, z.id, b.id, 'missing'])).toEqual([b, g]);
       expect(shape(p.root)).toEqual(['a', 'c', { pets: ['name'] }]);
     });
+  });
+});
+
+describe('duplicate nodes', () => {
+  /** Root: given_name, person { name, address { city } }, pets[] { name }. */
+  function tree() {
+    const p = emptyProject(['en']);
+    const given = newAttribute('given_name', { source: ['given_name'], labels: { en: 'Given name' } });
+    const name = newAttribute('name', { source: ['person', 'name'], sensitive: true, labels: { en: 'Name' } });
+    const city = newAttribute('city', { source: ['person', 'address', 'city'] });
+    const address = newGroupLink('address', { source: ['person', 'address'] });
+    address.group.children.push(city);
+    const person = newGroupLink('person', { source: ['person'], labels: { en: 'Person' } });
+    person.group.children.push(name, address);
+    const petName = newAttribute('name', { source: ['pets', null, 'name'] });
+    const pets = newGroupLink('pets', { array: true, source: ['pets', null] });
+    pets.group.children.push(petName);
+    p.root.children.push(given, person, pets);
+    return { p, given, name, city, address, person, pets, petName };
+  }
+
+  /** The tree as nested keys, e.g. ['a', { g: ['x'] }]. */
+  type Shape = (string | { [key: string]: Shape })[];
+  const shape = (group: Group): Shape =>
+    group.children.map((child) => (child.kind === 'group' ? { [child.key]: shape(child.group) } : child.key));
+
+  it('copies an attribute right after its original with a new id, a unique key and the same contents', () => {
+    const { p, given } = tree();
+    given.entries = { codes: ['x'], labels: { en: { x: 'X' } } };
+    given.i14y = { conceptId: 'c1', identifier: 'id', registrationStatus: 'Recorded', name: { en: 'Given' }, publisher: {}, values: {} };
+    const copies = duplicateNodes(p, [given.id]);
+    expect(shape(p.root)).toEqual(['given_name', 'given_name_2', { person: ['name', { address: ['city'] }] }, { pets: ['name'] }]);
+    const copy = p.root.children[1];
+    expect(copies).toEqual(new Map([[given.id, copy.id]]));
+    expect(copy.id).not.toBe(given.id);
+    // Everything else, the source path and the I14Y link included, is copied as it is, not shared.
+    expect({ ...copy, id: given.id, key: given.key }).toEqual(given);
+    expect(copy.labels).not.toBe(given.labels);
+    expect(copy.kind === 'attribute' && copy.source).not.toBe(given.source);
+  });
+
+  it('keeps keys unique among the siblings', () => {
+    const { p, given } = tree();
+    duplicateNodes(p, [given.id]);
+    duplicateNodes(p, [given.id]);
+    expect(shape(p.root).slice(0, 3)).toEqual(['given_name', 'given_name_3', 'given_name_2']);
+  });
+
+  it('copies a group with its whole subtree and new ids throughout', () => {
+    const { p, person } = tree();
+    const copies = duplicateNodes(p, [person.id]);
+    expect(shape(p.root)).toEqual([
+      'given_name',
+      { person: ['name', { address: ['city'] }] },
+      { person_2: ['name', { address: ['city'] }] },
+      { pets: ['name'] },
+    ]);
+    const copy = p.root.children[2] as GroupLink;
+    const originals = [...walkNodes(person.group)].map(({ node }) => node);
+    const copied = [...walkNodes(copy.group)].map(({ node }) => node);
+    expect([...copies]).toEqual([[person.id, copy.id], ...originals.map((node, index) => [node.id, copied[index].id])]);
+    const groupIds = (link: GroupLink) => [...walkGroups(link.group)].map((group) => group.id);
+    const all = [...walkNodes(p.root)].map(({ node }) => node.id);
+    expect(new Set(all).size).toBe(all.length);
+    for (const id of groupIds(copy)) expect(groupIds(person)).not.toContain(id);
+    // Source paths are copied as they are; validation flags them for the user to adjust.
+    expect(copied.map((node) => node.source)).toEqual(originals.map((node) => node.source));
+  });
+
+  it('copies each node after its own original, in its own group', () => {
+    const { p, given, city, petName } = tree();
+    const copies = duplicateNodes(p, [petName.id, given.id, city.id]);
+    expect(shape(p.root)).toEqual([
+      'given_name',
+      'given_name_2',
+      { person: ['name', { address: ['city', 'city_2'] }] },
+      { pets: ['name', 'name_2'] },
+    ]);
+    expect([...copies.keys()]).toEqual([given.id, city.id, petName.id]);
+  });
+
+  it('copies side-by-side nodes each right after its original', () => {
+    const { p, given, person } = tree();
+    duplicateNodes(p, [given.id, person.id]);
+    expect(shape(p.root).map((node) => (typeof node === 'string' ? node : Object.keys(node)[0]))).toEqual([
+      'given_name',
+      'given_name_2',
+      'person',
+      'person_2',
+      'pets',
+    ]);
+  });
+
+  it('copies a group once when some of its own children are given too', () => {
+    const { p, person, name, city } = tree();
+    const copies = duplicateNodes(p, [name.id, person.id, city.id]);
+    expect(shape(p.root)).toEqual([
+      'given_name',
+      { person: ['name', { address: ['city'] }] },
+      { person_2: ['name', { address: ['city'] }] },
+      { pets: ['name'] },
+    ]);
+    // The inner nodes map to their copies inside the group's copy.
+    const copy = p.root.children[2] as GroupLink;
+    expect(copies.get(name.id)).toBe(copy.group.children[0].id);
+  });
+
+  it('changes nothing when no id names a node', () => {
+    const { p } = tree();
+    const before = structuredClone(p);
+    expect(duplicateNodes(p, ['missing'])).toEqual(new Map());
+    expect(p).toEqual(before);
+  });
+
+  it('keeps references inside a copied group resolving to the copy’s own nodes', () => {
+    const { p, person, name, address, city } = tree();
+    person.labels = { en: '{{person.name}} from {{given_name}}' };
+    name.labels = { en: '{{name}} in {{address.city}}, {{/person.address.city}} ({{/given_name}})' };
+    address.labels = { en: '{{/pets.name[0]}}' };
+    city.labels = { en: '{{city}}' };
+    duplicateNodes(p, [person.id]);
+    const copy = p.root.children[2] as GroupLink;
+    const [copyName, copyAddress] = copy.group.children;
+    const copyCity = (copyAddress as GroupLink).group.children[0];
+    // The group's own label resolves from its parent, so it now names the copy.
+    expect(copy.labels.en).toBe('{{person_2.name}} from {{given_name}}');
+    // Relative references inside stay as they are; absolute ones into the group follow the copy.
+    expect(copyName.labels.en).toBe('{{name}} in {{address.city}}, {{/person_2.address.city}} ({{/given_name}})');
+    expect(copyAddress.labels.en).toBe('{{/pets.name[0]}}');
+    expect(copyCity.labels.en).toBe('{{city}}');
+    // The originals are untouched.
+    expect(person.labels.en).toBe('{{person.name}} from {{given_name}}');
+    expect(name.labels.en).toBe('{{name}} in {{address.city}}, {{/person.address.city}} ({{/given_name}})');
+  });
+
+  it('gives a copied attribute’s reference to itself to the copy', () => {
+    const { p, given } = tree();
+    given.labels = { en: 'Given name ({{given_name}})' };
+    duplicateNodes(p, [given.id]);
+    expect(p.root.children[1].labels.en).toBe('Given name ({{given_name_2}})');
+    expect(given.labels.en).toBe('Given name ({{given_name}})');
+  });
+
+  it('clones a node with fresh ids throughout, leaving the original as it is', () => {
+    const { person } = tree();
+    const before = structuredClone(person);
+    const { copy, ids } = cloneNode(person);
+    expect(person).toEqual(before);
+    expect(copy.key).toBe('person');
+    expect(ids.size).toBe(4);
+    const copiedIds = [copy.id, ...[...walkNodes((copy as GroupLink).group)].map(({ node }) => node.id)];
+    expect([...ids.values()]).toEqual(copiedIds);
+    expect((copy as GroupLink).group.id).not.toBe(person.group.id);
   });
 });

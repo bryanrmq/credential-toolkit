@@ -5,10 +5,12 @@ import { useStore } from '../../state/store';
 import {
   addNode,
   canDeleteSelection,
+  canDuplicateSelection,
   canGroupSelection,
   canMoveSelection,
   canUngroupSelection,
   deleteSelection,
+  duplicateSelection,
   groupSelection,
   moveSelection,
   newNodePlace,
@@ -125,6 +127,36 @@ describe('deleteSelection', () => {
     expect(canDeleteSelection()).toBe(false);
     deleteSelection();
     expect(useStore.getState().past).toHaveLength(0);
+  });
+});
+
+describe('duplicateSelection', () => {
+  it('copies each selected node after its original and selects the copies, as one undo step', () => {
+    expect(canDuplicateSelection()).toBe(false);
+    select('c', 'a');
+    expect(canDuplicateSelection()).toBe(true);
+    duplicateSelection();
+    expect(keys()).toEqual(['a', 'a_2', 'person', 'd', 'items']);
+    expect(childKeys('person')).toEqual(['b', 'c', 'c_2']);
+    expect(selectedKeys()).toEqual(['a_2', 'c_2']);
+    const selection = useStore.getState().selection;
+    expect(selection.kind === 'node' && selection.id).toBe(id('a_2'));
+    expect(useStore.getState().past).toHaveLength(1);
+    useStore.getState().undo();
+    expect(keys()).toEqual(['a', 'person', 'd', 'items']);
+    expect(childKeys('person')).toEqual(['b', 'c']);
+    expect(selectedKeys()).toEqual(['a', 'c']);
+  });
+
+  it('copies a group once with its selected children, keeping them selected inside the copy', () => {
+    select('person', 'b');
+    duplicateSelection();
+    expect(keys()).toEqual(['a', 'person', 'person_2', 'd', 'items']);
+    expect(childKeys('person_2')).toEqual(['b', 'c']);
+    const copy = nodes().find((node) => node.key === 'person_2')!;
+    const selection = useStore.getState().selection;
+    expect(selection.kind === 'node' && selection.ids).toEqual([copy.id, copy.kind === 'group' && copy.group.children[0].id]);
+    expect(selection.kind === 'node' && selection.id).toBe(copy.kind === 'group' && copy.group.children[0].id);
   });
 });
 
