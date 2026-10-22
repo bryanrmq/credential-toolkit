@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseConcept } from '../../core/import/i14y';
 import { type AttributeNode, emptyProject, newAttribute } from '../../core/model';
+import { oneNode } from '../../state/selection';
 import { useStore } from '../../state/store';
 import catalogue from '../../test/fixtures/i14y-catalogue.json';
 import concepts from '../../test/fixtures/i14y-concepts.json';
@@ -119,7 +120,7 @@ describe('I14Y matches after opening a bundle', () => {
     const user = userEvent.setup();
     render(<Workspace />);
     await user.click(within(await screen.findByRole('region', { name: 'I14Y matches' })).getByRole('button', { name: 'Review' }));
-    expect(useStore.getState().selection).toEqual({ kind: 'node', id: attributes()[0].id });
+    expect(useStore.getState().selection).toEqual(oneNode(attributes()[0].id));
   });
 
   it('steps through the matches with Back and Next', async () => {
@@ -128,7 +129,7 @@ describe('I14Y matches after opening a bundle', () => {
     render(<Workspace />);
     const banner = await screen.findByRole('region', { name: 'I14Y matches' });
     const selected = () => useStore.getState().selection;
-    const node = (index: number) => ({ kind: 'node', id: attributes()[index].id });
+    const node = (index: number) => oneNode(attributes()[index].id);
 
     await user.click(within(banner).getByRole('button', { name: 'Review' }));
     expect(selected()).toEqual(node(0));
@@ -154,7 +155,7 @@ describe('I14Y matches after opening a bundle', () => {
       expect.stringContaining('Geschlecht'),
     ]);
     await user.click(within(list).getByRole('button', { name: 'gender' }));
-    expect(useStore.getState().selection).toEqual({ kind: 'node', id: attributes()[1].id });
+    expect(useStore.getState().selection).toEqual(oneNode(attributes()[1].id));
   });
 
   it('stays hidden when the project was not opened from a bundle', async () => {

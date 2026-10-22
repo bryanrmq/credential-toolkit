@@ -1040,6 +1040,7 @@ input[type='checkbox'] {
   border-left: 1px solid var(--border);
 }
 .tree__row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1051,15 +1052,30 @@ input[type='checkbox'] {
   border: none;
   width: 100%;
   text-align: left;
+  /* ⇧-click selects rows, not text. */
+  user-select: none;
 }
 .tree__row:hover {
   background: #fafaf8;
 }
-.tree__row[aria-current='true'] {
+/* Every selected row looks the same; focus keeps the global :focus-visible ring, apart from this. */
+.tree__row[aria-selected='true'] {
   background: var(--surface-muted);
 }
-.tree__row[aria-current='true'] .tree__key {
+.tree__row[aria-selected='true'] .tree__key {
   font-weight: 600;
+}
+/* In a multi-selection, the primary (the row the Edit pane shows) gets a bar on its left edge,
+   inset by the corner radius so it stays on the straight part of the edge. */
+.tree__row[data-primary]::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: var(--radius);
+  bottom: var(--radius);
+  width: 2px;
+  border-radius: 1px;
+  background: var(--text-strong);
 }
 .tree__handle {
   color: var(--text-muted);
