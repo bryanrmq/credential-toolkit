@@ -14,11 +14,14 @@ import {
   type ResizablePane,
   type WorkspacePane,
   clampPaneWidth,
+  loadIssuesOpen,
   loadPaneWidths,
+  saveIssuesOpen,
   savePaneWidths,
 } from '../lib/paneLayout';
 import { useHistoryShortcuts } from '../lib/historyShortcuts';
 import { loadTourSeen } from '../lib/tour';
+import { useWideWindow } from '../lib/wideWindow';
 import { Inspector } from './Inspector';
 import { IssuesPanel } from './IssuesPanel';
 import { LanguagesDialog } from './LanguagesDialog';
@@ -65,6 +68,24 @@ export function Workspace() {
       onReset={() => reset(target)}
     />
   );
+  const wide = useWideWindow();
+  const [issuesOpen, setIssuesOpen] = useState(loadIssuesOpen);
+  const [issuesFocus, setIssuesFocus] = useState(0);
+  const openIssues = (open: boolean) => {
+    setIssuesOpen(open);
+    saveIssuesOpen(open);
+  };
+  // The top-bar button: a wide window expands the panel, a narrow one switches to the Issues pane.
+  const showIssues = () => {
+    if (wide) {
+      openIssues(true);
+    } else {
+      useStore.getState().setView('editor');
+      setPane('issues');
+    }
+    setIssuesFocus((count) => count + 1);
+  };
+  const issuesPane = !wide && view === 'editor' && pane === 'issues';
   const [canSave] = useState(storageAvailable);
   useHistoryShortcuts();
   // The tour starts by itself until this browser has finished or skipped it once.
@@ -76,7 +97,7 @@ export function Workspace() {
   return (
     <IssuesContext.Provider value={issues}>
       <div className="workspace">
-        <TopBar exportState={exportState} />
+        <TopBar exportState={exportState} onShowIssues={showIssues} />
         {(!canSave || saveFailed) && (
           <p className="note" role="status" style={{ margin: '12px 20px 0' }}>
             {canSave ? t.workspace.saveFailed : t.workspace.storageUnavailable}
@@ -97,6 +118,7 @@ export function Workspace() {
                   { value: 'structure', label: t.workspace.panes.structure },
                   { value: 'inspector', label: t.workspace.panes.inspector },
                   { value: 'output', label: t.workspace.panes.output },
+                  ...(wide ? [] : [{ value: 'issues' as const, label: t.workspace.panes.issues }]),
                 ]}
               />
             </div>
@@ -118,9 +140,18 @@ export function Workspace() {
                 <OutputPanel exportState={exportState} />
               </section>
             </div>
-            {/* On narrow windows only one pane shows: switch to the one that holds the field. */}
-            <IssuesPanel onJump={(issue) => issue.target.kind !== 'languages' && setPane(issue.target.kind === 'hosting' ? 'output' : 'inspector')} />
           </>
+        )}
+        {/* Docked under the panes or the Translations view; on a narrow window it is a pane of its own. */}
+        {(wide || issuesPane) && (
+          <IssuesPanel
+            open={issuesOpen}
+            onOpenChange={openIssues}
+            docked={wide}
+            focusRequest={issuesFocus}
+            // On narrow windows only one pane shows: switch to the one that holds the field.
+            onJump={(issue) => issue.target.kind !== 'languages' && setPane(issue.target.kind === 'hosting' ? 'output' : 'inspector')}
+          />
         )}
         {languagesOpen && <LanguagesDialog />}
         {tourOpen && <Tour pane={pane} onPane={setPane} />}

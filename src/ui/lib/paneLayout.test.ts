@@ -4,12 +4,15 @@ import {
   DEFAULT_ISSUES_HEIGHT,
   DEFAULT_PANE_WIDTHS,
   ISSUES_HEIGHT_KEY,
+  ISSUES_OPEN_KEY,
   PANE_LAYOUT_KEY,
   clampIssuesHeight,
   clampPaneWidth,
   loadIssuesHeight,
+  loadIssuesOpen,
   loadPaneWidths,
   saveIssuesHeight,
+  saveIssuesOpen,
   savePaneWidths,
 } from './paneLayout';
 
@@ -61,5 +64,23 @@ describe('issues panel height', () => {
     // 500 px between the panes and the list, the panes keep 160 px: the list can take at most 340 px.
     expect(clampIssuesHeight(600, 500)).toBe(340);
     expect(clampIssuesHeight(600, 200)).toBe(96);
+  });
+});
+
+describe('issues panel open state', () => {
+  it('is open unless it was saved as collapsed', () => {
+    expect(loadIssuesOpen()).toBe(true);
+    localStorage.setItem(ISSUES_OPEN_KEY, 'not json');
+    expect(loadIssuesOpen()).toBe(true);
+    localStorage.setItem(ISSUES_OPEN_KEY, '"no"');
+    expect(loadIssuesOpen()).toBe(true);
+  });
+
+  it('saves and restores the state', () => {
+    saveIssuesOpen(false);
+    expect(localStorage.getItem(ISSUES_OPEN_KEY)).toBe('false');
+    expect(loadIssuesOpen()).toBe(false);
+    saveIssuesOpen(true);
+    expect(loadIssuesOpen()).toBe(true);
   });
 });

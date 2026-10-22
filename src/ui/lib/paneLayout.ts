@@ -1,5 +1,5 @@
-/** The pane a narrow window shows (below 1000 px only one fits). */
-export type WorkspacePane = 'structure' | 'inspector' | 'output';
+/** The pane a narrow window shows (below 1000 px only one fits); there the Issues panel is a pane too. */
+export type WorkspacePane = 'structure' | 'inspector' | 'output' | 'issues';
 export type ResizablePane = 'structure' | 'output';
 export type PaneWidths = Record<ResizablePane, number>;
 
@@ -20,24 +20,33 @@ export function clampPaneWidth(pane: ResizablePane, width: number, room?: { cont
   return Math.round(Math.max(min, Math.min(width, max, roomMax)));
 }
 
-export function loadPaneWidths(): PaneWidths {
+/** The JSON value saved under `key`, or null when there is none, it is not JSON or storage is unavailable. */
+function loadStored(key: string): unknown {
   try {
-    const stored: unknown = JSON.parse(localStorage.getItem(PANE_LAYOUT_KEY) ?? 'null');
-    if (typeof stored !== 'object' || stored === null) return { ...DEFAULT_PANE_WIDTHS };
-    const { structure, output } = stored as Record<string, unknown>;
-    if (typeof structure !== 'number' || typeof output !== 'number') return { ...DEFAULT_PANE_WIDTHS };
-    return { structure: clampPaneWidth('structure', structure), output: clampPaneWidth('output', output) };
+    return JSON.parse(localStorage.getItem(key) ?? 'null');
   } catch {
-    return { ...DEFAULT_PANE_WIDTHS };
+    return null;
   }
 }
 
-export function savePaneWidths(widths: PaneWidths): void {
+function saveStored(key: string, value: unknown): void {
   try {
-    localStorage.setItem(PANE_LAYOUT_KEY, JSON.stringify(widths));
+    localStorage.setItem(key, JSON.stringify(value));
   } catch {
     // Storage may be unavailable or full; the layout then lasts until the page is closed.
   }
+}
+
+export function loadPaneWidths(): PaneWidths {
+  const stored = loadStored(PANE_LAYOUT_KEY);
+  if (typeof stored !== 'object' || stored === null) return { ...DEFAULT_PANE_WIDTHS };
+  const { structure, output } = stored as Record<string, unknown>;
+  if (typeof structure !== 'number' || typeof output !== 'number') return { ...DEFAULT_PANE_WIDTHS };
+  return { structure: clampPaneWidth('structure', structure), output: clampPaneWidth('output', output) };
+}
+
+export function savePaneWidths(widths: PaneWidths): void {
+  saveStored(PANE_LAYOUT_KEY, widths);
 }
 
 export const ISSUES_HEIGHT_KEY = 'oca-generator:issues-height';
@@ -57,18 +66,21 @@ export function clampIssuesHeight(height: number, room?: number): number {
 }
 
 export function loadIssuesHeight(): number {
-  try {
-    const stored: unknown = JSON.parse(localStorage.getItem(ISSUES_HEIGHT_KEY) ?? 'null');
-    return typeof stored === 'number' ? clampIssuesHeight(stored) : DEFAULT_ISSUES_HEIGHT;
-  } catch {
-    return DEFAULT_ISSUES_HEIGHT;
-  }
+  const stored = loadStored(ISSUES_HEIGHT_KEY);
+  return typeof stored === 'number' ? clampIssuesHeight(stored) : DEFAULT_ISSUES_HEIGHT;
 }
 
 export function saveIssuesHeight(height: number): void {
-  try {
-    localStorage.setItem(ISSUES_HEIGHT_KEY, JSON.stringify(height));
-  } catch {
-    // Storage may be unavailable or full; the height then lasts until the page is closed.
-  }
+  saveStored(ISSUES_HEIGHT_KEY, height);
+}
+
+export const ISSUES_OPEN_KEY = 'oca-generator:issues-open';
+
+/** Whether the Issues panel is open (not collapsed to its header); open unless the user collapsed it. */
+export function loadIssuesOpen(): boolean {
+  return loadStored(ISSUES_OPEN_KEY) !== false;
+}
+
+export function saveIssuesOpen(open: boolean): void {
+  saveStored(ISSUES_OPEN_KEY, open);
 }
