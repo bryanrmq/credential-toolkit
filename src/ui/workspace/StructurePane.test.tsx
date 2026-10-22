@@ -67,8 +67,8 @@ describe('Structure tree', () => {
 
     await user.click(row('c'));
     expect(items.filter((item) => item.tabIndex === 0)).toEqual([row('c')]);
-    // Tab from the button before the tree lands on the selected row, and the next Tab leaves the tree.
-    screen.getByRole('button', { name: 'List of objects' }).focus();
+    // Tab from the Add button before the tree lands on the selected row, and the next Tab leaves the tree.
+    within(screen.getByRole('region', { name: 'Structure' })).getByRole('button', { name: 'Add' }).focus();
     await user.tab();
     expect(row('c')).toHaveFocus();
     await user.tab();

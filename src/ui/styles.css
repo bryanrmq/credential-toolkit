@@ -155,6 +155,13 @@ kbd {
 .btn--icon {
   padding: 5px;
 }
+/* The caret of a menu button, such as Structure's Add. */
+.btn__caret {
+  width: 12px;
+  height: 12px;
+  margin-left: -2px;
+  color: var(--text-muted);
+}
 
 /* Badges */
 .badge {

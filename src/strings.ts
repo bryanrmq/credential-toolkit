@@ -87,6 +87,8 @@ export const t = {
   structure: {
     title: 'Structure',
     credential: 'Credential',
+    add: 'Add',
+    addMenu: 'Add to the structure',
     addAttribute: 'Attribute',
     addGroup: 'Group',
     addList: 'List of objects',
@@ -97,7 +99,6 @@ export const t = {
     fillTitle: 'Fill from a sample credential',
     fillIntro: 'Paste the decoded claims of an issued credential. Attributes, types, nesting and source paths are created from it, and it is kept to check source paths.',
     fillSubmit: 'Fill',
-    addFromI14y: 'I14Y',
     addFromI14yTitle: 'Add attributes from I14Y',
     dragHandle: (key: string) => `Move ${key}`,
     rename: (key: string) => `Rename ${key || 'node'}`,
@@ -364,8 +365,8 @@ export const t = {
         title: 'Structure',
         body: 'The attributes of the credential, in the order the wallet lists them.',
         features: [
-          'Add an attribute, a group or a list of objects with the buttons at the top. New items go into the selected group.',
-          'I14Y adds standard Swiss attributes with their labels and value lists in every language I14Y has.',
+          'Add an attribute, a group or a list of objects from the Add menu at the top. New items go into the selected group, or right after the selected attribute.',
+          'Add from I14Y…, in the right-click menu or on an empty structure, adds standard Swiss attributes with their labels and value lists in every language I14Y has.',
           'Drag the handle beside an item to reorder it, or drop it on the middle of a group to move it inside. Dragging a selected item moves the whole selection.',
           'Right-click an item, or the space below the last one, for its actions: add, group, move or delete.',
           'Select Credential to edit the name and branding, or an item to edit it.',

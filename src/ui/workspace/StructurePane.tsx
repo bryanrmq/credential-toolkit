@@ -16,6 +16,7 @@ import {
   ArrowUpIcon,
   BinaryIcon,
   CalendarBlankIcon,
+  CaretDownIcon,
   CopyIcon,
   DotsSixVerticalIcon,
   FolderSimpleDashedIcon,
@@ -96,8 +97,12 @@ function targetGroup(project: Project, selectionId: string | null): Group {
   return visit.node.kind === 'group' ? visit.node.group : visit.parent;
 }
 
-/** An open right-click menu. `at` is where it opens, in window coordinates; focus goes back to `returnFocus` when it closes. */
+/**
+ * An open menu: a right-click menu, or the header's Add menu (`add`). `at` is where it opens, in window
+ * coordinates; focus goes back to `returnFocus` when it closes.
+ */
 interface TreeMenu {
+  add?: boolean;
   label: string;
   sections: PopupMenuItem[][];
   at: { x: number; y: number };
@@ -306,6 +311,8 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
   const [i14yGroupId, setI14yGroupId] = useState<string | null>(null);
   const [menu, setMenu] = useState<TreeMenu | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
+  // Whether the Add menu was open when its button was pressed: the press closes it, so the click must not reopen it.
+  const addWasOpen = useRef(false);
   // With unlinked attributes, load the cached I14Y catalogue to mark the ones that look like a concept.
   const unlinked = [...walkNodes(project.root)].some(({ node }) => node.kind === 'attribute' && !node.i14y);
   const { catalogue } = useI14yCatalogue(unlinked);
@@ -452,6 +459,24 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
 
   const openI14y = () => setI14yGroupId(targetGroup(project, selection.kind === 'node' ? selection.id : null).id);
 
+  /** Opens the header's Add menu below `button`, right-aligned with it. New items go where N puts them. */
+  const openAddMenu = (button: HTMLElement) => {
+    const rect = button.getBoundingClientRect();
+    setMenu({
+      add: true,
+      label: t.structure.addMenu,
+      sections: [
+        [
+          { label: t.structure.addAttribute, icon: <PlusIcon />, shortcut: treeShortcutLabel('add'), onSelect: () => add('attribute') },
+          { label: t.structure.addGroup, icon: <FolderSimpleIcon />, onSelect: () => add('group') },
+          { label: t.structure.addList, icon: <StackIcon />, onSelect: () => add('list') },
+        ],
+      ],
+      at: { x: rect.right, y: rect.bottom + 4 },
+      returnFocus: button,
+    });
+  };
+
   /**
    * Opens the right-click menu of `rowElement`: a node's, or the top level's for the Credential row and
    * the empty area (no row). An unselected node is selected first.
@@ -573,20 +598,28 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     <>
       <div className="pane__header">
         <span className="pane__title">{t.structure.title}</span>
-        <div className="row">
-          <Button size="small" variant="ghost" onClick={() => add('attribute')} title={t.structure.addAttribute}>
-            <PlusIcon /> {t.structure.addAttribute}
-          </Button>
-          <Button size="small" variant="ghost" onClick={openI14y} title={t.structure.addFromI14yTitle}>
-            <MagnifyingGlassIcon /> {t.structure.addFromI14y}
-          </Button>
-          <Button size="small" variant="ghost" onClick={() => add('group')} aria-label={t.structure.addGroup} title={t.structure.addGroup}>
-            <FolderSimpleIcon />
-          </Button>
-          <Button size="small" variant="ghost" onClick={() => add('list')} aria-label={t.structure.addList} title={t.structure.addList}>
-            <StackIcon />
-          </Button>
-        </div>
+        <Button
+          size="small"
+          variant="ghost"
+          aria-haspopup="menu"
+          aria-expanded={menu?.add === true}
+          onMouseDown={() => {
+            addWasOpen.current = menu?.add === true;
+          }}
+          onClick={(event) => {
+            if (addWasOpen.current) addWasOpen.current = false;
+            else openAddMenu(event.currentTarget);
+          }}
+          onKeyDown={(event) => {
+            // ↓ and ↑ open the menu too, as on any menu button.
+            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+            event.preventDefault();
+            openAddMenu(event.currentTarget);
+          }}
+        >
+          <PlusIcon /> {t.structure.add}
+          <CaretDownIcon className="btn__caret" />
+        </Button>
       </div>
       <div className="pane__body" onContextMenu={onContextMenu}>
         <div
@@ -653,6 +686,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
             at={menu.at}
             sections={menu.sections}
             returnFocus={menu.returnFocus}
+            align={menu.add ? 'end' : 'start'}
             onClose={closeMenu}
           />
         )}
