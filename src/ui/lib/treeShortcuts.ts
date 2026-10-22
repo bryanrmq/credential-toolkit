@@ -2,9 +2,9 @@ import { useStore } from '../../state/store';
 import { usesCommandKey } from './platform';
 
 /** The tree actions the keyboard reaches; ⌘ is Ctrl on Windows and Linux. */
-export type TreeShortcut = 'add' | 'delete' | 'edit' | 'duplicate' | 'group' | 'ungroup' | 'moveUp' | 'moveDown';
+export type TreeShortcut = 'add' | 'delete' | 'edit' | 'rename' | 'duplicate' | 'group' | 'ungroup' | 'moveUp' | 'moveDown';
 
-/** The tree action `event` asks for: N, ⌫ / Delete, ⏎, ⌘D, ⌘G, ⇧⌘G, ⌥↑ and ⌥↓. */
+/** The tree action `event` asks for: N, ⌫ / Delete, ⏎, F2, ⌘D, ⌘G, ⇧⌘G, ⌥↑ and ⌥↓. */
 export function treeShortcut(event: Pick<KeyboardEvent, 'key' | 'altKey' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'isComposing'>): TreeShortcut | null {
   if (event.isComposing) return null;
   const mod = event.metaKey || event.ctrlKey;
@@ -22,6 +22,7 @@ export function treeShortcut(event: Pick<KeyboardEvent, 'key' | 'altKey' | 'meta
   if (key === 'n') return 'add';
   if (event.key === 'Backspace' || event.key === 'Delete') return 'delete';
   if (event.key === 'Enter') return 'edit';
+  if (event.key === 'F2') return 'rename';
   return null;
 }
 
@@ -29,6 +30,7 @@ const APPLE_KEYS: Record<TreeShortcut, string> = {
   add: 'N',
   delete: '⌫',
   edit: '⏎',
+  rename: 'F2',
   duplicate: '⌘D',
   group: '⌘G',
   ungroup: '⇧⌘G',
@@ -39,6 +41,7 @@ const OTHER_KEYS: Record<TreeShortcut, string> = {
   add: 'N',
   delete: 'Del',
   edit: 'Enter',
+  rename: 'F2',
   duplicate: 'Ctrl+D',
   group: 'Ctrl+G',
   ungroup: 'Ctrl+Shift+G',

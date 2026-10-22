@@ -33,7 +33,7 @@ import {
   ToggleLeftIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
-import { type KeyboardEvent, type MouseEvent, type ReactNode, useCallback, useRef, useState } from 'react';
+import { type KeyboardEvent, type MouseEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { type PendingLink, pendingLinks, textIn } from '../../core/import/i14y';
 import { importSample } from '../../core/import/sample';
@@ -46,7 +46,7 @@ import {
   isArrayType,
   walkNodes,
 } from '../../core/model';
-import { moveNodesTo, outermostIds } from '../../core/operations';
+import { moveNodesTo, outermostIds, renameNode } from '../../core/operations';
 import { CREDENTIAL, extendTo, isSelected, oneNode, rowAfter, selectedIds, toggleNode, visibleOrder } from '../../state/selection';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
@@ -112,13 +112,16 @@ const CREDENTIAL_ROW = 'credential';
 
 /**
  * What every row needs from the tree: the I14Y matches, the one row in the tab order, the click
- * handler and, while dragging, the dragged nodes, where a drop would land and whether groups take
- * drops inside (wide windows only).
+ * handlers, the row being renamed and how a rename ends and, while dragging, the dragged nodes, where
+ * a drop would land and whether groups take drops inside (wide windows only).
  */
 interface RowContext {
   matches: Matches;
   focusId: string;
   onRowClick: (id: string, event: MouseEvent) => void;
+  onRowDoubleClick: (id: string, event: MouseEvent) => void;
+  renaming: string | null;
+  endRename: (id: string, key: string | null, refocus: boolean) => void;
   dragged: string[] | null;
   drop: DropIndicator | null;
   inside: boolean;
@@ -158,6 +161,7 @@ function NodeRow({ node, level, context }: { node: Node; level: number; context:
         data-drop={dropMark(context.drop, node.id)}
         tabIndex={context.focusId === node.id ? 0 : -1}
         onClick={(event) => context.onRowClick(node.id, event)}
+        onDoubleClick={(event) => context.onRowDoubleClick(node.id, event)}
       >
         {/* Out of the tab order: the tree is one tab stop. */}
         <button
@@ -170,7 +174,14 @@ function NodeRow({ node, level, context }: { node: Node; level: number; context:
         >
           <DotsSixVerticalIcon />
         </button>
-        <RowContent node={node} />
+        {context.renaming === node.id ? (
+          <>
+            {nodeIcon(node)}
+            <RenameInput node={node} onDone={(key, refocus) => context.endRename(node.id, key, refocus)} />
+          </>
+        ) : (
+          <RowContent node={node} />
+        )}
         {node.kind === 'attribute' && node.i14y && (
           <span className="tree__tag" title={t.i14yLink.tagTitle(node.i14y.identifier)}>
             {t.i14yLink.tag}
@@ -197,6 +208,48 @@ function RowContent({ node }: { node: Node }) {
       {nodeIcon(node)}
       <span className="tree__key">{node.key || '—'}</span>
     </>
+  );
+}
+
+/**
+ * A row's key as an inline input, while renaming it: ⏎ and leaving the input commit, Escape restores
+ * the old key (`null`). Like the Edit pane's key field, any key is accepted; the issues flag bad ones.
+ */
+function RenameInput({ node, onDone }: { node: Node; onDone: (key: string | null, refocus: boolean) => void }) {
+  const [text, setText] = useState(node.key);
+  const ref = useRef<HTMLInputElement>(null);
+  // ⏎ and Escape end the rename before the input goes away, so its blur must not end it again.
+  const done = useRef(false);
+  const finish = (key: string | null, refocus: boolean) => {
+    if (done.current) return;
+    done.current = true;
+    onDone(key, refocus);
+  };
+  useEffect(() => {
+    ref.current?.focus();
+    ref.current?.select();
+  }, []);
+  return (
+    <input
+      ref={ref}
+      className="input input--mono tree__rename"
+      aria-label={t.structure.rename(node.key)}
+      value={text}
+      spellCheck={false}
+      onChange={(event) => setText(event.target.value)}
+      // Clicks in the input stay in it: they neither select the row again nor start another rename.
+      onClick={(event) => event.stopPropagation()}
+      onDoubleClick={(event) => event.stopPropagation()}
+      onBlur={() => finish(text, false)}
+      onKeyDown={(event) => {
+        if (event.nativeEvent.isComposing) return;
+        if (event.key === 'Enter') finish(text, true);
+        else if (event.key === 'Escape') finish(null, true);
+        else return;
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+    />
   );
 }
 
@@ -285,6 +338,31 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     }
   };
 
+  // The node whose key is an inline input, while renaming it.
+  const [renaming, setRenaming] = useState<string | null>(null);
+
+  /** Renames the one selected node inline (F2); not for the credential or several nodes at once. */
+  const renameSelection = () => {
+    const ids = selectedIds(useStore.getState().selection);
+    if (ids.length === 1) setRenaming(ids[0]);
+  };
+
+  // On wide windows with a mouse, a plain double-click renames the row; its first click has selected it alone.
+  const onRowDoubleClick = (id: string, event: MouseEvent) => {
+    if (pointerType.current === 'touch' || event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return;
+    if (!treeShortcutsActive(event.currentTarget, wide)) return;
+    const ids = selectedIds(useStore.getState().selection);
+    if (ids.length === 1 && ids[0] === id) setRenaming(id);
+  };
+
+  // One rename is one undo step; `renameNode` makes `{{…}}` references follow. ⏎ and Escape put focus back on the row.
+  const endRename = (id: string, key: string | null, refocus: boolean) => {
+    setRenaming(null);
+    const node = findNode(useStore.getState().project!.root, id)?.node;
+    if (node && key !== null && key !== node.key) update((draft) => renameNode(draft, id, key));
+    if (refocus) refocusTree();
+  };
+
   /** Keeps keyboard focus in the tree once a change has re-rendered it: on the primary row, or the Credential row. */
   const refocusTree = () =>
     requestAnimationFrame(() => {
@@ -295,6 +373,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
   // The tree shortcuts other than ⏎, which the Enter branch below handles. Adding and grouping focus the new key field.
   const runShortcut = (shortcut: Exclude<TreeShortcut, 'edit'>) => {
     if (shortcut === 'add') addNode();
+    else if (shortcut === 'rename') renameSelection();
     else if (shortcut === 'group') groupSelection();
     else {
       if (shortcut === 'delete') deleteSelection();
@@ -354,7 +433,17 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
   // While dragging: the dragged nodes, and where dropping them would land (null for nowhere).
   const [dragged, setDragged] = useState<string[] | null>(null);
   const [drop, setDrop] = useState<DropTarget | null>(null);
-  const context: RowContext = { matches, focusId, onRowClick, dragged, drop: drop?.indicator ?? null, inside: wide };
+  const context: RowContext = {
+    matches,
+    focusId,
+    onRowClick,
+    onRowDoubleClick,
+    renaming,
+    endRename,
+    dragged,
+    drop: drop?.indicator ?? null,
+    inside: wide,
+  };
 
   const add = (kind: NewNodeKind) => {
     addNode(kind);
