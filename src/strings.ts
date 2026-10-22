@@ -213,6 +213,19 @@ export const t = {
     translationsHint: 'This item in every language. Empty fields are highlighted; click a language to edit it in the form.',
     switchLanguage: (lang: string) => `Edit in ${lang}`,
   },
+  /** The Edit pane when several nodes are selected. */
+  selection: {
+    count: (count: number) => `${count} items selected`,
+    keys: 'Selected keys',
+    more: (count: number) => `+ ${count} more`,
+    group: 'Group',
+    /** Shortcut hints: ⌘ on Apple platforms, Ctrl elsewhere. */
+    groupKeys: { command: '⌘G', control: 'Ctrl+G' },
+    moveTo: 'Move to',
+    moveToPlaceholder: 'Move to…',
+    delete: 'Delete',
+    deleteKeys: '⌫',
+  },
   cardPreview: {
     title: 'Card preview',
     platform: 'Platform',

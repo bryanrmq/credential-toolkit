@@ -204,6 +204,17 @@ export function moveNodesTo(project: Project, nodeIds: Iterable<string>, groupId
   return true;
 }
 
+/**
+ * "Move to" for several nodes: appends the given nodes to the group `targetGroupId`, keeping their
+ * tree order; a node inside another given node comes along with it. A node whose own subtree holds
+ * the target stays where it is. Templates follow as with `moveNode`. Returns whether anything moved.
+ */
+export function moveNodesInto(project: Project, nodeIds: Iterable<string>, targetGroupId: string): boolean {
+  let moved = false;
+  for (const { node } of outermostNodes(project, nodeIds)) moved = moveNode(project, node.id, targetGroupId, Number.MAX_SAFE_INTEGER) || moved;
+  return moved;
+}
+
 /** Removes every given node in one go; a node inside another given node goes with it. Returns the removed nodes. */
 export function removeNodes(project: Project, nodeIds: Iterable<string>): Node[] {
   return outermostNodes(project, nodeIds).map(({ node, parent }) => {
