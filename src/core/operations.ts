@@ -10,7 +10,7 @@ import {
   findNode,
   walkNodes,
 } from './model';
-import { renameInTemplate } from './templates';
+import { renameInTemplate, resolveTemplate, retargetTemplate } from './templates';
 
 /** Inserts `node` into the group with `groupId` at `index` (end when omitted). */
 export function insertNode(project: Project, groupId: string, node: Node, index?: number): void {
@@ -34,17 +34,35 @@ function containsGroup(node: Node, groupId: string): boolean {
 
 /**
  * Moves a node to `index` within the group `targetGroupId`. Returns false (and changes nothing)
- * when the target is the node's own group subtree.
+ * when the target is the node's own group subtree. Templates that resolved before the move are
+ * rewritten so they still point to the same nodes: references to the moved node and its
+ * descendants, and the moved node's own labels, which resolve from its new parent.
  */
 export function moveNode(project: Project, nodeId: string, targetGroupId: string, index: number): boolean {
   const visit = findNode(project.root, nodeId);
   const target = findGroup(project.root, targetGroupId);
   if (!visit || !target || containsGroup(visit.node, targetGroupId)) return false;
+  const resolved =
+    visit.parent === target
+      ? undefined
+      : new Map(templateSlots(project).map((slot) => [slot.id, resolveTemplate(slot.text, project.root, slot.owner)]));
   const fromIndex = visit.parent.children.indexOf(visit.node);
   visit.parent.children.splice(fromIndex, 1);
   const adjusted = visit.parent === target && fromIndex < index ? index - 1 : index;
   target.children.splice(Math.max(0, Math.min(adjusted, target.children.length)), 0, visit.node);
+  if (resolved) retargetTemplates(project, resolved);
   return true;
+}
+
+function retargetTemplates(project: Project, resolved: Map<string, (Node | null)[]>): void {
+  const parents = new Map<string, Group>();
+  for (const { node, parent } of walkNodes(project.root)) parents.set(node.id, parent);
+  for (const slot of templateSlots(project)) {
+    const targets = resolved.get(slot.id);
+    if (!targets?.some(Boolean)) continue;
+    const text = retargetTemplate(slot.text, project.root, slot.owner, targets, (node) => parents.get(node.id));
+    if (text !== slot.text) slot.write(text);
+  }
 }
 
 export function parentGroupOf(project: Project, nodeId: string): Group | undefined {
@@ -120,6 +138,40 @@ export function sourcePrefixFor(project: Project, groupId: string): ClaimsPath {
   return [];
 }
 
+interface TemplateSlot {
+  id: string;
+  owner: Group;
+  text: string;
+  write: (text: string) => void;
+}
+
+/**
+ * Every non-empty editor-form template in the project: the branding primary and secondary fields
+ * in every language and theme (resolved from the root) and every node label (resolved from the
+ * node's group). `id` names the slot independently of where the node sits in the tree.
+ */
+function templateSlots(project: Project): TemplateSlot[] {
+  const slots: TemplateSlot[] = [];
+  for (const [lang, pair] of Object.entries(project.branding)) {
+    for (const theme of ['light', 'dark'] as const) {
+      const branding = pair[theme];
+      if (!branding) continue;
+      for (const field of ['primaryField', 'secondaryField'] as const) {
+        const text = branding[field];
+        if (!text) continue;
+        slots.push({ id: `branding:${lang}:${theme}:${field}`, owner: project.root, text, write: (value) => void (branding[field] = value) });
+      }
+    }
+  }
+  for (const { node, parent } of walkNodes(project.root)) {
+    for (const [lang, text] of Object.entries(node.labels)) {
+      if (!text) continue;
+      slots.push({ id: `label:${node.id}:${lang}`, owner: parent, text, write: (value) => void (node.labels[lang] = value) });
+    }
+  }
+  return slots;
+}
+
 /**
  * Renames a node. Templates that reference it follow the rename. The source path stays as it is
  * (spec §5.1), except for a newly added item that still has its placeholder key: its path was only
@@ -130,18 +182,7 @@ export function renameNode(project: Project, nodeId: string, key: string): void 
   if (!visit) return;
   const node = visit.node;
   if (key !== '' && key !== node.key) {
-    const root = project.root;
-    const rename = (text: string | undefined, owner: Group) => (text ? renameInTemplate(text, root, owner, nodeId, key) : text);
-    for (const pair of Object.values(project.branding)) {
-      for (const branding of [pair.light, pair.dark]) {
-        if (!branding) continue;
-        branding.primaryField = rename(branding.primaryField, root);
-        branding.secondaryField = rename(branding.secondaryField, root);
-      }
-    }
-    for (const { node: other, parent } of walkNodes(root)) {
-      for (const lang of Object.keys(other.labels)) other.labels[lang] = rename(other.labels[lang], parent)!;
-    }
+    for (const slot of templateSlots(project)) slot.write(renameInTemplate(slot.text, project.root, slot.owner, nodeId, key));
   }
   const source = node.source;
   if (source && PLACEHOLDER_KEY.test(node.key)) {

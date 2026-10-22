@@ -152,3 +152,34 @@ export function renameInTemplate(text: string, root: Group, owner: Group, nodeId
     return changed ? `{{${expression.absolute ? '/' : ''}${segments.join('.')}${expression.suffix}}}` : null;
   });
 }
+
+/** The node each expression in `text` resolves to from `owner`, in order (null when it does not resolve). */
+export function resolveTemplate(text: string, root: Group, owner: Group): (Node | null)[] {
+  return listExpressions(text).map((expression) => resolveEditorPath(root, owner, expression)?.node ?? null);
+}
+
+/**
+ * Rewrites the expressions of `text` so each one resolves from `owner` to the node `targets` gives it
+ * (from `resolveTemplate`, taken before the tree changed). `parentOf` returns the group a node sits in now.
+ * Expressions without a target, or that still resolve to it, are left untouched. A relative expression
+ * stays relative while its target is below `owner` and becomes absolute otherwise.
+ */
+export function retargetTemplate(
+  text: string,
+  root: Group,
+  owner: Group,
+  targets: (Node | null)[],
+  parentOf: (node: Node) => Group | undefined,
+): string {
+  let index = 0;
+  return mapExpressions(text, (expression) => {
+    const target = targets[index++];
+    if (!target || resolveEditorPath(root, owner, expression)?.node === target) return null;
+    const parent = parentOf(target);
+    if (!parent) return null;
+    const relative = expression.absolute ? null : pathBetween(owner, parent);
+    const path = relative ?? pathBetween(root, parent);
+    if (!path) return null;
+    return `{{${relative ? '' : '/'}${[...path, target.key].join('.')}${expression.suffix}}}`;
+  });
+}
