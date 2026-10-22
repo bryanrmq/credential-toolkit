@@ -78,7 +78,7 @@ export const t = {
     saveFailed: 'The draft is too large to save in this browser, usually because of large logos. Shrink the logos or download the bundle to keep your work.',
     reportTitle: 'Import report',
     dismiss: 'Dismiss',
-    panes: { structure: 'Structure', inspector: 'Edit', output: 'Output' },
+    panes: { structure: 'Structure', inspector: 'Edit', output: 'Output', issues: 'Issues' },
   },
   structure: {
     title: 'Structure',
@@ -258,6 +258,9 @@ export const t = {
     collapse: 'Collapse issues',
     expand: 'Expand issues',
     resize: 'Resize the issues panel',
+    show: 'Show issues',
+    /** The top-bar button's accessible name: what it does, then the counts its pills show. */
+    showCounts: (counts: string[]) => `Show issues: ${counts.join(', ')}`,
     /** Where an issue sits when it is not about an attribute (attributes show their key path). */
     locations: { credential: 'Credential', languages: 'Languages', hosting: 'Hosting' },
   },

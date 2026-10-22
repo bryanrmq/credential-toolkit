@@ -827,6 +827,9 @@ input[type='checkbox'] {
   gap: 12px;
   flex: none;
 }
+.topbar__issues {
+  padding: 3px 4px;
+}
 .select--compact {
   width: auto;
   padding: 4px 28px 4px 8px;
@@ -1020,6 +1023,10 @@ input[type='checkbox'] {
   .panes[data-pane='inspector'] .pane--inspector,
   .panes[data-pane='output'] .pane--output {
     display: block;
+  }
+  /* The Issues pane is the Issues panel itself, rendered after the panes. */
+  .panes[data-pane='issues'] {
+    display: none;
   }
   .pane-tabs {
     display: flex;
@@ -1517,11 +1524,31 @@ input[type='checkbox'] {
   background: var(--canvas);
   border-top: 1px solid var(--border);
 }
-/* The handle straddles the panel's top border, so the line it highlights is that border. */
+/* The handle straddles the panel's top border, so the line it highlights is that border: a 6px hit area that turns
+   the border into a 2px darker line on hover or drag. */
 .issues-panel > .pane-resizer--horizontal {
   position: absolute;
   inset: -3px 0 auto;
-  height: 5px;
+  height: 6px;
+}
+.issues-panel > .pane-resizer--horizontal:hover::before,
+.issues-panel > .pane-resizer--horizontal:focus-visible::before,
+.issues-panel > .pane-resizer--horizontal:active::before {
+  background: var(--border-strong);
+  transform: scaleY(2);
+}
+/* On a narrow window the panel is the Issues pane: it fills the space and its list scrolls. */
+.issues-panel--pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: none;
+}
+.issues-panel--pane .issues-panel__body {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
 }
 .issues-panel__header {
   height: 36px;
@@ -1554,6 +1581,9 @@ input[type='checkbox'] {
   overflow-y: auto;
   overscroll-behavior: contain;
   border-top: 1px solid var(--border);
+}
+.issues:focus-visible {
+  outline-offset: -2px;
 }
 .issues-panel .empty-state {
   padding: 20px 8px;
