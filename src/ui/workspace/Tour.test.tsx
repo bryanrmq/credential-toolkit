@@ -45,7 +45,9 @@ describe('Tour', () => {
     render(<Workspace />);
     await user.click(within(tour()).getByRole('button', { name: 'Next' }));
     const features = within(tour()).getAllByRole('listitem').map((item) => item.textContent);
-    expect(features).toContain('Drag the handle beside an item to reorder it.');
+    expect(features).toContain(
+      'Drag the handle beside an item to reorder it, or drop it on the middle of a group to move it inside. Dragging a selected item moves the whole selection.',
+    );
     await user.click(within(tour()).getByRole('button', { name: 'Next' }));
     expect(within(tour()).getByText('{{', { selector: 'kbd' })).toBeInTheDocument();
   });

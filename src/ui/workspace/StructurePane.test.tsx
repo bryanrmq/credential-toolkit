@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { emptyProject, newAttribute, newGroupLink } from '../../core/model';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Node, emptyProject, newAttribute, newGroupLink } from '../../core/model';
 import { useStore } from '../../state/store';
 import { TOUR_SEEN_KEY } from '../lib/tour';
 import { Workspace } from './Workspace';
@@ -228,6 +228,141 @@ describe('Structure tree', () => {
       await user.pointer({ keys: '[TouchA]', target: row('d') });
       await user.keyboard('{/Shift}');
       expect(selectedKeys()).toEqual(['d']);
+    });
+  });
+
+  describe('drag and drop', () => {
+    // jsdom has no layout: every row (and an empty group's drop line) is 32px tall, stacked in document order.
+    const rowBoxes = () => [...document.querySelectorAll<HTMLElement>('[role="tree"] [data-row], .tree__empty--drop')];
+    beforeEach(() => {
+      const measure = HTMLElement.prototype.getBoundingClientRect;
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+        const at = rowBoxes().indexOf(this);
+        if (at < 0) return measure.call(this);
+        return { top: at * 32, bottom: at * 32 + 32, left: 0, right: 300, width: 300, height: 32, x: 0, y: at * 32, toJSON: () => ({}) };
+      });
+    });
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    /** The pointer's height over `element`'s box: its middle by default. */
+    const yOver = (element: HTMLElement, offset = 16) => rowBoxes().indexOf(element) * 32 + offset;
+    /** Presses the handle of row `key` and moves past the activation distance; returns the moves and the release. */
+    function startDrag(key: string) {
+      const handle = within(row(key)).getByRole('button', { name: `Move ${key}` });
+      const y = yOver(row(key));
+      fireEvent.pointerDown(handle, { isPrimary: true, button: 0, clientX: 10, clientY: y });
+      fireEvent.pointerMove(document, { clientX: 10, clientY: y + 6 });
+      return {
+        moveTo: (y: number) => fireEvent.pointerMove(document, { clientX: 10, clientY: y }),
+        drop: () => fireEvent.pointerUp(document, { clientX: 10 }),
+      };
+    }
+    /** The tree as nested keys, e.g. ['a', { person: ['b'] }]. */
+    type Shape = (string | { [key: string]: Shape })[];
+    const shapeOf = (children: Node[]): Shape => children.map((child) => (child.kind === 'group' ? { [child.key]: shapeOf(child.group.children) } : child.key));
+    const shape = () => shapeOf(useStore.getState().project!.root.children);
+    const addEmptyGroup = () => act(() => useStore.getState().update((draft) => void draft.root.children.push(newGroupLink('empty'))));
+
+    it('drops on the middle of a group row inside it, at its end, as one undo step', () => {
+      render(<Workspace />);
+      const drag = startDrag('a');
+      drag.moveTo(yOver(row('person')));
+      expect(row('person')).toHaveAttribute('data-drop', 'inside');
+      expect(tree().querySelectorAll('[data-drop]')).toHaveLength(1);
+      drag.drop();
+      expect(shape()).toEqual([{ person: ['b', 'c', 'a'] }, 'd']);
+      expect(tree().querySelector('[data-drop]')).toBeNull();
+      act(() => useStore.getState().undo());
+      expect(shape()).toEqual(['a', { person: ['b', 'c'] }, 'd']);
+    });
+
+    it('reorders on the upper or lower part of a row, with an insertion line', () => {
+      render(<Workspace />);
+      const drag = startDrag('d');
+      drag.moveTo(yOver(row('person'), 2));
+      expect(row('person')).toHaveAttribute('data-drop', 'before');
+      drag.moveTo(yOver(row('b'), 28));
+      expect(row('b')).toHaveAttribute('data-drop', 'after');
+      expect(row('person')).not.toHaveAttribute('data-drop');
+      drag.drop();
+      expect(shape()).toEqual(['a', { person: ['b', 'd', 'c'] }]);
+    });
+
+    it('shows an empty group its drop line only while dragging, and drops into it', () => {
+      addEmptyGroup();
+      render(<Workspace />);
+      expect(screen.queryByText('Empty, drop items here')).not.toBeInTheDocument();
+      expect(within(tree()).getByText('No attributes yet.')).toBeInTheDocument();
+      const drag = startDrag('b');
+      const line = screen.getByText('Empty, drop items here');
+      expect(within(tree()).queryByText('No attributes yet.')).not.toBeInTheDocument();
+      drag.moveTo(yOver(line));
+      expect(row('empty')).toHaveAttribute('data-drop', 'inside');
+      drag.drop();
+      expect(shape()).toEqual(['a', { person: ['c'] }, 'd', { empty: ['b'] }]);
+      expect(screen.queryByText('Empty, drop items here')).not.toBeInTheDocument();
+    });
+
+    it('drags the whole selection, in order, behind a chip counting it', async () => {
+      addEmptyGroup();
+      const user = userEvent.setup();
+      render(<Workspace />);
+      await user.click(row('d'));
+      await user.keyboard('{Meta>}');
+      await user.click(row('a'));
+      await user.click(row('c'));
+      await user.keyboard('{/Meta}');
+      const drag = startDrag('c');
+      expect(screen.getByText('3 items')).toBeInTheDocument();
+      for (const key of ['a', 'c', 'd']) expect(row(key).parentElement).toHaveClass('tree__dragging');
+      expect(row('b').parentElement).not.toHaveClass('tree__dragging');
+      drag.moveTo(yOver(row('empty')));
+      drag.drop();
+      expect(shape()).toEqual([{ person: ['b'] }, { empty: ['a', 'c', 'd'] }]);
+      expect(selectedKeys()).toEqual(['a', 'c', 'd']);
+      act(() => useStore.getState().undo());
+      expect(shape()).toEqual(['a', { person: ['b', 'c'] }, 'd', { empty: [] }]);
+    });
+
+    it('drags an unselected row on its own, previewing the row', async () => {
+      const user = userEvent.setup();
+      render(<Workspace />);
+      await user.click(row('a'));
+      await user.keyboard('{Meta>}');
+      await user.click(row('b'));
+      await user.keyboard('{/Meta}');
+      const drag = startDrag('d');
+      expect(screen.queryByText(/ items$/)).not.toBeInTheDocument();
+      expect(document.querySelector('.tree__overlay .tree__key')).toHaveTextContent('d');
+      drag.moveTo(yOver(row('a'), 2));
+      drag.drop();
+      expect(shape()).toEqual(['d', 'a', { person: ['b', 'c'] }]);
+    });
+
+    it('never drops a group into itself or its descendants', () => {
+      render(<Workspace />);
+      const drag = startDrag('person');
+      drag.moveTo(yOver(row('person')));
+      drag.moveTo(yOver(row('b'), 28));
+      expect(tree().querySelector('[data-drop]')).toBeNull();
+      drag.drop();
+      expect(shape()).toEqual(['a', { person: ['b', 'c'] }, 'd']);
+      expect(useStore.getState().past).toHaveLength(0);
+    });
+
+    it('keeps {{…}} references resolving after a drop into and out of a group', () => {
+      act(() => useStore.getState().update((draft) => void (draft.branding['de-CH'] = { light: { primaryField: '{{d}} {{person.b}}' } })));
+      render(<Workspace />);
+      let drag = startDrag('d');
+      drag.moveTo(yOver(row('person')));
+      drag.drop();
+      drag = startDrag('b');
+      drag.moveTo(yOver(row('a'), 2));
+      drag.drop();
+      expect(shape()).toEqual(['b', 'a', { person: ['c', 'd'] }]);
+      expect(useStore.getState().project!.branding['de-CH'].light.primaryField).toBe('{{person.d}} {{b}}');
     });
   });
 });
