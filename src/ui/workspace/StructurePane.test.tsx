@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type Node, emptyProject, newAttribute, newGroupLink } from '../../core/model';
@@ -364,5 +364,180 @@ describe('Structure tree', () => {
       expect(shape()).toEqual(['b', 'a', { person: ['c', 'd'] }]);
       expect(useStore.getState().project!.branding['de-CH'].light.primaryField).toBe('{{person.d}} {{b}}');
     });
+  });
+});
+
+describe('tree keyboard shortcuts', () => {
+  const topKeys = () => useStore.getState().project!.root.children.map((node) => node.key);
+  const personKeys = () => {
+    const person = useStore.getState().project!.root.children[1];
+    return person.kind === 'group' ? person.group.children.map((node) => node.key) : [];
+  };
+
+  it('N adds an attribute right after the selected one and focuses its key field', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('b'));
+    await user.keyboard('n');
+    expect(personKeys()).toEqual(['b', 'attribute', 'c']);
+    expect(selectedKeys()).toEqual(['attribute']);
+    await waitFor(() => expect(screen.getByLabelText('Key')).toHaveFocus());
+    expect(screen.getByLabelText('Key')).toHaveValue('attribute');
+
+    await user.click(row('person'));
+    await user.keyboard('n');
+    expect(personKeys()).toEqual(['b', 'attribute', 'c', 'attribute_2']);
+    await user.click(row('Credential'));
+    await user.keyboard('n');
+    expect(topKeys()).toEqual(['a', 'person', 'd', 'attribute']);
+  });
+
+  it('⌫ and Delete remove the selection without asking, select the next row, and ⌘Z restores it', async () => {
+    const confirm = vi.spyOn(window, 'confirm');
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('person'));
+    await user.keyboard('{Backspace}');
+    expect(topKeys()).toEqual(['a', 'd']);
+    expect(selectedKeys()).toEqual(['d']);
+    await waitFor(() => expect(row('d')).toHaveFocus());
+    // The last row falls back to the previous one.
+    await user.keyboard('{Delete}');
+    expect(topKeys()).toEqual(['a']);
+    expect(selectedKeys()).toEqual(['a']);
+    await user.keyboard('{Meta>}z{/Meta}');
+    expect(topKeys()).toEqual(['a', 'd']);
+    expect(selectedKeys()).toEqual(['d']);
+    await user.keyboard('{Meta>}z{/Meta}');
+    expect(topKeys()).toEqual(['a', 'person', 'd']);
+    expect(selectedKeys()).toEqual(['person']);
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('selects the credential once the tree is empty', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('a'));
+    await user.keyboard('{Shift>}');
+    await user.click(row('d'));
+    await user.keyboard('{/Shift}');
+    await user.keyboard('{Backspace}');
+    expect(topKeys()).toEqual([]);
+    expect(selectedKeys()).toEqual(['Credential']);
+    await waitFor(() => expect(row('Credential')).toHaveFocus());
+  });
+
+  it('⏎ focuses the selected node’s key field', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('c'));
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(screen.getByLabelText('Key')).toHaveFocus());
+    expect(screen.getByLabelText('Key')).toHaveValue('c');
+  });
+
+  it('⌘G groups the selection and focuses the new group’s key field; ⇧⌘G ungroups it', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('a'));
+    await user.keyboard('{Meta>}');
+    await user.click(row('d'));
+    await user.keyboard('g{/Meta}');
+    expect(topKeys()).toEqual(['group', 'person']);
+    expect(selectedKeys()).toEqual(['group']);
+    await waitFor(() => expect(screen.getByLabelText('Key')).toHaveValue('group'));
+    await waitFor(() => expect(screen.getByLabelText('Key')).toHaveFocus());
+
+    await user.click(row('group'));
+    await user.keyboard('{Control>}{Shift>}g{/Shift}{/Control}');
+    expect(topKeys()).toEqual(['a', 'd', 'person']);
+    expect(selectedKeys()).toEqual(['a', 'd']);
+  });
+
+  it('⇧⌘G does nothing on a list of objects', async () => {
+    const project = useStore.getState().project!;
+    const items = newGroupLink('items', { array: true, source: ['items', null] });
+    items.group.children.push(newAttribute('e'));
+    project.root.children.push(items);
+    useStore.getState().load(project);
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('items'));
+    await user.keyboard('{Meta>}{Shift>}g{/Shift}{/Meta}');
+    expect(topKeys()).toEqual(['a', 'person', 'd', 'items']);
+    expect(useStore.getState().past).toHaveLength(0);
+  });
+
+  it('⌥↑ / ⌥↓ move the selection by the edge rules and keep focus on it', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('b'));
+    await user.keyboard('{Alt>}{ArrowDown}{/Alt}');
+    expect(personKeys()).toEqual(['c', 'b']);
+    // At the bottom of its group it moves out, just after the group.
+    await user.keyboard('{Alt>}{ArrowDown}{/Alt}');
+    expect(topKeys()).toEqual(['a', 'person', 'b', 'd']);
+    await waitFor(() => expect(row('b')).toHaveFocus());
+    expect(selectedKeys()).toEqual(['b']);
+    await user.keyboard('{Alt>}{ArrowUp}{/Alt}');
+    expect(topKeys()).toEqual(['a', 'b', 'person', 'd']);
+    await user.keyboard('{Alt>}{ArrowUp}{ArrowUp}{/Alt}');
+    expect(topKeys()).toEqual(['b', 'a', 'person', 'd']);
+  });
+
+  it('types instead while focus is in a field', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('a'));
+    const label = screen.getByLabelText('Label');
+    await user.click(label);
+    await user.keyboard('Name{Backspace}');
+    expect(label).toHaveValue('Nam');
+    await user.keyboard('{Meta>}g{/Meta}{Alt>}{ArrowDown}{/Alt}');
+    expect(topKeys()).toEqual(['a', 'person', 'd']);
+  });
+
+  it('does nothing while the tour or a dialog is open', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('a'));
+    // Both keep focus to themselves; the keys go straight to the row to check the tree holds back too.
+    const pressOnRow = () => {
+      fireEvent.keyDown(row('a'), { key: 'n' });
+      fireEvent.keyDown(row('a'), { key: 'Backspace' });
+    };
+    act(() => useStore.getState().setTourOpen(true));
+    pressOnRow();
+    expect(topKeys()).toEqual(['a', 'person', 'd']);
+    act(() => useStore.getState().setTourOpen(false));
+
+    act(() => useStore.getState().setLanguagesOpen(true));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    pressOnRow();
+    expect(topKeys()).toEqual(['a', 'person', 'd']);
+    act(() => useStore.getState().setLanguagesOpen(false));
+    fireEvent.keyDown(row('a'), { key: 'Backspace' });
+    expect(topKeys()).toEqual(['person', 'd']);
+  });
+
+  it('does nothing under 1000 px', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('a'));
+    act(() => row('a').focus());
+    await user.keyboard('n{Backspace}{Alt>}{ArrowDown}{/Alt}{Meta>}g{/Meta}');
+    expect(topKeys()).toEqual(['a', 'person', 'd']);
+  });
+
+  it('the Edit pane’s Delete removes a group without asking and selects the next row', async () => {
+    const confirm = vi.spyOn(window, 'confirm');
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('person'));
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(topKeys()).toEqual(['a', 'd']);
+    expect(selectedKeys()).toEqual(['d']);
+    expect(confirm).not.toHaveBeenCalled();
   });
 });

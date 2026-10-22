@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProject, newAttribute } from '../../core/model';
 import { useStore } from '../../state/store';
 import { TOUR_SEEN_KEY } from '../lib/tour';
@@ -16,6 +16,9 @@ function loadProject() {
   );
   useStore.getState().load(project);
 }
+
+/** The top bar; the Edit pane's header is a banner too. */
+const topBar = () => within(document.querySelector<HTMLElement>('.topbar')!);
 
 beforeEach(() => {
   localStorage.clear();
@@ -238,6 +241,55 @@ describe('Workspace', () => {
     expect(structure).toHaveAttribute('aria-valuenow', '300');
   });
 
+  it('hides the Output pane from its header or the top bar and shows it again from the top bar', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<Workspace />);
+    expect(topBar().getByRole('button', { name: 'Hide output' })).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(within(screen.getByRole('region', { name: 'Output' })).getByRole('button', { name: 'Hide output' }));
+    expect(screen.queryByRole('region', { name: 'Output' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('separator', { name: 'Resize the output pane' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Edit' })).toBeInTheDocument();
+    expect(container.querySelector('.panes')).toHaveClass('panes--no-output');
+    // Focus moves from the button that went away to the toggle that brings the pane back.
+    const show = topBar().getByRole('button', { name: 'Show output' });
+    expect(show).toHaveAttribute('aria-pressed', 'false');
+    expect(show).toHaveFocus();
+
+    await user.click(show);
+    expect(screen.getByRole('region', { name: 'Output' })).toBeInTheDocument();
+    expect(screen.getByRole('separator', { name: 'Resize the output pane' })).toBeInTheDocument();
+    expect(container.querySelector('.panes')).not.toHaveClass('panes--no-output');
+
+    await user.click(topBar().getByRole('button', { name: 'Hide output' }));
+    expect(screen.queryByRole('region', { name: 'Output' })).not.toBeInTheDocument();
+  });
+
+  it('remembers that the Output pane is hidden', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<Workspace />);
+    await user.click(topBar().getByRole('button', { name: 'Hide output' }));
+    expect(localStorage.getItem('oca-generator:output-open')).toBe('false');
+
+    unmount();
+    render(<Workspace />);
+    expect(screen.queryByRole('region', { name: 'Output' })).not.toBeInTheDocument();
+    expect(topBar().getByRole('button', { name: 'Show output' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('shows the hidden Output pane to go to a hosting issue', async () => {
+    localStorage.setItem('oca-generator:output-open', 'false');
+    const user = userEvent.setup();
+    render(<Workspace />);
+    expect(screen.queryByRole('region', { name: 'Output' })).not.toBeInTheDocument();
+
+    const issues = screen.getByRole('region', { name: 'Issues' });
+    await user.click(within(issues).getByRole('button', { name: /Enter the URL where you will publish the bundle/ }));
+    const output = screen.getByRole('region', { name: 'Output' });
+    expect(within(output).getByRole('textbox', { name: 'At a URL I host' })).toBeInTheDocument();
+    expect(localStorage.getItem('oca-generator:output-open')).toBe('true');
+  });
+
   it('fixes an issue from the Issues panel', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
@@ -311,4 +363,21 @@ describe('Workspace', () => {
     expect(within(inspector).queryByRole('button', { name: 'Use "#AABBCC"' })).not.toBeInTheDocument();
   });
 
+});
+
+describe('Output pane on a narrow window', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('stays one of the pane tabs, without a toggle, even when hidden on a wide window', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
+    localStorage.setItem('oca-generator:output-open', 'false');
+    const user = userEvent.setup();
+    const { container } = render(<Workspace />);
+    expect(topBar().queryByRole('button', { name: /output/ })).not.toBeInTheDocument();
+    expect(container.querySelector('.panes')).not.toHaveClass('panes--no-output');
+
+    await user.click(within(screen.getByRole('tablist', { name: 'Panes' })).getByRole('tab', { name: 'Output' }));
+    const output = screen.getByRole('region', { name: 'Output' });
+    expect(within(output).queryByRole('button', { name: 'Hide output' })).not.toBeInTheDocument();
+  });
 });

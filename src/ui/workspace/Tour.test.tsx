@@ -74,6 +74,16 @@ describe('Tour', () => {
     expect(shownPane()).toBe('Edit');
   });
 
+  it('shows the Output pane for its step when it was hidden', async () => {
+    localStorage.setItem('oca-generator:output-open', 'false');
+    const user = userEvent.setup();
+    render(<Workspace />);
+    expect(screen.queryByRole('region', { name: 'Output' })).not.toBeInTheDocument();
+    for (let step = 0; step < 3; step++) await user.click(within(tour()).getByRole('button', { name: 'Next' }));
+    expect(heading()).toBe('Output');
+    expect(screen.getByRole('region', { name: 'Output' })).toBeInTheDocument();
+  });
+
   it('moves with the arrow keys, keeps Tab on the card and closes with Escape', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
