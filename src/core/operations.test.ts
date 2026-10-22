@@ -6,9 +6,12 @@ import {
   groupNodes,
   insertNode,
   moveLanguage,
+  canMoveNodesTo,
   moveNode,
   moveNodes,
   moveNodesInto,
+  moveNodesTo,
+  outermostIds,
   removeLanguage,
   removeNode,
   removeNodes,
@@ -524,6 +527,72 @@ describe('group, ungroup, move up/down and delete several', () => {
       moveNodes(p, [x.id], 'down');
       expect(shape(p.root)).toEqual(['a', 'b', { g: ['y'] }, 'x', 'z', 'c', { pets: ['name'] }]);
       expect([p.branding.en.light.primaryField, a.labels.en, x.labels.en]).toEqual(['{{x}} {{z}} {{/pets.name}}', '{{x}}', '{{g.y}}']);
+    });
+  });
+
+  describe('move to a spot (drag and drop)', () => {
+    it('moves several nodes into a group at its end, in tree order, from different groups', () => {
+      const { p, b, g, y, c } = tree();
+      expect(moveNodesTo(p, [c.id, y.id, b.id], g.group.id, g.group.children.length)).toBe(true);
+      expect(shape(p.root)).toEqual(['a', { g: ['x', 'z', 'b', 'y', 'c'] }, { pets: ['name'] }]);
+    });
+
+    it('moves into an empty group', () => {
+      const { p, a, pets } = tree();
+      pets.group.children = [];
+      expect(moveNodesTo(p, [a.id], pets.group.id, 0)).toBe(true);
+      expect(shape(p.root)).toEqual(['b', { g: ['x', 'y', 'z'] }, 'c', { pets: ['a'] }]);
+    });
+
+    it('moves several nodes just before a node, side by side and in order', () => {
+      const { p, a, c, x, z } = tree();
+      expect(moveNodesTo(p, [z.id, a.id], p.root.id, p.root.children.indexOf(c))).toBe(true);
+      expect(shape(p.root)).toEqual(['b', { g: ['x', 'y'] }, 'a', 'z', 'c', { pets: ['name'] }]);
+      // Before a node that is moving itself: the nodes gather at the first one that is not.
+      expect(moveNodesTo(p, [x.id, c.id], p.root.id, p.root.children.indexOf(c))).toBe(true);
+      expect(shape(p.root)).toEqual(['b', { g: ['y'] }, 'a', 'z', 'x', 'c', { pets: ['name'] }]);
+    });
+
+    it('moves a group with its selected children as the group alone', () => {
+      const { p, g, x, pets } = tree();
+      expect(outermostIds(p, [x.id, g.id, 'missing'])).toEqual([g.id]);
+      expect(moveNodesTo(p, [x.id, g.id], pets.group.id, 1)).toBe(true);
+      expect(shape(p.root)).toEqual(['a', 'b', 'c', { pets: ['name', { g: ['x', 'y', 'z'] }] }]);
+    });
+
+    it('refuses to drop a group into itself or one of its descendants, changing nothing', () => {
+      const { p, a, g } = tree();
+      const inner = newGroupLink('inner');
+      g.group.children.push(inner);
+      const before = structuredClone(p);
+      expect(canMoveNodesTo(p, [a.id, g.id], g.group.id, 0)).toBe(false);
+      expect(moveNodesTo(p, [a.id, g.id], g.group.id, 0)).toBe(false);
+      expect(moveNodesTo(p, [g.id], inner.group.id, 0)).toBe(false);
+      expect(p).toEqual(before);
+    });
+
+    it('does nothing when the nodes are already there', () => {
+      const { p, a, b, c, g, x, y } = tree();
+      expect(canMoveNodesTo(p, [a.id, b.id], p.root.id, 0)).toBe(false);
+      expect(canMoveNodesTo(p, [a.id, b.id], p.root.id, 2)).toBe(false);
+      expect(canMoveNodesTo(p, [x.id, y.id], g.group.id, 1)).toBe(false);
+      expect(canMoveNodesTo(p, [a.id, c.id], p.root.id, 3)).toBe(true);
+      expect(canMoveNodesTo(p, [b.id], p.root.id, 0)).toBe(true);
+      expect(canMoveNodesTo(p, ['missing'], p.root.id, 0)).toBe(false);
+    });
+
+    it('rewrites template references when nodes are dropped into and out of a group', () => {
+      const { p, a, c, x, g } = tree();
+      p.branding.en = { light: { primaryField: '{{a}} {{c}} {{g.x}}' } };
+      x.labels = { en: '{{/a}}' };
+      a.labels = { en: '{{g.y}}' };
+      moveNodesTo(p, [a.id, c.id], g.group.id, g.group.children.length);
+      expect(p.branding.en.light.primaryField).toBe('{{g.a}} {{g.c}} {{g.x}}');
+      expect(a.labels.en).toBe('{{y}}');
+      expect(x.labels.en).toBe('{{/g.a}}');
+      moveNodesTo(p, [x.id], p.root.id, 0);
+      expect(shape(p.root)).toEqual(['x', 'b', { g: ['y', 'z', 'a', 'c'] }, { pets: ['name'] }]);
+      expect(p.branding.en.light.primaryField).toBe('{{g.a}} {{g.c}} {{x}}');
     });
   });
 

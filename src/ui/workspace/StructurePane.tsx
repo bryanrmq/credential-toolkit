@@ -1,14 +1,16 @@
 import {
+  type CollisionDetection,
   DndContext,
   type DragEndEvent,
+  type DragMoveEvent,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
-  closestCenter,
+  useDraggable,
+  useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import {
   BinaryIcon,
   CalendarBlankIcon,
@@ -26,6 +28,7 @@ import {
   ToggleLeftIcon,
 } from '@phosphor-icons/react';
 import { type KeyboardEvent, type MouseEvent, type ReactNode, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { type PendingLink, pendingLinks, textIn } from '../../core/import/i14y';
 import { importSample } from '../../core/import/sample';
 import {
@@ -37,14 +40,15 @@ import {
   isArrayType,
   walkNodes,
 } from '../../core/model';
-import { moveNode } from '../../core/operations';
-import { CREDENTIAL, extendTo, isSelected, rowAfter, toggleNode, visibleOrder } from '../../state/selection';
+import { moveNodesTo, outermostIds } from '../../core/operations';
+import { CREDENTIAL, extendTo, isSelected, rowAfter, selectedIds, toggleNode, visibleOrder } from '../../state/selection';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
 import { useIssues } from '../issues';
 import { useI14yCatalogue } from '../lib/i14y';
 import { type NewNodeKind, addNode, deleteSelection, editSelection, groupSelection, moveSelection, ungroupSelection } from '../lib/treeActions';
+import { type DropIndicator, type DropTarget, dropTarget, emptyRowId } from '../lib/treeDrop';
 import { type TreeShortcut, treeShortcut, treeShortcutsActive } from '../lib/treeShortcuts';
 import { useWideWindow } from '../lib/wideWindow';
 import { I14yDialog } from './I14yDialog';
@@ -76,11 +80,25 @@ type Matches = Map<string, PendingLink>;
 /** The row id of the Credential row; node rows use their node id. */
 const CREDENTIAL_ROW = 'credential';
 
-/** What every row needs from the tree: the I14Y matches, the one row in the tab order, and the click handler. */
+/**
+ * What every row needs from the tree: the I14Y matches, the one row in the tab order, the click
+ * handler and, while dragging, the dragged nodes, where a drop would land and whether groups take
+ * drops inside (wide windows only).
+ */
 interface RowContext {
   matches: Matches;
   focusId: string;
   onRowClick: (id: string, event: MouseEvent) => void;
+  dragged: string[] | null;
+  drop: DropIndicator | null;
+  inside: boolean;
+}
+
+/** The `data-drop` value of row `id` for `indicator`: an outline (inside) or an insertion line above or below it. */
+function dropMark(indicator: DropIndicator | null, id: string): 'inside' | 'before' | 'after' | undefined {
+  if (!indicator || indicator.kind === 'end' || indicator.row !== id) return undefined;
+  if (indicator.kind === 'inside') return 'inside';
+  return indicator.edge === 'top' ? 'before' : 'after';
 }
 
 function NodeRow({ node, level, context }: { node: Node; level: number; context: RowContext }) {
@@ -90,32 +108,39 @@ function NodeRow({ node, level, context }: { node: Node; level: number; context:
   const editLang = useStore((state) => state.editLang);
   const issues = useIssues().filter((issue) => issue.target.kind === 'node' && issue.target.nodeId === node.id);
   const severity = issues.some((issue) => issue.severity === 'error') ? 'error' : issues.length ? 'warning' : null;
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: node.id });
+  const draggable = useDraggable({ id: node.id });
+  const droppable = useDroppable({ id: node.id });
   const match = context.matches.get(node.id)?.hits[0];
 
   return (
-    <li
-      ref={setNodeRef}
-      role="none"
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={isDragging ? 'tree__dragging' : undefined}
-    >
+    <li role="none" className={context.dragged?.includes(node.id) ? 'tree__dragging' : undefined}>
       <div
+        ref={(element) => {
+          draggable.setNodeRef(element);
+          droppable.setNodeRef(element);
+        }}
         className="tree__row"
         role="treeitem"
         aria-level={level}
         aria-selected={selected}
         data-row={node.id}
         data-primary={primary || undefined}
+        data-drop={dropMark(context.drop, node.id)}
         tabIndex={context.focusId === node.id ? 0 : -1}
         onClick={(event) => context.onRowClick(node.id, event)}
       >
         {/* Out of the tab order: the tree is one tab stop. */}
-        <button type="button" className="tree__handle" aria-label={t.structure.dragHandle(node.key)} {...attributes} {...listeners} tabIndex={-1}>
+        <button
+          type="button"
+          className="tree__handle"
+          aria-label={t.structure.dragHandle(node.key)}
+          {...draggable.attributes}
+          {...draggable.listeners}
+          tabIndex={-1}
+        >
           <DotsSixVerticalIcon />
         </button>
-        {nodeIcon(node)}
-        <span className="tree__key">{node.key || '—'}</span>
+        <RowContent node={node} />
         {node.kind === 'attribute' && node.i14y && (
           <span className="tree__tag" title={t.i14yLink.tagTitle(node.i14y.identifier)}>
             {t.i14yLink.tag}
@@ -135,21 +160,58 @@ function NodeRow({ node, level, context }: { node: Node; level: number; context:
   );
 }
 
-function NodeList({ group, level, context }: { group: Group; level: number; context: RowContext }) {
+/** A node's icon and key, shared by its row and its drag preview. */
+function RowContent({ node }: { node: Node }) {
   return (
-    <SortableContext items={group.children.map((child) => child.id)} strategy={verticalListSortingStrategy}>
-      {/* The top level's rows belong to the tree itself; a group's rows form a nested group. */}
-      <ul className="tree" role={level === 1 ? 'none' : 'group'}>
-        {group.children.length === 0 && (
+    <>
+      {nodeIcon(node)}
+      <span className="tree__key">{node.key || '—'}</span>
+    </>
+  );
+}
+
+/** While dragging, an empty group's line invites a drop (into that group). */
+function EmptyDrop({ group }: { group: Group }) {
+  const { setNodeRef } = useDroppable({ id: emptyRowId(group.id) });
+  return (
+    <li ref={setNodeRef} className="tree__empty tree__empty--drop" role="none">
+      {t.structure.emptyDrop}
+    </li>
+  );
+}
+
+function NodeList({ group, level, context }: { group: Group; level: number; context: RowContext }) {
+  // The top level's rows belong to the tree itself; a group's rows form a nested group.
+  return (
+    <ul className="tree" role={level === 1 ? 'none' : 'group'} data-drop-end={(level === 1 && context.drop?.kind === 'end') || undefined}>
+      {group.children.length === 0 &&
+        (context.dragged && context.inside ? (
+          <EmptyDrop group={group} />
+        ) : (
           <li className="tree__empty" role="none">
             {t.structure.empty}
           </li>
-        )}
-        {group.children.map((child) => (
-          <NodeRow key={child.id} node={child} level={level} context={context} />
         ))}
-      </ul>
-    </SortableContext>
+      {group.children.map((child) => (
+        <NodeRow key={child.id} node={child} level={level} context={context} />
+      ))}
+    </ul>
+  );
+}
+
+/** What follows the pointer while dragging: the dragged row, or a chip counting the dragged nodes. */
+function DragPreview({ project, ids }: { project: Project; ids: string[] }) {
+  const editLang = useStore((state) => state.editLang);
+  const node = ids.length === 1 ? findNode(project.root, ids[0])?.node : undefined;
+  if (!node) return <div className="tree__chip">{t.structure.dragCount(ids.length)}</div>;
+  return (
+    <div className="tree__row tree__preview">
+      <span className="tree__handle">
+        <DotsSixVerticalIcon />
+      </span>
+      <RowContent node={node} />
+      <span className="tree__label">{node.labels[editLang]}</span>
+    </div>
   );
 }
 
@@ -163,7 +225,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
   const unlinked = [...walkNodes(project.root)].some(({ node }) => node.kind === 'attribute' && !node.i14y);
   const { catalogue } = useI14yCatalogue(unlinked);
   const matches: Matches = new Map((catalogue && unlinked ? pendingLinks(project, catalogue) : []).map((pending) => [pending.nodeId, pending]));
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
   const wide = useWideWindow();
   const treeRef = useRef<HTMLDivElement>(null);
   // How the last press on the tree came: a touch tap always selects one node.
@@ -248,7 +310,10 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     }
     focusRow(target);
   };
-  const context: RowContext = { matches, focusId, onRowClick };
+  // While dragging: the dragged nodes, and where dropping them would land (null for nowhere).
+  const [dragged, setDragged] = useState<string[] | null>(null);
+  const [drop, setDrop] = useState<DropTarget | null>(null);
+  const context: RowContext = { matches, focusId, onRowClick, dragged, drop: drop?.indicator ?? null, inside: wide };
 
   const add = (kind: NewNodeKind) => {
     addNode(kind);
@@ -257,17 +322,42 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
 
   const openI14y = () => setI14yGroupId(targetGroup(project, selection.kind === 'node' ? selection.id : null).id);
 
-  const onDragEnd = ({ active, over }: DragEndEvent) => {
-    if (!over || active.id === over.id) return;
-    update((draft) => {
-      const from = findNode(draft.root, String(active.id));
-      const to = findNode(draft.root, String(over.id));
-      if (!from || !to) return;
-      const overIndex = to.parent.children.indexOf(to.node);
-      const fromIndex = from.parent.children.indexOf(from.node);
-      const sameGroup = from.parent === to.parent;
-      moveNode(draft, from.node.id, to.parent.id, sameGroup && fromIndex < overIndex ? overIndex + 1 : overIndex);
+  // On wide windows, dragging a node of a multi-selection drags the whole selection; otherwise the node alone.
+  const draggedFor = (id: string): string[] => {
+    const current = useStore.getState().selection;
+    const ids = selectedIds(current);
+    return wide && ids.length > 1 && ids.includes(id) ? outermostIds(project, ids) : [id];
+  };
+
+  // The one collision is where a drop would land, worked out from the pointer's height over the rows.
+  const collisionDetection: CollisionDetection = ({ active, collisionRect, droppableRects, droppableContainers, pointerCoordinates }) => {
+    const rows = droppableContainers.flatMap(({ id }) => {
+      const rect = droppableRects.get(id);
+      return rect ? [{ id: String(id), top: rect.top, bottom: rect.bottom }] : [];
     });
+    const y = pointerCoordinates?.y ?? collisionRect.top + collisionRect.height / 2;
+    const target = dropTarget(project, dragged ?? draggedFor(String(active.id)), rows, y, wide);
+    if (!target) return [];
+    return [{ id: target.indicator.kind === 'end' ? 'end' : target.indicator.row, data: { target } }];
+  };
+  const targetOf = (event: DragMoveEvent | DragEndEvent): DropTarget | null => (event.collisions?.[0]?.data?.target as DropTarget | undefined) ?? null;
+
+  const onDragMove = (event: DragMoveEvent) => {
+    const target = targetOf(event);
+    setDrop((current) => (JSON.stringify(current) === JSON.stringify(target) ? current : target));
+  };
+
+  const endDrag = () => {
+    setDragged(null);
+    setDrop(null);
+  };
+
+  // One drop is one undo step; `moveNodesTo` moves each node through `moveNode`, so references follow.
+  const onDragEnd = (event: DragEndEvent) => {
+    const target = targetOf(event);
+    const ids = dragged ?? draggedFor(String(event.active.id));
+    endDrag();
+    if (target) update((draft) => void moveNodesTo(draft, ids, target.groupId, target.index));
   };
 
   return (
@@ -313,8 +403,21 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
             <span className="tree__key">{t.structure.credential}</span>
           </div>
           {project.root.children.length > 0 && (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={collisionDetection}
+              onDragStart={({ active }) => setDragged(draggedFor(String(active.id)))}
+              onDragMove={onDragMove}
+              onDragEnd={onDragEnd}
+              onDragCancel={endDrag}
+            >
               <NodeList group={project.root} level={1} context={context} />
+              {createPortal(
+                <DragOverlay className="tree__overlay" dropAnimation={null}>
+                  {dragged && <DragPreview project={project} ids={dragged} />}
+                </DragOverlay>,
+                document.body,
+              )}
             </DndContext>
           )}
         </div>

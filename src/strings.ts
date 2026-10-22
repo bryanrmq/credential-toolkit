@@ -100,6 +100,8 @@ export const t = {
     addFromI14y: 'I14Y',
     addFromI14yTitle: 'Add attributes from I14Y',
     dragHandle: (key: string) => `Move ${key}`,
+    emptyDrop: 'Empty, drop items here',
+    dragCount: (count: number) => `${count} items`,
   },
   i14y: {
     title: 'Add attributes from I14Y',
@@ -347,7 +349,7 @@ export const t = {
         features: [
           'Add an attribute, a group or a list of objects with the buttons at the top. New items go into the selected group.',
           'I14Y adds standard Swiss attributes with their labels and value lists in every language I14Y has.',
-          'Drag the handle beside an item to reorder it.',
+          'Drag the handle beside an item to reorder it, or drop it on the middle of a group to move it inside. Dragging a selected item moves the whole selection.',
           'Select Credential to edit the name and branding, or an item to edit it.',
           'A red or yellow dot marks an item with an error or a warning.',
         ],

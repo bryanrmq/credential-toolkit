@@ -1164,6 +1164,67 @@ input[type='checkbox'] {
 .tree__dragging {
   opacity: 0.4;
 }
+/* Drop indicators, the only two: an outline on a group the drop goes into, and an insertion line
+   (2px, with a 4px round cap on the left) on the edge of the row it goes before or after. */
+.tree__row[data-drop='inside'] {
+  outline: 1px dashed var(--text-strong);
+  outline-offset: -1px;
+  background: var(--surface-muted);
+}
+.tree__row[data-drop='before']::after,
+.tree__row[data-drop='after']::after,
+.tree[data-drop-end]::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle, var(--text-strong) 2px, transparent 2px) left center / 4px 4px no-repeat,
+    linear-gradient(var(--text-strong), var(--text-strong)) center / 100% 2px no-repeat;
+}
+.tree__row[data-drop='before']::after {
+  top: -2px;
+}
+.tree__row[data-drop='after']::after {
+  bottom: -2px;
+}
+.tree[data-drop-end] {
+  position: relative;
+}
+.tree[data-drop-end]::after {
+  bottom: -2px;
+}
+.tree__empty--drop {
+  font-size: 12px;
+}
+/* The drag preview: the dragged row, or a chip counting the dragged nodes. */
+.tree__overlay {
+  opacity: 0.9;
+}
+.tree__preview {
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  cursor: grabbing;
+}
+.tree__preview .tree__handle {
+  opacity: 1;
+  cursor: grabbing;
+}
+.tree__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  color: var(--text-strong);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: grabbing;
+}
 
 /* Inspector: form, plus the translations column beside it when the pane is wide enough.
    The form keeps its width; the translations take all the room left. */

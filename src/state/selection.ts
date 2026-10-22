@@ -49,14 +49,16 @@ export function normalizeSelection(project: Project | null, request: SelectionRe
 }
 
 /**
- * `selection` without the nodes that are not in `project`: the primary moves to the first node left,
- * and with none left the credential is selected. Returns `selection` itself when nothing dropped out.
+ * `selection` without the nodes that are not in `project`, its `ids` back in tree order (a move may
+ * have changed it): the primary moves to the first node left, and with none left the credential is
+ * selected. Returns `selection` itself when nothing dropped out or changed order.
  */
 export function selectionIn(project: Project, selection: Selection): Selection {
   if (selection.kind === 'credential') return selection;
   const order = new Set(visibleOrder(project));
-  const ids = selection.ids.filter((nodeId) => order.has(nodeId));
-  if (ids.length === selection.ids.length && order.has(selection.id) && order.has(selection.anchor)) return selection;
+  const ids = [...order].filter((nodeId) => selection.ids.includes(nodeId));
+  const same = ids.length === selection.ids.length && ids.every((nodeId, at) => nodeId === selection.ids[at]);
+  if (same && order.has(selection.id) && order.has(selection.anchor)) return selection;
   if (ids.length === 0) return CREDENTIAL;
   const id = ids.includes(selection.id) ? selection.id : ids[0];
   return { kind: 'node', id, ids, anchor: order.has(selection.anchor) ? selection.anchor : id };
