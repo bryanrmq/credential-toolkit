@@ -91,6 +91,15 @@ describe('addNode', () => {
     expect(keys()).toEqual(['a', 'person', 'd', 'items', 'attribute', 'group']);
   });
 
+  it('adds at a given place whatever is selected', () => {
+    select('a');
+    addNode('list', { groupId: groupId('person') });
+    expect(childKeys('person')).toEqual(['b', 'c', 'items']);
+    addNode('attribute', { groupId: project().root.id, index: 0 });
+    expect(keys()).toEqual(['attribute', 'a', 'person', 'd', 'items']);
+    expect(selectedKeys()).toEqual(['attribute']);
+  });
+
   it('keeps keys unique within the group', () => {
     select('a');
     addNode();
