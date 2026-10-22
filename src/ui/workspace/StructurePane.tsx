@@ -35,17 +35,17 @@ import {
   type Project,
   findNode,
   isArrayType,
-  newAttribute,
-  newGroupLink,
   walkNodes,
 } from '../../core/model';
-import { NEW_NODE_KEYS, insertNode, moveNode, sourcePrefixFor, uniqueKey } from '../../core/operations';
+import { moveNode } from '../../core/operations';
 import { CREDENTIAL, extendTo, isSelected, rowAfter, toggleNode, visibleOrder } from '../../state/selection';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
-import { fieldId, focusField, useIssues } from '../issues';
+import { useIssues } from '../issues';
 import { useI14yCatalogue } from '../lib/i14y';
+import { type NewNodeKind, addNode, deleteSelection, editSelection, groupSelection, moveSelection, ungroupSelection } from '../lib/treeActions';
+import { type TreeShortcut, treeShortcut, treeShortcutsActive } from '../lib/treeShortcuts';
 import { useWideWindow } from '../lib/wideWindow';
 import { I14yDialog } from './I14yDialog';
 import { SampleDialog } from './SampleControl';
@@ -191,15 +191,44 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     }
   };
 
+  /** Keeps keyboard focus in the tree once a change has re-rendered it: on the primary row, or the Credential row. */
+  const refocusTree = () =>
+    requestAnimationFrame(() => {
+      const current = useStore.getState().selection;
+      focusRow(current.kind === 'node' ? current.id : CREDENTIAL_ROW);
+    });
+
+  // The tree shortcuts other than ⏎, which the Enter branch below handles. Adding and grouping focus the new key field.
+  const runShortcut = (shortcut: Exclude<TreeShortcut, 'edit'>) => {
+    if (shortcut === 'add') addNode();
+    else if (shortcut === 'group') groupSelection();
+    else {
+      if (shortcut === 'delete') deleteSelection();
+      else if (shortcut === 'ungroup') ungroupSelection();
+      else moveSelection(shortcut === 'moveUp' ? 'up' : 'down');
+      refocusTree();
+    }
+  };
+
   // ↑ / ↓ move the selection and ⇧↑ / ⇧↓ extend it (wide windows only); Home / End go to the first and last rows.
+  // On wide windows the tree shortcuts (`treeShortcut`) run too, while a row has focus.
   const onTreeKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.defaultPrevented || event.altKey || event.metaKey || event.ctrlKey) return;
+    if (event.defaultPrevented) return;
+    const shortcut = treeShortcut(event.nativeEvent);
+    const active = treeShortcutsActive(event.target, wide);
+    if (shortcut && shortcut !== 'edit' && active) {
+      event.preventDefault();
+      runShortcut(shortcut);
+      return;
+    }
+    if (event.altKey || event.metaKey || event.ctrlKey) return;
     if (!(event.target instanceof HTMLElement) || event.target.getAttribute('role') !== 'treeitem') return;
     const current = useStore.getState().selection;
     if (event.key === 'Enter') {
       const id = event.target.dataset.row ?? CREDENTIAL_ROW;
       if (id !== focusId) select(id === CREDENTIAL_ROW ? CREDENTIAL : { kind: 'node', id });
       onSelect();
+      if (active) editSelection();
       return;
     }
     const arrow = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
@@ -221,18 +250,9 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
   };
   const context: RowContext = { matches, focusId, onRowClick };
 
-  const add = (kind: 'attribute' | 'group' | 'list') => {
-    const group = targetGroup(project, selection.kind === 'node' ? selection.id : null);
-    const prefix = sourcePrefixFor(project, group.id);
-    const key = uniqueKey(group, NEW_NODE_KEYS[kind]);
-    const node =
-      kind === 'attribute'
-        ? newAttribute(key, { source: [...prefix, key] })
-        : newGroupLink(key, kind === 'list' ? { array: true, source: [...prefix, key, null] } : { source: [...prefix, key] });
-    update((draft) => insertNode(draft, group.id, node));
-    select({ kind: 'node', id: node.id });
+  const add = (kind: NewNodeKind) => {
+    addNode(kind);
     onSelect();
-    focusField(fieldId({ kind: 'node', nodeId: node.id, field: 'key' }));
   };
 
   const openI14y = () => setI14yGroupId(targetGroup(project, selection.kind === 'node' ? selection.id : null).id);

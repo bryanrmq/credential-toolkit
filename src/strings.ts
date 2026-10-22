@@ -204,7 +204,6 @@ export const t = {
     moveTo: 'Group',
     root: 'Credential (top level)',
     delete: 'Delete',
-    confirmDeleteGroup: (key: string) => `Delete "${key}" and everything inside it?`,
     passthrough: (types: string) => `Kept unchanged from the imported bundle: ${types}. These are not updated when keys change.`,
     editing: 'editing',
     translationsTitle: 'Translations',
