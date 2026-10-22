@@ -17,6 +17,7 @@ describe('treeShortcut', () => {
     expect(press('Backspace')).toBe('delete');
     expect(press('Delete')).toBe('delete');
     expect(press('Enter')).toBe('edit');
+    expect(press('F2')).toBe('rename');
     expect(press('g', { meta: true })).toBe('group');
     expect(press('g', { ctrl: true })).toBe('group');
     expect(press('G', { meta: true, shift: true })).toBe('ungroup');
@@ -34,6 +35,7 @@ describe('treeShortcut', () => {
     expect(press('ArrowUp', { alt: true, shift: true })).toBeNull();
     expect(press('Backspace', { meta: true })).toBeNull();
     expect(press('n', { composing: true })).toBeNull();
+    expect(press('F2', { meta: true })).toBeNull();
   });
 });
 
@@ -47,5 +49,6 @@ describe('treeShortcutLabel', () => {
     expect(treeShortcutLabel('ungroup', false)).toBe('Ctrl+Shift+G');
     expect(treeShortcutLabel('moveDown', false)).toBe('Alt+↓');
     expect(treeShortcutLabel('add', false)).toBe('N');
+    expect(treeShortcutLabel('rename', false)).toBe('F2');
   });
 });
