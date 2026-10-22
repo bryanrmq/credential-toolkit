@@ -12,10 +12,15 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import {
+  ArrowDownIcon,
+  ArrowUpIcon,
   BinaryIcon,
   CalendarBlankIcon,
+  CopyIcon,
   DotsSixVerticalIcon,
+  FolderSimpleDashedIcon,
   FolderSimpleIcon,
+  FolderSimplePlusIcon,
   HashIcon,
   IdentificationCardIcon,
   ImageIcon,
@@ -26,8 +31,9 @@ import {
   StackIcon,
   TextTIcon,
   ToggleLeftIcon,
+  TrashIcon,
 } from '@phosphor-icons/react';
-import { type KeyboardEvent, type MouseEvent, type ReactNode, useRef, useState } from 'react';
+import { type KeyboardEvent, type MouseEvent, type ReactNode, useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { type PendingLink, pendingLinks, textIn } from '../../core/import/i14y';
 import { importSample } from '../../core/import/sample';
@@ -41,15 +47,31 @@ import {
   walkNodes,
 } from '../../core/model';
 import { moveNodesTo, outermostIds } from '../../core/operations';
-import { CREDENTIAL, extendTo, isSelected, rowAfter, selectedIds, toggleNode, visibleOrder } from '../../state/selection';
+import { CREDENTIAL, extendTo, isSelected, oneNode, rowAfter, selectedIds, toggleNode, visibleOrder } from '../../state/selection';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
+import { PopupMenu, type PopupMenuItem } from '../components/PopupMenu';
 import { useIssues } from '../issues';
 import { useI14yCatalogue } from '../lib/i14y';
-import { type NewNodeKind, addNode, deleteSelection, duplicateSelection, editSelection, groupSelection, moveSelection, ungroupSelection } from '../lib/treeActions';
+import {
+  type NewNodeKind,
+  addNode,
+  canDeleteSelection,
+  canDuplicateSelection,
+  canGroupSelection,
+  canMoveSelection,
+  canUngroupSelection,
+  deleteSelection,
+  duplicateSelection,
+  editSelection,
+  groupSelection,
+  moveSelection,
+  newNodePlace,
+  ungroupSelection,
+} from '../lib/treeActions';
 import { type DropIndicator, type DropTarget, dropTarget, emptyRowId } from '../lib/treeDrop';
-import { type TreeShortcut, treeShortcut, treeShortcutsActive } from '../lib/treeShortcuts';
+import { type TreeShortcut, treeActionsAvailable, treeShortcut, treeShortcutLabel, treeShortcutsActive } from '../lib/treeShortcuts';
 import { useWideWindow } from '../lib/wideWindow';
 import { I14yDialog } from './I14yDialog';
 import { SampleDialog } from './SampleControl';
@@ -72,6 +94,14 @@ function targetGroup(project: Project, selectionId: string | null): Group {
   const visit = findNode(project.root, selectionId);
   if (!visit) return project.root;
   return visit.node.kind === 'group' ? visit.node.group : visit.parent;
+}
+
+/** An open right-click menu. `at` is where it opens, in window coordinates; focus goes back to `returnFocus` when it closes. */
+interface TreeMenu {
+  label: string;
+  sections: PopupMenuItem[][];
+  at: { x: number; y: number };
+  returnFocus: HTMLElement | null;
 }
 
 /** Unlinked attributes that look like I14Y concepts, by node id. */
@@ -221,6 +251,8 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
   const { update, select, setReport } = useStore.getState();
   const [filling, setFilling] = useState(false);
   const [i14yGroupId, setI14yGroupId] = useState<string | null>(null);
+  const [menu, setMenu] = useState<TreeMenu | null>(null);
+  const closeMenu = useCallback(() => setMenu(null), []);
   // With unlinked attributes, load the cached I14Y catalogue to mark the ones that look like a concept.
   const unlinked = [...walkNodes(project.root)].some(({ node }) => node.kind === 'attribute' && !node.i14y);
   const { catalogue } = useI14yCatalogue(unlinked);
@@ -277,6 +309,14 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
   // On wide windows the tree shortcuts (`treeShortcut`) run too, while a row has focus.
   const onTreeKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.defaultPrevented) return;
+    const menuKey = event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey);
+    if (menuKey && treeShortcutsActive(event.target, wide)) {
+      event.preventDefault();
+      const rowElement = event.target as HTMLElement;
+      const rect = rowElement.getBoundingClientRect();
+      openMenu(rowElement, { x: rect.left + 24, y: rect.bottom });
+      return;
+    }
     const shortcut = treeShortcut(event.nativeEvent);
     const active = treeShortcutsActive(event.target, wide);
     if (shortcut && shortcut !== 'edit' && active) {
@@ -322,6 +362,85 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
   };
 
   const openI14y = () => setI14yGroupId(targetGroup(project, selection.kind === 'node' ? selection.id : null).id);
+
+  /**
+   * Opens the right-click menu of `rowElement`: a node's, or the top level's for the Credential row and
+   * the empty area (no row). An unselected node is selected first.
+   */
+  const openMenu = (rowElement: HTMLElement | null, at: { x: number; y: number }) => {
+    const id = rowElement?.dataset.row;
+    const node = id && id !== CREDENTIAL_ROW ? findNode(project.root, id)?.node : undefined;
+    if (node && !isSelected(useStore.getState().selection, node.id)) {
+      select({ kind: 'node', id: node.id });
+      onSelect();
+    }
+    const label = node ? t.treeMenu.nodeLabel(node.key) : t.treeMenu.areaLabel;
+    setMenu({ label, sections: menuSections(node), at, returnFocus: rowElement });
+  };
+
+  // Right-click on a row or the empty area below it, on wide windows; elsewhere the browser's own menu shows.
+  const onContextMenu = (event: MouseEvent<HTMLDivElement>) => {
+    if (!treeActionsAvailable(wide) || !(event.target instanceof Element)) return;
+    event.preventDefault();
+    openMenu(event.target.closest<HTMLElement>('[data-row]'), { x: event.clientX, y: event.clientY });
+  };
+
+  /**
+   * The items of `node`'s menu, or the top level's. A node's menu acts on the selection (the node is in
+   * it), so the shared `canX` checks decide which items show; adding goes after an attribute, or inside a
+   * group at its end.
+   */
+  const menuSections = (node: Node | undefined): PopupMenuItem[][] => {
+    const addTo = (kind: NewNodeKind, groupId: string, index?: number) => () => {
+      addNode(kind, { groupId, index });
+      onSelect();
+    };
+    const shortcut = (name: TreeShortcut) => (node ? treeShortcutLabel(name) : undefined);
+    const addHere = (groupId: string): PopupMenuItem[] => [
+      { label: t.treeMenu.addAttributeHere, icon: <PlusIcon />, shortcut: shortcut('add'), onSelect: addTo('attribute', groupId) },
+      { label: t.treeMenu.addGroupHere, icon: <FolderSimpleIcon />, onSelect: addTo('group', groupId) },
+      { label: t.treeMenu.addListHere, icon: <StackIcon />, onSelect: addTo('list', groupId) },
+      { label: t.treeMenu.addFromI14y, icon: <MagnifyingGlassIcon />, onSelect: () => setI14yGroupId(groupId) },
+    ];
+    if (!node) return [addHere(project.root.id)];
+
+    const state = useStore.getState();
+    const count = selectedIds(state.selection).length;
+    const when = (applies: boolean, item: PopupMenuItem) => (applies ? [item] : []);
+    const moves = [
+      ...when(canMoveSelection('up', state), { label: t.treeMenu.moveUp, icon: <ArrowUpIcon />, shortcut: shortcut('moveUp'), onSelect: () => runShortcut('moveUp') }),
+      ...when(canMoveSelection('down', state), { label: t.treeMenu.moveDown, icon: <ArrowDownIcon />, shortcut: shortcut('moveDown'), onSelect: () => runShortcut('moveDown') }),
+    ];
+    const duplicate = when(canDuplicateSelection(state.selection), {
+      label: t.treeMenu.duplicate(count),
+      icon: <CopyIcon />,
+      shortcut: shortcut('duplicate'),
+      onSelect: () => runShortcut('duplicate'),
+    });
+    const remove = (label: string) =>
+      when(canDeleteSelection(state.selection), { label, icon: <TrashIcon />, shortcut: shortcut('delete'), danger: true, onSelect: () => runShortcut('delete') });
+    if (node.kind === 'group') {
+      return [
+        addHere(node.group.id),
+        [
+          ...duplicate,
+          ...when(canUngroupSelection(state), { label: t.treeMenu.ungroup, icon: <FolderSimpleDashedIcon />, shortcut: shortcut('ungroup'), onSelect: () => runShortcut('ungroup') }),
+          ...moves,
+        ],
+        remove(t.treeMenu.deleteGroup(count)),
+      ];
+    }
+    const below = newNodePlace(project, oneNode(node.id));
+    return [
+      [
+        ...when(canGroupSelection(state.selection), { label: t.treeMenu.groupSelection, icon: <FolderSimplePlusIcon />, shortcut: shortcut('group'), onSelect: () => runShortcut('group') }),
+        ...duplicate,
+        { label: t.treeMenu.addBelow, icon: <PlusIcon />, shortcut: shortcut('add'), onSelect: addTo('attribute', below.groupId, below.index) },
+      ],
+      moves,
+      remove(t.treeMenu.delete(count)),
+    ];
+  };
 
   // On wide windows, dragging a node of a multi-selection drags the whole selection; otherwise the node alone.
   const draggedFor = (id: string): string[] => {
@@ -380,7 +499,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
           </Button>
         </div>
       </div>
-      <div className="pane__body">
+      <div className="pane__body" onContextMenu={onContextMenu}>
         <div
           ref={treeRef}
           role="tree"
@@ -438,6 +557,15 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
               </Button>
             </div>
           </div>
+        )}
+        {menu && (
+          <PopupMenu
+            label={menu.label}
+            at={menu.at}
+            sections={menu.sections}
+            returnFocus={menu.returnFocus}
+            onClose={closeMenu}
+          />
         )}
         {i14yGroupId && (
           <I14yDialog

@@ -11,12 +11,14 @@ import { fieldId, focusField } from '../issues';
 
 export type NewNodeKind = keyof typeof NEW_NODE_KEYS;
 export type MoveDirection = 'up' | 'down';
+/** Where a new node goes: into group `groupId`, before its child at `index` or at its end. */
+export type NodePlace = { groupId: string; index?: number };
 
 /**
  * Where a new node goes: right after the selected attribute in its group, at the end of the selected
  * group, or at the end of the top level when the credential is selected. In a multi-selection the primary counts.
  */
-export function newNodePlace(project: Project, selection: Selection): { groupId: string; index?: number } {
+export function newNodePlace(project: Project, selection: Selection): NodePlace {
   const visit = selection.kind === 'node' ? findNode(project.root, selection.id) : undefined;
   if (!visit) return { groupId: project.root.id };
   if (visit.node.kind === 'group') return { groupId: visit.node.group.id };
@@ -43,11 +45,14 @@ function focusKey(nodeId: string): void {
   focusField(fieldId({ kind: 'node', nodeId, field: 'key' }));
 }
 
-/** Adds a new attribute, group or list of objects at `newNodePlace`, selects it and focuses its key field. Returns its id. */
-export function addNode(kind: NewNodeKind = 'attribute'): string | undefined {
+/**
+ * Adds a new attribute, group or list of objects at `place` (by default `newNodePlace`), selects it and
+ * focuses its key field. Returns its id.
+ */
+export function addNode(kind: NewNodeKind = 'attribute', place?: NodePlace): string | undefined {
   const { project, selection, update, select } = useStore.getState();
   if (!project) return undefined;
-  const { groupId, index } = newNodePlace(project, selection);
+  const { groupId, index } = place ?? newNodePlace(project, selection);
   const group = findGroup(project.root, groupId) ?? project.root;
   const prefix = sourcePrefixFor(project, groupId);
   const key = uniqueKey(group, NEW_NODE_KEYS[kind]);
