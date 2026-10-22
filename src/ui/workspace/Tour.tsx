@@ -88,7 +88,7 @@ function trapFocus(event: KeyboardEvent, card: HTMLElement) {
  */
 export function Tour({ pane, onPane }: { pane: WorkspacePane; onPane: (pane: WorkspacePane) => void }) {
   const view = useStore((state) => state.view);
-  const { setView, setTourOpen } = useStore.getState();
+  const { setView, setTourOpen, setOutputOpen } = useStore.getState();
   const [start] = useState({ view, pane });
   const [returnFocus] = useState(() => document.activeElement);
   const [index, setIndex] = useState(0);
@@ -105,6 +105,8 @@ export function Tour({ pane, onPane }: { pane: WorkspacePane; onPane: (pane: Wor
     setView(STEPS[next].view);
     const nextPane = STEPS[next].pane;
     if (nextPane) onPane(nextPane);
+    // A wide window may have the Output pane hidden: show it for its step.
+    if (STEPS[next].target === 'output') setOutputOpen(true);
     setIndex(next);
   };
   const finish = () => {

@@ -8,6 +8,7 @@ import {
   moveLanguage,
   moveNode,
   moveNodes,
+  moveNodesInto,
   removeLanguage,
   removeNode,
   removeNodes,
@@ -523,6 +524,28 @@ describe('group, ungroup, move up/down and delete several', () => {
       moveNodes(p, [x.id], 'down');
       expect(shape(p.root)).toEqual(['a', 'b', { g: ['y'] }, 'x', 'z', 'c', { pets: ['name'] }]);
       expect([p.branding.en.light.primaryField, a.labels.en, x.labels.en]).toEqual(['{{x}} {{z}} {{/pets.name}}', '{{x}}', '{{g.y}}']);
+    });
+  });
+
+  describe('move several into a group', () => {
+    it('appends the nodes to the group in tree order, a nested node travelling with its group', () => {
+      const { p, a, c, g, x, pets } = tree();
+      expect(moveNodesInto(p, [c.id, x.id, a.id, g.id], pets.group.id)).toBe(true);
+      expect(shape(p.root)).toEqual(['b', { pets: ['name', 'a', { g: ['x', 'y', 'z'] }, 'c'] }]);
+    });
+
+    it('rewrites references to the moved nodes', () => {
+      const { p, a, c, g } = tree();
+      c.labels = { en: '{{a}}' };
+      moveNodesInto(p, [a.id], g.group.id);
+      expect(c.labels.en).toBe('{{g.a}}');
+    });
+
+    it('leaves a group that holds the target where it is', () => {
+      const { p, b, g } = tree();
+      expect(moveNodesInto(p, [g.id, b.id], g.group.id)).toBe(true);
+      expect(shape(p.root)).toEqual(['a', { g: ['x', 'y', 'z', 'b'] }, 'c', { pets: ['name'] }]);
+      expect(moveNodesInto(p, [g.id], g.group.id)).toBe(false);
     });
   });
 

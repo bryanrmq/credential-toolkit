@@ -1,4 +1,4 @@
-import { CheckIcon, CopyIcon, DownloadSimpleIcon } from '@phosphor-icons/react';
+import { CheckIcon, CopyIcon, DownloadSimpleIcon, SidebarSimpleIcon } from '@phosphor-icons/react';
 import { Fragment, useState } from 'react';
 import { BUNDLE_FILE_NAME, buildVctSnippet } from '../../core/export/outputs';
 import { useStore } from '../../state/store';
@@ -44,7 +44,8 @@ function CopyButton({ text, label, iconOnly = false }: { text: string; label: st
   );
 }
 
-export function OutputPanel({ exportState }: { exportState: ExportState }) {
+/** `onHide`, given on a wide window only, adds a button to the header that hides the pane. */
+export function OutputPanel({ exportState, onHide }: { exportState: ExportState; onHide?: () => void }) {
   const project = useStore((state) => state.project)!;
   const update = useStore((state) => state.update);
   const issues = useIssues();
@@ -59,7 +60,14 @@ export function OutputPanel({ exportState }: { exportState: ExportState }) {
     <>
       <div className="pane__header">
         <span className="pane__title">{t.output.title}</span>
-        {ready && <span className="field__hint">{t.output.size((ready.outputs.json.length / 1024).toFixed(1))}</span>}
+        <span className="row">
+          {ready && <span className="field__hint">{t.output.size((ready.outputs.json.length / 1024).toFixed(1))}</span>}
+          {onHide && (
+            <Button size="icon" variant="ghost" aria-label={t.workspace.hideOutput} title={t.workspace.hideOutputTitle} onClick={onHide}>
+              <SidebarSimpleIcon mirrored />
+            </Button>
+          )}
+        </span>
       </div>
       <div className="pane__body">
         <SampleControl />

@@ -64,6 +64,10 @@ export const t = {
     moreActions: 'More actions',
     resizeStructure: 'Resize the structure pane',
     resizeOutput: 'Resize the output pane',
+    showOutput: 'Show output',
+    hideOutput: 'Hide output',
+    showOutputTitle: 'Show output (⌥⌘B)',
+    hideOutputTitle: 'Hide output (⌥⌘B)',
     resizeHint: 'Drag to resize. Double-click to reset.',
     manageLanguages: 'Manage languages',
     editorView: 'Editor view',
@@ -224,6 +228,19 @@ export const t = {
     translationsTitle: 'Translations',
     translationsHint: 'This item in every language. Empty fields are highlighted; click a language to edit it in the form.',
     switchLanguage: (lang: string) => `Edit in ${lang}`,
+  },
+  /** The Edit pane when several nodes are selected. */
+  selection: {
+    count: (count: number) => `${count} items selected`,
+    keys: 'Selected keys',
+    more: (count: number) => `+ ${count} more`,
+    group: 'Group',
+    /** Shortcut hints: ⌘ on Apple platforms, Ctrl elsewhere. */
+    groupKeys: { command: '⌘G', control: 'Ctrl+G' },
+    moveTo: 'Move to',
+    moveToPlaceholder: 'Move to…',
+    delete: 'Delete',
+    deleteKeys: '⌫',
   },
   cardPreview: {
     title: 'Card preview',

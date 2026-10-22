@@ -98,7 +98,7 @@ describe('Structure tree', () => {
     expect(primaryKey()).toBe('d');
     expect(row('d')).toHaveAttribute('data-primary');
     expect(row('a')).not.toHaveAttribute('data-primary');
-    expect(screen.getByLabelText('Key')).toHaveValue('d');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('2 items selected');
 
     await user.keyboard('{Control>}');
     await user.click(row('b'));

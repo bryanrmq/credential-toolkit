@@ -84,3 +84,14 @@ export function loadIssuesOpen(): boolean {
 export function saveIssuesOpen(open: boolean): void {
   saveStored(ISSUES_OPEN_KEY, open);
 }
+
+export const OUTPUT_OPEN_KEY = 'oca-generator:output-open';
+
+/** Whether a wide window shows the Output pane; shown unless the user hid it. */
+export function loadOutputOpen(): boolean {
+  return loadStored(OUTPUT_OPEN_KEY) !== false;
+}
+
+export function saveOutputOpen(open: boolean): void {
+  saveStored(OUTPUT_OPEN_KEY, open);
+}

@@ -1,4 +1,5 @@
 import { useStore } from '../../state/store';
+import { usesCommandKey } from './platform';
 
 /** The tree actions the keyboard reaches; ⌘ is Ctrl on Windows and Linux. */
 export type TreeShortcut = 'add' | 'delete' | 'edit' | 'group' | 'ungroup' | 'moveUp' | 'moveDown';
@@ -39,13 +40,8 @@ const OTHER_KEYS: Record<TreeShortcut, string> = {
   moveDown: 'Alt+↓',
 };
 
-/** Whether the browser runs on a Mac, iPhone or iPad, where ⌘ and ⌥ are the modifier keys. */
-export function isApplePlatform(): boolean {
-  return typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
-}
-
 /** How menus show the key of `shortcut`: ⌘G on Apple platforms, Ctrl+G elsewhere. */
-export function treeShortcutLabel(shortcut: TreeShortcut, apple = isApplePlatform()): string {
+export function treeShortcutLabel(shortcut: TreeShortcut, apple = usesCommandKey()): string {
   return (apple ? APPLE_KEYS : OTHER_KEYS)[shortcut];
 }
 
