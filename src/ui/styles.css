@@ -940,6 +940,10 @@ input[type='checkbox'] {
     min(var(--structure-width, 300px), 32vw) 5px minmax(0, 1fr) 5px
     min(var(--output-width, 420px), 40vw);
 }
+/* The Output pane is hidden (wide windows only): the Edit pane takes its space. */
+.panes--no-output {
+  grid-template-columns: min(var(--structure-width, 300px), 32vw) 5px minmax(0, 1fr);
+}
 .pane {
   min-height: 0;
   overflow: auto;
