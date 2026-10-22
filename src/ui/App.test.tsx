@@ -23,7 +23,8 @@ describe('App', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Open in editor' }));
 
     expect(screen.getByRole('heading', { name: 'Untitled credential' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Attribute/ }));
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Attribute' }));
     expect(screen.getByLabelText('Key')).toHaveValue('attribute');
     expect(screen.getByLabelText('Source path')).toHaveValue('attribute');
   });

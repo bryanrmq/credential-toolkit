@@ -20,19 +20,22 @@ const EDGE = 8;
  * are separated by a rule; empty ones are left out, so inapplicable items are simply not passed. Focus goes
  * to the first item; ↑ / ↓, Home / End, ⏎ and Escape work. It closes on selection, Escape, Tab, a click
  * elsewhere, scrolling, resizing or leaving the window. On selection, Escape and Tab focus returns to
- * `returnFocus` first, so whatever the item opens (a dialog) can hand it back there when it closes.
+ * `returnFocus` first, so whatever the item opens (a dialog) can hand it back there when it closes. With
+ * `align` 'end' (a dropdown under a right-hand button) its right edge sits at `at` instead of its left edge.
  */
 export function PopupMenu({
   label,
   at,
   sections,
   returnFocus,
+  align = 'start',
   onClose,
 }: {
   label: string;
   at: { x: number; y: number };
   sections: PopupMenuItem[][];
   returnFocus?: HTMLElement | null;
+  align?: 'start' | 'end';
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -44,14 +47,16 @@ export function PopupMenu({
     const menu = ref.current;
     if (!menu) return;
     const { width, height } = menu.getBoundingClientRect();
-    const flipX = at.x + width > window.innerWidth - EDGE && at.x - width >= EDGE;
+    const fitsRight = at.x + width <= window.innerWidth - EDGE;
+    const fitsLeft = at.x - width >= EDGE;
+    const leftward = align === 'end' ? fitsLeft || !fitsRight : !fitsRight && fitsLeft;
     const flipY = at.y + height > window.innerHeight - EDGE && at.y - height >= EDGE;
     setPlacement({
-      left: flipX ? at.x - width : Math.max(EDGE, Math.min(at.x, window.innerWidth - EDGE - width)),
+      left: Math.max(EDGE, Math.min(leftward ? at.x - width : at.x, window.innerWidth - EDGE - width)),
       top: flipY ? at.y - height : Math.max(EDGE, Math.min(at.y, window.innerHeight - EDGE - height)),
-      origin: `${flipY ? 'bottom' : 'top'} ${flipX ? 'right' : 'left'}`,
+      origin: `${flipY ? 'bottom' : 'top'} ${leftward ? 'right' : 'left'}`,
     });
-  }, [at.x, at.y]);
+  }, [at.x, at.y, align]);
 
   // Once placed (a hidden element cannot take focus), the first item has it.
   const placed = placement !== null;
