@@ -66,6 +66,8 @@ export const t = {
     resizeOutput: 'Resize the output pane',
     showOutput: 'Show output',
     hideOutput: 'Hide output',
+    showOutputTitle: 'Show output (⌥⌘B)',
+    hideOutputTitle: 'Hide output (⌥⌘B)',
     resizeHint: 'Drag to resize. Double-click to reset.',
     manageLanguages: 'Manage languages',
     editorView: 'Editor view',

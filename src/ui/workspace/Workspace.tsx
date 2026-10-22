@@ -22,6 +22,7 @@ import {
   savePaneWidths,
 } from '../lib/paneLayout';
 import { useHistoryShortcuts } from '../lib/historyShortcuts';
+import { useOutputShortcut } from '../lib/outputShortcut';
 import { loadTourSeen } from '../lib/tour';
 import { useWideWindow } from '../lib/wideWindow';
 import { Inspector } from './Inspector';
@@ -64,6 +65,12 @@ export function Workspace() {
     // The button that was pressed is gone: focus goes to the top-bar toggle, which shows the pane again.
     topBarRef.current?.querySelector<HTMLElement>('[data-output-toggle]')?.focus();
   };
+  useOutputShortcut(() => {
+    const { outputOpen: open, setOutputOpen } = useStore.getState();
+    // Focus only moves when it was in the pane being hidden.
+    if (open && document.activeElement?.closest('.pane--output')) hideOutput();
+    else setOutputOpen(!open);
+  });
   const resize = (target: ResizablePane, value: number) => {
     const other = target === 'structure' ? (outputShown ? widthsRef.current.output : 0) : widthsRef.current.structure;
     const next = { ...widthsRef.current, [target]: clampPaneWidth(target, value, { container: panesRef.current?.clientWidth ?? 0, other }) };

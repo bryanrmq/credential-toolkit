@@ -92,7 +92,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
             size="icon"
             aria-label={outputOpen ? t.workspace.hideOutput : t.workspace.showOutput}
             aria-pressed={outputOpen}
-            title={outputOpen ? t.workspace.hideOutput : t.workspace.showOutput}
+            aria-keyshortcuts="Meta+Alt+B Control+Alt+B"
+            title={outputOpen ? t.workspace.hideOutputTitle : t.workspace.showOutputTitle}
             data-output-toggle=""
             onClick={() => setOutputOpen(!outputOpen)}
           >

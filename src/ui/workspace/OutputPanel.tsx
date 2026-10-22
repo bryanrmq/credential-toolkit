@@ -63,7 +63,7 @@ export function OutputPanel({ exportState, onHide }: { exportState: ExportState;
         <span className="row">
           {ready && <span className="field__hint">{t.output.size((ready.outputs.json.length / 1024).toFixed(1))}</span>}
           {onHide && (
-            <Button size="icon" variant="ghost" aria-label={t.workspace.hideOutput} title={t.workspace.hideOutput} onClick={onHide}>
+            <Button size="icon" variant="ghost" aria-label={t.workspace.hideOutput} title={t.workspace.hideOutputTitle} onClick={onHide}>
               <SidebarSimpleIcon mirrored />
             </Button>
           )}
