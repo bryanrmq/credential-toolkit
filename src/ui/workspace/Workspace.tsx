@@ -20,6 +20,7 @@ import {
 import { useHistoryShortcuts } from '../lib/historyShortcuts';
 import { loadTourSeen } from '../lib/tour';
 import { Inspector } from './Inspector';
+import { IssuesPanel } from './IssuesPanel';
 import { LanguagesDialog } from './LanguagesDialog';
 import { OutputPanel } from './OutputPanel';
 import { I14yMatchBanner } from './I14yMatchBanner';
@@ -117,6 +118,8 @@ export function Workspace() {
                 <OutputPanel exportState={exportState} />
               </section>
             </div>
+            {/* On narrow windows only one pane shows: switch to the one that holds the field. */}
+            <IssuesPanel onJump={(issue) => issue.target.kind !== 'languages' && setPane(issue.target.kind === 'hosting' ? 'output' : 'inspector')} />
           </>
         )}
         {languagesOpen && <LanguagesDialog />}

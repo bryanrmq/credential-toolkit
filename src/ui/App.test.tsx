@@ -38,8 +38,9 @@ describe('App', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Open in editor' }));
 
     expect(screen.getByText('Import report')).toBeInTheDocument();
-    expect(screen.getByText('given_name')).toBeInTheDocument();
-    expect(screen.getByText('birth_date')).toBeInTheDocument();
+    const structure = screen.getByRole('region', { name: 'Structure' });
+    expect(within(structure).getByText('given_name')).toBeInTheDocument();
+    expect(within(structure).getByText('birth_date')).toBeInTheDocument();
   });
 
   it('shows the import error for invalid JSON', async () => {

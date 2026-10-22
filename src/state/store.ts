@@ -7,7 +7,7 @@ import type { Fix } from '../core/validate/fixes';
 export type Selection = { kind: 'credential' } | { kind: 'node'; id: string };
 export type View = 'editor' | 'translations';
 export type Theme = 'light' | 'dark';
-export type OutputTab = 'issues' | 'bundle' | 'vct';
+export type OutputTab = 'bundle' | 'vct';
 
 /** What the fix toast reports: how many issues a fix fixed, that it failed, or that the project changed meanwhile. */
 export type FixNotice = { kind: 'fixed'; fixed: number; total: number } | { kind: 'failed'; label?: string } | { kind: 'stale' };
@@ -133,7 +133,7 @@ export const useStore = create<AppState>()((set, get) => ({
   brandingTheme: 'light',
   languagesOpen: false,
   tourOpen: false,
-  outputTab: 'issues',
+  outputTab: 'bundle',
   cardPlatform: 'ios',
   cardVariant: 'detail',
   draftSaveFailed: false,
