@@ -231,10 +231,8 @@ export const t = {
   },
   output: {
     title: 'Output',
-    issues: 'Issues',
     bundle: 'Bundle',
     vct: 'VCT snippet',
-    noIssues: 'No issues. The bundle is ready.',
     hosting: 'Where will the bundle live?',
     hostedUrl: 'At a URL I host',
     hostedUrlHint: 'Serve the file byte for byte; any change breaks the integrity check.',
@@ -253,6 +251,15 @@ export const t = {
     previewSoon: 'Coming later: open the bundle in the swiyu preview app.',
     working: 'Building…',
     failed: (message: string) => `The bundle could not be built: ${message}`,
+  },
+  issues: {
+    title: 'Issues',
+    none: 'No issues',
+    empty: 'No issues. The bundle is ready.',
+    collapse: 'Collapse issues',
+    expand: 'Expand issues',
+    /** Where an issue sits when it is not about an attribute (attributes show their key path). */
+    locations: { credential: 'Credential', languages: 'Languages', hosting: 'Hosting' },
   },
   fixes: {
     fix: 'Fix',
@@ -341,7 +348,7 @@ export const t = {
         body: 'Checks the bundle and gives you what to publish.',
         features: [
           'Attach a sample credential to check that every source path exists. It is never exported.',
-          'Issues: click one to jump to its field. Fix and Fix all repair the issues that do not need your own text.',
+          'The Issues panel along the bottom lists what to fix: click one to jump to its field. Fix and Fix all repair the issues that do not need your own text.',
           'Bundle: choose where it will be hosted, then copy the JSON and its uri#integrity value.',
           'VCT snippet: the display entries to add to your SD-JWT VC Type Metadata.',
         ],

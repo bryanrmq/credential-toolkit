@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { LangTag, Project } from '../core/model';
+import type { Group, LangTag, Project } from '../core/model';
 import type { Issue, IssueTarget, Severity } from '../core/validate';
 import { type Fix, type FixTools, LANGUAGE_RENAME_CODES, fixesFor } from '../core/validate/fixes';
 import { useStore } from '../state/store';
@@ -79,6 +79,23 @@ export function fixAllGroups(groups: IssueGroup[], project: Project, tools: FixT
     .map((group) => groupFixes(group, project, tools))
     .filter((options) => options.length === 1)
     .map(([option]) => option.fixes);
+}
+
+/** The keys from the root down to a node, or null when the node is not in `group`. */
+function keyPath(group: Group, nodeId: string): string[] | null {
+  for (const node of group.children) {
+    if (node.id === nodeId) return [node.key];
+    const below = node.kind === 'group' ? keyPath(node.group, nodeId) : null;
+    if (below) return [node.key, ...below];
+  }
+  return null;
+}
+
+/** Where an issue sits, as shown in the Issues panel: the attribute's key path, or what else it is about. */
+export function issueLocation(issue: Issue, project: Project): string {
+  const target = issue.target;
+  if (target.kind !== 'node') return t.issues.locations[target.kind];
+  return keyPath(project.root, target.nodeId)?.join('.') ?? '';
 }
 
 export function useFieldIssues(id: string): Issue[] {
