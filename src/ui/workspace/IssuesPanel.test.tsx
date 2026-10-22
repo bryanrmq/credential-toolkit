@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyGroup, emptyProject, newAttribute, newGroupLink } from '../../core/model';
 import { oneNode } from '../../state/selection';
 import { useStore } from '../../state/store';
@@ -17,7 +17,20 @@ function cleanProject() {
   return project;
 }
 
+/** `cleanProject()` plus one error and one warning. */
+function brokenProject() {
+  const project = cleanProject();
+  project.root.children.push(newAttribute('broken', { source: [], labels: { 'de-CH': 'Kaputt' } }), newAttribute('unlabelled', { source: ['unlabelled'] }));
+  return project;
+}
+
+/** Makes the window narrower than 1000 px, where the workspace shows one pane at a time. */
+function narrowWindow() {
+  vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
+}
+
 const panel = () => screen.getByRole('region', { name: 'Issues' });
+const topBarButton = () => screen.getByRole('button', { name: /^Show issues/ });
 const row = (summary: string | RegExp) => within(panel()).getByRole('button', { name: summary }).closest('li')!;
 
 beforeEach(() => {
@@ -68,6 +81,19 @@ describe('IssuesPanel', () => {
 
     await user.click(expand);
     expect(within(panel()).getByRole('list')).toBeInTheDocument();
+  });
+
+  it('remembers whether it is collapsed', async () => {
+    useStore.getState().load(brokenProject());
+    const user = userEvent.setup();
+    const { unmount } = render(<Workspace />);
+    await user.click(within(panel()).getByRole('button', { name: 'Collapse issues' }));
+    expect(localStorage.getItem('oca-generator:issues-open')).toBe('false');
+
+    unmount();
+    render(<Workspace />);
+    expect(within(panel()).getByRole('button', { name: 'Expand issues' })).toHaveAttribute('aria-expanded', 'false');
+    expect(within(panel()).queryByRole('list')).not.toBeInTheDocument();
   });
 
   it('resizes the list with the keyboard and remembers the height', async () => {
@@ -160,5 +186,99 @@ describe('IssuesPanel', () => {
     expect(tabs.map((tab) => tab.textContent)).toEqual(['Bundle', 'VCT snippet']);
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     expect(useStore.getInitialState().outputTab).toBe('bundle');
+  });
+});
+
+describe('top-bar issues button', () => {
+  it('is not shown when there are no issues', () => {
+    useStore.getState().load(cleanProject());
+    render(<Workspace />);
+    expect(screen.queryByRole('button', { name: /^Show issues/ })).not.toBeInTheDocument();
+  });
+
+  it('holds the error and warning pills', () => {
+    useStore.getState().load(brokenProject());
+    render(<Workspace />);
+    expect(topBarButton()).toHaveAccessibleName('Show issues: 1 error, 1 warning');
+    expect(within(topBarButton()).getByText('1 error')).toHaveClass('badge--red');
+    expect(within(topBarButton()).getByText('1 warning')).toHaveClass('badge--yellow');
+  });
+
+  it('expands the collapsed panel and focuses its list', async () => {
+    useStore.getState().load(brokenProject());
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(within(panel()).getByRole('button', { name: 'Collapse issues' }));
+
+    await user.click(topBarButton());
+    expect(within(panel()).getByRole('button', { name: 'Collapse issues' })).toHaveAttribute('aria-expanded', 'true');
+    expect(within(panel()).getByRole('list')).toHaveFocus();
+    expect(localStorage.getItem('oca-generator:issues-open')).toBe('true');
+  });
+});
+
+describe('IssuesPanel under the Translations view', () => {
+  it('shows the issues and jumps to the field in the Editor view', async () => {
+    const project = brokenProject();
+    useStore.getState().load(project);
+    useStore.getState().setView('translations');
+    const user = userEvent.setup();
+    render(<Workspace />);
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(within(panel()).getAllByRole('listitem')).toHaveLength(2);
+
+    await user.click(within(panel()).getByRole('button', { name: /"broken" has no source path/ }));
+    expect(useStore.getState().view).toBe('editor');
+    expect(useStore.getState().selection).toMatchObject({ kind: 'node', id: project.root.children[1].id });
+    expect(screen.getByLabelText('Key')).toHaveValue('broken');
+  });
+});
+
+describe('Issues tab on a narrow window', () => {
+  const panesTabs = () => within(screen.getByRole('tablist', { name: 'Panes' }));
+
+  it('has no bottom panel and an Issues tab next to Structure, Edit and Output', async () => {
+    narrowWindow();
+    useStore.getState().load(brokenProject());
+    const user = userEvent.setup();
+    const { container } = render(<Workspace />);
+    expect(screen.queryByRole('region', { name: 'Issues' })).not.toBeInTheDocument();
+    expect(panesTabs().getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Structure', 'Edit', 'Output', 'Issues']);
+
+    await user.click(panesTabs().getByRole('tab', { name: 'Issues' }));
+    expect(container.querySelector('.panes')).toHaveAttribute('data-pane', 'issues');
+    expect(within(panel()).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(panel()).queryByRole('separator')).not.toBeInTheDocument();
+    expect(within(panel()).queryByRole('button', { name: /Collapse issues|Expand issues/ })).not.toBeInTheDocument();
+
+    // Jumping to a field switches to the pane that holds it.
+    await user.click(within(panel()).getByRole('button', { name: /"broken" has no source path/ }));
+    expect(container.querySelector('.panes')).toHaveAttribute('data-pane', 'inspector');
+    expect(screen.queryByRole('region', { name: 'Issues' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Key')).toHaveValue('broken');
+  });
+
+  it('shows the full list even when the docked panel was collapsed', async () => {
+    narrowWindow();
+    localStorage.setItem('oca-generator:issues-open', 'false');
+    useStore.getState().load(brokenProject());
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(panesTabs().getByRole('tab', { name: 'Issues' }));
+    expect(within(panel()).getByRole('list')).toBeInTheDocument();
+  });
+
+  it('opens from the top-bar button, from the Translations view too', async () => {
+    narrowWindow();
+    useStore.getState().load(brokenProject());
+    useStore.getState().setView('translations');
+    const user = userEvent.setup();
+    render(<Workspace />);
+    expect(screen.queryByRole('region', { name: 'Issues' })).not.toBeInTheDocument();
+
+    await user.click(topBarButton());
+    expect(useStore.getState().view).toBe('editor');
+    expect(panesTabs().getByRole('tab', { name: 'Issues' })).toHaveAttribute('aria-selected', 'true');
+    expect(within(panel()).getByRole('list')).toHaveFocus();
   });
 });
