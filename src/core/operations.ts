@@ -10,6 +10,7 @@ import {
   findGroup,
   findNode,
   newGroupLink,
+  newId,
   walkNodes,
 } from './model';
 import { renameInTemplate, resolveTemplate, retargetTemplate } from './templates';
@@ -213,6 +214,68 @@ export function moveNodesInto(project: Project, nodeIds: Iterable<string>, targe
   let moved = false;
   for (const { node } of outermostNodes(project, nodeIds)) moved = moveNode(project, node.id, targetGroupId, Number.MAX_SAFE_INTEGER) || moved;
   return moved;
+}
+
+/**
+ * A deep copy of `node`, with its whole subtree for a group, and fresh ids throughout (node and group
+ * ids alike). Keys, labels, source paths and I14Y links are copied as they are. `ids` maps the id of
+ * each node in the subtree to the id of its copy.
+ */
+export function cloneNode(node: Node): { copy: Node; ids: Map<string, string> } {
+  const copy = structuredClone(node);
+  const ids = new Map<string, string>();
+  const refresh = (original: Node, cloned: Node) => {
+    cloned.id = newId();
+    ids.set(original.id, cloned.id);
+    if (original.kind !== 'group' || cloned.kind !== 'group') return;
+    cloned.group.id = newId();
+    original.group.children.forEach((child, index) => refresh(child, cloned.group.children[index]));
+  };
+  refresh(node, copy);
+  return { copy, ids };
+}
+
+/**
+ * Duplicates each given node, a group with its whole subtree, right after the original in the same
+ * group; a node inside another given node is copied with that ancestor only. Copies get fresh ids and
+ * a key unique among their siblings (`uniqueKey`). Labels are copied as they are, except that a
+ * `{{…}}` reference from inside a copy to the original or a node inside it points to the
+ * corresponding copied node instead (relative references inside a copied group already do).
+ * Returns a map from the id of every copied node, inner ones included, to the id of its copy, in
+ * tree order of the originals; it is empty (and nothing changes) when no given id names a node.
+ */
+export function duplicateNodes(project: Project, nodeIds: Iterable<string>): Map<string, string> {
+  const copied = new Map<string, string>();
+  const copies: { copy: Node; ids: Map<string, string> }[] = [];
+  for (const { node, parent } of outermostNodes(project, nodeIds)) {
+    const { copy, ids } = cloneNode(node);
+    copy.key = uniqueKey(parent, node.key);
+    parent.children.splice(parent.children.indexOf(node) + 1, 0, copy);
+    copies.push({ copy, ids });
+    for (const [from, to] of ids) copied.set(from, to);
+  }
+  // Point the copies' references to an original node, or a node inside it, at the matching copy.
+  const byId = new Map<string, Node>();
+  const parents = new Map<string, Group>();
+  for (const { node, parent } of walkNodes(project.root)) {
+    byId.set(node.id, node);
+    parents.set(node.id, parent);
+  }
+  for (const { copy, ids } of copies) {
+    const copyOf = (target: Node | null) => {
+      const id = target && ids.get(target.id);
+      return (id && byId.get(id)) || null;
+    };
+    const visits = [{ node: copy, parent: parents.get(copy.id)! }, ...(copy.kind === 'group' ? walkNodes(copy.group) : [])];
+    for (const { node, parent } of visits) {
+      for (const [lang, text] of Object.entries(node.labels)) {
+        if (!text) continue;
+        const targets = resolveTemplate(text, project.root, parent).map(copyOf);
+        if (targets.some(Boolean)) node.labels[lang] = retargetTemplate(text, project.root, parent, targets, (target) => parents.get(target.id));
+      }
+    }
+  }
+  return copied;
 }
 
 /** Removes every given node in one go; a node inside another given node goes with it. Returns the removed nodes. */

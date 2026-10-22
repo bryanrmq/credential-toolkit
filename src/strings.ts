@@ -113,6 +113,7 @@ export const t = {
     addGroupHere: 'Add group here',
     addListHere: 'Add list of objects here',
     addFromI14y: 'Add from I14Y…',
+    duplicate: (count: number) => (count > 1 ? `Duplicate ${count} items` : 'Duplicate'),
     ungroup: 'Ungroup',
     moveUp: 'Move up',
     moveDown: 'Move down',

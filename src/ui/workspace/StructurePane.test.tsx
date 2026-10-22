@@ -454,6 +454,26 @@ describe('tree keyboard shortcuts', () => {
     expect(selectedKeys()).toEqual(['a', 'd']);
   });
 
+  it('⌘D duplicates the selection after the originals, selects the copies and keeps focus on the tree', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('a'));
+    await user.keyboard('{Meta>}');
+    await user.click(row('person'));
+    await user.keyboard('{/Meta}');
+    // The browser's own ⌘D (bookmark) is held back.
+    expect(fireEvent.keyDown(row('person'), { key: 'd', metaKey: true })).toBe(false);
+    expect(topKeys()).toEqual(['a', 'a_2', 'person', 'person_2', 'd']);
+    expect(selectedKeys()).toEqual(['a_2', 'person_2']);
+    expect(primaryKey()).toBe('person_2');
+    await waitFor(() => expect(row('person_2')).toHaveFocus());
+    await user.keyboard('{Control>}d{/Control}');
+    expect(topKeys()).toEqual(['a', 'a_2', 'a_2_2', 'person', 'person_2', 'person_2_2', 'd']);
+    await user.keyboard('{Meta>}z{/Meta}');
+    expect(topKeys()).toEqual(['a', 'a_2', 'person', 'person_2', 'd']);
+    expect(selectedKeys()).toEqual(['a_2', 'person_2']);
+  });
+
   it('⇧⌘G does nothing on a list of objects', async () => {
     const project = useStore.getState().project!;
     const items = newGroupLink('items', { array: true, source: ['items', null] });
@@ -493,7 +513,7 @@ describe('tree keyboard shortcuts', () => {
     await user.click(label);
     await user.keyboard('Name{Backspace}');
     expect(label).toHaveValue('Nam');
-    await user.keyboard('{Meta>}g{/Meta}{Alt>}{ArrowDown}{/Alt}');
+    await user.keyboard('{Meta>}g{/Meta}{Alt>}{ArrowDown}{/Alt}{Meta>}d{/Meta}');
     expect(topKeys()).toEqual(['a', 'person', 'd']);
   });
 
@@ -505,6 +525,7 @@ describe('tree keyboard shortcuts', () => {
     const pressOnRow = () => {
       fireEvent.keyDown(row('a'), { key: 'n' });
       fireEvent.keyDown(row('a'), { key: 'Backspace' });
+      fireEvent.keyDown(row('a'), { key: 'd', metaKey: true });
     };
     act(() => useStore.getState().setTourOpen(true));
     pressOnRow();
@@ -526,7 +547,7 @@ describe('tree keyboard shortcuts', () => {
     render(<Workspace />);
     await user.click(row('a'));
     act(() => row('a').focus());
-    await user.keyboard('n{Backspace}{Alt>}{ArrowDown}{/Alt}{Meta>}g{/Meta}');
+    await user.keyboard('n{Backspace}{Alt>}{ArrowDown}{/Alt}{Meta>}g{/Meta}{Meta>}d{/Meta}');
     expect(topKeys()).toEqual(['a', 'person', 'd']);
   });
 
