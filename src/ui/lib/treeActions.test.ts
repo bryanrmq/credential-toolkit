@@ -72,6 +72,13 @@ describe('selectionAfterRemoval', () => {
     expect(selectionAfterRemoval(project(), [id('items')])).toEqual({ kind: 'node', id: id('d') });
     expect(selectionAfterRemoval(project(), project().root.children.map((node) => node.id))).toEqual({ kind: 'credential' });
   });
+
+  it('passes over the rows a filter hides', () => {
+    const shown = new Set([id('person'), id('b'), id('items'), id('e')]);
+    expect(selectionAfterRemoval(project(), [id('b')], [], shown)).toEqual({ kind: 'node', id: id('items') });
+    expect(selectionAfterRemoval(project(), [id('e')], [], shown)).toEqual({ kind: 'node', id: id('items') });
+    expect(selectionAfterRemoval(project(), [id('b')], [], new Set([id('b')]))).toEqual({ kind: 'credential' });
+  });
 });
 
 describe('addNode', () => {

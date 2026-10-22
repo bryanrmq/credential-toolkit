@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { type Project, emptyProject, newAttribute, newGroupLink } from '../core/model';
+import { type Project, emptyProject, findNode, newAttribute, newGroupLink } from '../core/model';
 import { CREDENTIAL, oneNode } from './selection';
-import { COLLAPSED_KEY, ancestorIds, loadCollapsed, revealSelection, saveCollapsed, selectionOnCollapse, visibleRows } from './treeView';
+import { COLLAPSED_KEY, ancestorIds, filteredIds, loadCollapsed, revealSelection, saveCollapsed, selectionOnCollapse, visibleRows } from './treeView';
 
 /** a, g { b, h { c } }, d: in tree order a, g, b, h, c, d. */
 function project(): { project: Project; a: string; g: string; b: string; h: string; c: string; d: string } {
@@ -16,6 +16,8 @@ function project(): { project: Project; a: string; g: string; b: string; h: stri
   return { project: result, a: a.id, g: g.id, b: b.id, h: h.id, c: c.id, d: d.id };
 }
 
+/** Node `id` of project `p`, to change in place. */
+const nodeOf = (p: Project, id: string) => findNode(p.root, id)!.node;
 const several = (id: string, ids: string[], anchor = id) => ({ kind: 'node' as const, id, ids, anchor });
 
 describe('visibleRows', () => {
@@ -26,6 +28,46 @@ describe('visibleRows', () => {
     expect(visibleRows(p, [g])).toEqual([a, g, d]);
     // An inner group's own state is kept while an outer one hides it.
     expect(visibleRows(p, [g, h])).toEqual([a, g, d]);
+  });
+
+  it('lists the rows a filter shows, in tree order, whether or not their groups are collapsed', () => {
+    const { project: p, g, h, c, d } = project();
+    const shown = new Set([d, c, g, h]);
+    expect(visibleRows(p, [], shown)).toEqual([g, h, c, d]);
+    expect(visibleRows(p, [g, h], shown)).toEqual([g, h, c, d]);
+    expect(visibleRows(p, [g], new Set())).toEqual([]);
+  });
+});
+
+describe('filteredIds', () => {
+  it('is null for a blank filter', () => {
+    const { project: p } = project();
+    expect(filteredIds(p, '', 'de-CH')).toBeNull();
+    expect(filteredIds(p, '  ', 'de-CH')).toBeNull();
+  });
+
+  it('matches keys, ignoring case and the spaces around the text', () => {
+    const { project: p, a, b, g } = project();
+    nodeOf(p, a).key = 'firstName';
+    nodeOf(p, b).key = 'lastname';
+    expect(filteredIds(p, ' NAME ', 'de-CH')).toEqual(new Set([a, g, b]));
+    expect(filteredIds(p, 'first', 'de-CH')).toEqual(new Set([a]));
+    expect(filteredIds(p, 'zzz', 'de-CH')).toEqual(new Set());
+  });
+
+  it('matches labels in the editing language only', () => {
+    const { project: p, d } = project();
+    nodeOf(p, d).labels = { 'de-CH': 'Geburtsdatum', 'fr-CH': 'Date de naissance' };
+    expect(filteredIds(p, 'geburt', 'de-CH')).toEqual(new Set([d]));
+    expect(filteredIds(p, 'naissance', 'de-CH')).toEqual(new Set());
+    expect(filteredIds(p, 'naissance', 'fr-CH')).toEqual(new Set([d]));
+  });
+
+  it('shows the groups around a match, but not the other nodes inside a matching group', () => {
+    const { project: p, g, h, c } = project();
+    expect(filteredIds(p, 'c', 'de-CH')).toEqual(new Set([g, h, c]));
+    // A group that matches shows alone; what is inside it shows only when it matches too.
+    expect(filteredIds(p, 'h', 'de-CH')).toEqual(new Set([g, h]));
   });
 });
 

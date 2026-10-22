@@ -33,6 +33,11 @@ export interface AppState {
    * inside one: whatever selects it (a click, undo, an issue, a new node) expands the groups around it.
    */
   collapsed: string[];
+  /**
+   * The text in the Structure tree's filter box: while it is not blank, the tree shows only the nodes
+   * that match it and the groups around them (`filteredIds`). A selected node may then be out of sight.
+   */
+  treeFilter: string;
   editLang: LangTag;
   view: View;
   brandingTheme: Theme;
@@ -68,6 +73,7 @@ export interface AppState {
   /** Expands or collapses group node `id`. Collapsing it moves the selected nodes inside it to the group itself. */
   setGroupOpen: (id: string, open: boolean) => void;
   setEditLang: (lang: LangTag) => void;
+  setTreeFilter: (text: string) => void;
   setView: (view: View) => void;
   setBrandingTheme: (theme: Theme) => void;
   setLanguagesOpen: (open: boolean) => void;
@@ -153,6 +159,7 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
   project: null,
   selection: CREDENTIAL,
   collapsed: [],
+  treeFilter: '',
   editLang: '',
   view: 'editor',
   brandingTheme: 'light',
@@ -177,6 +184,7 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
       i14yReview: options?.reviewI14y ?? false,
       selection: CREDENTIAL,
       collapsed: loadCollapsed(project),
+      treeFilter: '',
       editLang: project.languages[0] ?? '',
       view: 'editor',
       brandingTheme: 'light',
@@ -193,6 +201,7 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
       i14yReview: false,
       selection: CREDENTIAL,
       collapsed: [],
+      treeFilter: '',
       languagesOpen: false,
       tourOpen: false,
       past: [],
@@ -233,6 +242,7 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
     set({ collapsed: [...collapsed, id], ...(moved && { selection: normalizeSelection(project, moved) }) });
   },
   setEditLang: (editLang) => set({ editLang }),
+  setTreeFilter: (treeFilter) => set({ treeFilter }),
   setView: (view) => set({ view }),
   setBrandingTheme: (brandingTheme) => set({ brandingTheme }),
   setLanguagesOpen: (languagesOpen) => set({ languagesOpen }),
