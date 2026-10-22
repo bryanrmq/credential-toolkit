@@ -1121,6 +1121,14 @@ input[type='checkbox'] {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The inline rename input takes the key's place and its type. */
+.tree__rename {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 2px 6px;
+  font-size: 12.5px;
+  user-select: text;
+}
 .tree__label {
   color: var(--text-muted);
   font-size: 12.5px;

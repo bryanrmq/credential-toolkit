@@ -541,3 +541,98 @@ describe('tree keyboard shortcuts', () => {
     expect(confirm).not.toHaveBeenCalled();
   });
 });
+
+describe('inline rename', () => {
+  const renameInput = () => within(tree()).getByRole('textbox');
+  const primaryField = () => useStore.getState().project!.branding['de-CH'].light.primaryField;
+
+  it('F2 turns the selected row’s key into an input; ⏎ commits and puts focus back on the row', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('b'));
+    await user.keyboard('{F2}');
+    expect(renameInput()).toHaveAccessibleName('Rename b');
+    expect(renameInput()).toHaveFocus();
+    expect(renameInput()).toHaveValue('b');
+    // The old key is selected, so typing replaces it.
+    await user.keyboard('given_name{Enter}');
+    expect(within(tree()).queryByRole('textbox')).toBeNull();
+    expect(primaryKey()).toBe('given_name');
+    await waitFor(() => expect(row('given_name')).toHaveFocus());
+    expect(screen.getByLabelText('Key')).toHaveValue('given_name');
+  });
+
+  it('a double-click starts it; leaving the input commits', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.dblClick(row('d'));
+    expect(renameInput()).toHaveFocus();
+    await user.keyboard('date');
+    await user.click(row('a'));
+    expect(within(tree()).queryByRole('textbox')).toBeNull();
+    expect(selectedKeys()).toEqual(['a']);
+    expect(row('date')).toBeInTheDocument();
+  });
+
+  it('Escape restores the old key and puts focus back on the row', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('a'));
+    await user.keyboard('{F2}other{Escape}');
+    expect(within(tree()).queryByRole('textbox')).toBeNull();
+    expect(row('a')).toBeInTheDocument();
+    await waitFor(() => expect(row('a')).toHaveFocus());
+    expect(useStore.getState().past).toHaveLength(0);
+  });
+
+  it('makes {{…}} references follow, as one undo step', async () => {
+    act(() => useStore.getState().update((draft) => void (draft.branding['de-CH'] = { light: { primaryField: '{{d}} {{person.b}}' } })));
+    const steps = useStore.getState().past.length;
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('person'));
+    await user.keyboard('{F2}holder{Enter}');
+    expect(primaryField()).toBe('{{d}} {{holder.b}}');
+    expect(useStore.getState().past).toHaveLength(steps + 1);
+    await user.keyboard('{Meta>}z{/Meta}');
+    expect(primaryField()).toBe('{{d}} {{person.b}}');
+    expect(row('person')).toBeInTheDocument();
+  });
+
+  it('types N and ⌫ into the input instead of running the tree shortcuts', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('c'));
+    await user.keyboard('{F2}{ArrowRight}n{Backspace}{Backspace}{Delete}');
+    expect(renameInput()).toHaveValue('');
+    await user.keyboard('name');
+    expect(renameInput()).toHaveValue('name');
+    await user.keyboard('{ArrowUp}{Alt>}{ArrowDown}{/Alt}{Meta>}g{/Meta}');
+    expect(renameInput()).toHaveFocus();
+    await user.keyboard('{Control>}a{/Control}name{Enter}');
+    expect(useStore.getState().project!.root.children.map((node) => node.key)).toEqual(['a', 'person', 'd']);
+    expect(row('name')).toBeInTheDocument();
+  });
+
+  it('does nothing on the credential, a multi-selection or under 1000 px', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<Workspace />);
+    await user.click(row('Credential'));
+    await user.keyboard('{F2}');
+    await user.dblClick(row('Credential'));
+    expect(within(tree()).queryByRole('textbox')).toBeNull();
+    await user.click(row('a'));
+    await user.keyboard('{Meta>}');
+    await user.click(row('d'));
+    await user.keyboard('{/Meta}{F2}');
+    expect(within(tree()).queryByRole('textbox')).toBeNull();
+    unmount();
+
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
+    render(<Workspace />);
+    await user.dblClick(row('a'));
+    act(() => row('a').focus());
+    await user.keyboard('{F2}');
+    expect(within(tree()).queryByRole('textbox')).toBeNull();
+  });
+});
