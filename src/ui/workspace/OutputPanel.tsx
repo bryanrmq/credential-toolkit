@@ -1,4 +1,4 @@
-import { CheckIcon, CopyIcon, DeviceMobileIcon, DownloadSimpleIcon } from '@phosphor-icons/react';
+import { CheckIcon, CopyIcon, DownloadSimpleIcon } from '@phosphor-icons/react';
 import { Fragment, useState } from 'react';
 import { BUNDLE_FILE_NAME, buildVctSnippet } from '../../core/export/outputs';
 import { useStore } from '../../state/store';
@@ -162,14 +162,6 @@ export function OutputPanel({ exportState }: { exportState: ExportState }) {
               )}
             </>
           )}
-          <div className="section" style={{ marginTop: 24 }}>
-            <Button disabled title={t.output.previewSoon}>
-              <DeviceMobileIcon /> {t.output.preview}
-            </Button>
-            <p className="field__hint" style={{ marginTop: 6 }}>
-              {t.output.previewSoon}
-            </p>
-          </div>
         </div>
       </div>
     </>
