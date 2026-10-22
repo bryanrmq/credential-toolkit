@@ -1125,18 +1125,20 @@ input[type='checkbox'] {
   opacity: 0.4;
 }
 
-/* Inspector: form, plus the translations column beside it when the pane is wide enough */
+/* Inspector: form, plus the translations column beside it when the pane is wide enough.
+   The form keeps its width; the translations take all the room left. */
 .pane--inspector {
   container-type: inline-size;
 }
 .inspector {
   display: grid;
-  grid-template-columns: minmax(0, 640px);
+  grid-template-columns: minmax(0, 1fr);
   column-gap: 40px;
   padding: 8px 32px 64px;
 }
 .inspector__main {
   min-width: 0;
+  max-width: 640px;
 }
 .translations-aside {
   border-top: 1px solid var(--border);
@@ -1146,7 +1148,7 @@ input[type='checkbox'] {
 }
 @container (min-width: 840px) {
   .inspector {
-    grid-template-columns: minmax(0, 640px) minmax(240px, 320px);
+    grid-template-columns: minmax(0, 640px) minmax(240px, 1fr);
   }
   .translations-aside {
     position: sticky;
