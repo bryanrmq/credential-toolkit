@@ -2,7 +2,7 @@ import { type Node, type Project, findGroup, findNode, newAttribute, newGroupLin
 import { NEW_NODE_KEYS, duplicateNodes, groupNodes, insertNode, moveNodes, removeNodes, sourcePrefixFor, uniqueKey, ungroupNode } from '../../core/operations';
 import { CREDENTIAL, type Selection, type SelectionRequest, selectedIds } from '../../state/selection';
 import { useStore } from '../../state/store';
-import { visibleRows } from '../../state/treeView';
+import { filteredIds, visibleRows } from '../../state/treeView';
 import { fieldId, focusField } from '../issues';
 
 /*
@@ -29,14 +29,20 @@ export function newNodePlace(project: Project, selection: Selection): NodePlace 
 /**
  * What to select once `removedIds` (and everything inside them) leave `project`: the first row left
  * after the last removed one, else the last row left before it, else the credential. Only the rows the
- * tree shows count, so the rows inside the `collapsed` groups are passed over.
+ * tree shows count, so the rows inside the `collapsed` groups, or those a filter leaves out of the
+ * `shown` ones, are passed over.
  */
-export function selectionAfterRemoval(project: Project, removedIds: Iterable<string>, collapsed: readonly string[] = []): SelectionRequest {
+export function selectionAfterRemoval(
+  project: Project,
+  removedIds: Iterable<string>,
+  collapsed: readonly string[] = [],
+  shown: ReadonlySet<string> | null = null,
+): SelectionRequest {
   const removed = new Set(removedIds);
   for (const { node } of walkNodes(project.root)) {
     if (node.kind === 'group' && removed.has(node.id)) for (const { node: inner } of walkNodes(node.group)) removed.add(inner.id);
   }
-  const order = visibleRows(project, collapsed);
+  const order = visibleRows(project, collapsed, shown);
   const last = order.findLastIndex((id) => removed.has(id));
   const next = order.slice(last + 1).find((id) => !removed.has(id)) ?? order.slice(0, Math.max(last, 0)).findLast((id) => !removed.has(id));
   return next ? { kind: 'node', id: next } : CREDENTIAL;
@@ -73,11 +79,11 @@ export function canDeleteSelection(selection: Selection = useStore.getState().se
   return selection.kind === 'node';
 }
 
-/** Deletes the given nodes without asking (undo brings them back) and selects the row after them. */
+/** Deletes the given nodes without asking (undo brings them back) and selects the row after them, among the rows the tree shows. */
 export function deleteNodes(nodeIds: string[]): void {
-  const { project, collapsed, update, select } = useStore.getState();
+  const { project, collapsed, treeFilter, editLang, update, select } = useStore.getState();
   if (!project || nodeIds.length === 0) return;
-  const next = selectionAfterRemoval(project, nodeIds, collapsed);
+  const next = selectionAfterRemoval(project, nodeIds, collapsed, filteredIds(project, treeFilter, editLang));
   update((draft) => void removeNodes(draft, nodeIds));
   select(next);
 }

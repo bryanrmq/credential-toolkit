@@ -46,6 +46,7 @@ function tourKeys(): TourKeys {
     group: treeShortcutLabel('group'),
     moveUp: treeShortcutLabel('moveUp'),
     moveDown: treeShortcutLabel('moveDown'),
+    filter: treeShortcutLabel('filter'),
     undo: undoShortcutLabel(),
     output: outputShortcutLabel(),
   };

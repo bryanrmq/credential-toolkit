@@ -175,6 +175,35 @@ describe('Structure copy, cut and paste', () => {
     expect(useStore.getState().past).toHaveLength(0);
   });
 
+  it('keeps a tree filter that shows the pasted nodes, and selects them', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    act(() => useStore.getState().setTreeFilter('a'));
+    await user.click(row('a'));
+    const { text } = copyOrCut('copy');
+    paste(text);
+    expect(keys()).toEqual(['a', 'a_2', 'person', 'd']);
+    expect(useStore.getState().treeFilter).toBe('a');
+    expect(within(tree()).queryByText('d')).toBeNull();
+    expect(selectedKeys()).toEqual(['a_2']);
+    await waitFor(() => expect(row('a_2')).toHaveFocus());
+  });
+
+  it('clears a tree filter that would hide the pasted nodes', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('d'));
+    const { text } = copyOrCut('copy');
+    act(() => useStore.getState().setTreeFilter('a'));
+    await user.click(row('a'));
+    paste(text);
+    expect(keys()).toEqual(['a', 'd_2', 'person', 'd']);
+    expect(useStore.getState().treeFilter).toBe('');
+    expect(screen.getByRole<HTMLInputElement>('searchbox', { name: 'Filter the structure' }).value).toBe('');
+    expect(selectedKeys()).toEqual(['d_2']);
+    await waitFor(() => expect(row('d_2')).toHaveFocus());
+  });
+
   it('does nothing while typing in a field, or with nothing but the Credential selected', async () => {
     const user = userEvent.setup();
     render(<Workspace />);

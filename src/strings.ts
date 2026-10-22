@@ -1,5 +1,5 @@
 /** The shortcut keys the tour shows, labelled for the platform: ⌘G on a Mac, Ctrl+G elsewhere. */
-export type TourKeys = Record<'add' | 'delete' | 'group' | 'moveUp' | 'moveDown' | 'undo' | 'output', string>;
+export type TourKeys = Record<'add' | 'delete' | 'group' | 'moveUp' | 'moveDown' | 'filter' | 'undo' | 'output', string>;
 
 /** Every piece of interface copy, in one place so the tool can be translated later. */
 export const t = {
@@ -107,6 +107,9 @@ export const t = {
     rename: (key: string) => `Rename ${key || 'node'}`,
     expand: (key: string) => `Expand ${key || 'group'}`,
     collapse: (key: string) => `Collapse ${key || 'group'}`,
+    filter: 'Filter the structure',
+    filterPlaceholder: 'Filter by key or label',
+    noMatches: 'No matches',
     emptyDrop: 'Empty, drop items here',
     dragCount: (count: number) => `${count} items`,
   },
@@ -378,6 +381,7 @@ export const t = {
           'Drag the handle beside an item to reorder it, or drop it on the middle of a group to move it inside. Dragging a selected item moves the whole selection.',
           'Right-click an item, or the space below the last one, for its actions: add, duplicate, copy and paste, group, move or delete.',
           `On a selected item, [[${keys.add}]] adds, [[${keys.delete}]] deletes, [[${keys.group}]] groups and [[${keys.moveUp}]] [[${keys.moveDown}]] move it. [[${keys.undo}]] undoes any change.`,
+          `Type in the filter box, or press [[${keys.filter}]] in the tree, to show only the items whose key or label holds the text. Escape clears it.`,
           'Select Credential to edit the name and branding, or an item to edit it. A red or yellow dot marks an error or a warning.',
         ],
       },

@@ -67,8 +67,10 @@ describe('Structure tree', () => {
 
     await user.click(row('c'));
     expect(items.filter((item) => item.tabIndex === 0)).toEqual([row('c')]);
-    // Tab from the Add button before the tree lands on the selected row, and the next Tab leaves the tree.
+    // Tab from the Add button goes to the filter box, then lands on the selected row, and the next Tab leaves the tree.
     within(screen.getByRole('region', { name: 'Structure' })).getByRole('button', { name: 'Add' }).focus();
+    await user.tab();
+    expect(screen.getByRole('searchbox', { name: 'Filter the structure' })).toHaveFocus();
     await user.tab();
     expect(row('c')).toHaveFocus();
     await user.tab();
@@ -824,5 +826,172 @@ describe('collapse and expand', () => {
     await user.click(within(screen.getByRole('region', { name: 'Issues' })).getByRole('button', { name: /"broken" has no source path/ }));
     expect(row('person')).toHaveAttribute('aria-expanded', 'true');
     expect(selectedKeys()).toEqual(['broken']);
+  });
+});
+
+describe('filter box', () => {
+  const filterBox = () => screen.getByRole<HTMLInputElement>('searchbox', { name: 'Filter the structure' });
+  const rowKeys = () => within(tree()).getAllByRole('treeitem').map((item) => item.querySelector('.tree__key')?.textContent);
+  const setLabel = (key: string, label: string) =>
+    act(() =>
+      useStore.getState().update((draft) => {
+        const stack = [...draft.root.children];
+        while (stack.length) {
+          const node = stack.shift()!;
+          if (node.key === key) node.labels['de-CH'] = label;
+          if (node.kind === 'group') stack.push(...node.group.children);
+        }
+      }),
+    );
+
+  it('shows the nodes whose key matches, ignoring case, with the groups around them', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.type(filterBox(), 'C');
+    expect(rowKeys()).toEqual(['Credential', 'person', 'c']);
+    expect(row('person')).toHaveAttribute('aria-expanded', 'true');
+    await user.clear(filterBox());
+    expect(rowKeys()).toEqual(['Credential', 'a', 'person', 'b', 'c', 'd']);
+  });
+
+  it('matches labels in the editing language', async () => {
+    setLabel('b', 'Vorname');
+    setLabel('d', 'Nachname');
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.type(filterBox(), 'NAME');
+    expect(rowKeys()).toEqual(['Credential', 'person', 'b', 'd']);
+  });
+
+  it('says so when nothing matches', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    expect(screen.queryByText('No matches')).toBeNull();
+    await user.type(filterBox(), 'zzz');
+    expect(rowKeys()).toEqual(['Credential']);
+    expect(screen.getByText('No matches')).toHaveAttribute('role', 'status');
+  });
+
+  it('shows matches inside collapsed groups without expanding them for good', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(within(row('person')).getByRole('button', { name: 'Collapse person' }));
+    await user.type(filterBox(), 'b');
+    expect(rowKeys()).toEqual(['Credential', 'person', 'b']);
+    expect(row('person')).toHaveAttribute('aria-expanded', 'true');
+    // The chevron only tells while filtering.
+    expect(within(row('person')).queryByRole('button', { name: /^(Collapse|Expand) person$/ })).toBeNull();
+    expect(useStore.getState().collapsed).toHaveLength(1);
+
+    await user.clear(filterBox());
+    expect(rowKeys()).toEqual(['Credential', 'a', 'person', 'd']);
+    expect(row('person')).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('⌘F and Ctrl+F in the tree focus it; elsewhere they keep the browser’s behaviour', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('a'));
+    await user.type(filterBox(), 'b');
+    await user.click(row('b'));
+    expect(fireEvent.keyDown(row('b'), { key: 'f', metaKey: true })).toBe(false);
+    expect(filterBox()).toHaveFocus();
+    // The text is selected, so typing replaces it.
+    expect([filterBox().selectionStart, filterBox().selectionEnd]).toEqual([0, 1]);
+
+    act(() => row('b').focus());
+    expect(fireEvent.keyDown(row('b'), { key: 'f', ctrlKey: true })).toBe(false);
+    expect(filterBox()).toHaveFocus();
+
+    const key = screen.getByLabelText('Key');
+    act(() => key.focus());
+    expect(fireEvent.keyDown(key, { key: 'f', metaKey: true })).toBe(true);
+    expect(key).toHaveFocus();
+  });
+
+  it('Escape clears it and goes back to the tree, on the selected row', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.type(filterBox(), 'c');
+    await user.click(row('c'));
+    await user.click(filterBox());
+    await user.keyboard('{Escape}');
+    expect(filterBox()).toHaveValue('');
+    expect(rowKeys()).toEqual(['Credential', 'a', 'person', 'b', 'c', 'd']);
+    await waitFor(() => expect(row('c')).toHaveFocus());
+  });
+
+  it('↓ in it goes to the first row it shows; ↑ / ↓ and ⇧ ranges follow the rows it shows', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('a'));
+    // The selected a is filtered out: the Credential row is the tree's tab stop.
+    await user.type(filterBox(), '{Backspace}d');
+    expect(rowKeys()).toEqual(['Credential', 'd']);
+    expect(row('Credential')).toHaveAttribute('tabindex', '0');
+    await user.clear(filterBox());
+    await user.type(filterBox(), 'c');
+    act(() => useStore.getState().update((draft) => void draft.root.children.push(newAttribute('cc'))));
+    expect(rowKeys()).toEqual(['Credential', 'person', 'c', 'cc']);
+
+    await user.keyboard('{ArrowDown}');
+    expect(selectedKeys()).toEqual(['person']);
+    expect(row('person')).toHaveFocus();
+    await user.keyboard('{ArrowDown}{ArrowDown}');
+    expect(selectedKeys()).toEqual(['cc']);
+    await user.keyboard('{Shift>}{ArrowUp}{/Shift}');
+    expect(selectedKeys()).toEqual(['c', 'cc']);
+
+    await user.click(row('person'));
+    await user.keyboard('{Shift>}');
+    await user.click(row('cc'));
+    await user.keyboard('{/Shift}');
+    // b and d sit between person and cc in the tree, but the filter hides them.
+    expect(selectedKeys()).toEqual(['person', 'c', 'cc']);
+  });
+
+  it('← and → step across levels without collapsing or expanding groups', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.type(filterBox(), 'c');
+    await user.click(row('person'));
+    await user.keyboard('{ArrowLeft}');
+    expect(row('person')).toHaveAttribute('aria-expanded', 'true');
+    expect(useStore.getState().collapsed).toEqual([]);
+    await user.keyboard('{ArrowRight}');
+    expect(selectedKeys()).toEqual(['c']);
+    await user.keyboard('{ArrowLeft}');
+    expect(selectedKeys()).toEqual(['person']);
+  });
+
+  it('keeps the tree shortcuts working on the selection; Delete selects the next row it shows', async () => {
+    act(() => useStore.getState().update((draft) => void draft.root.children.push(newAttribute('bb'))));
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.type(filterBox(), 'b');
+    expect(rowKeys()).toEqual(['Credential', 'person', 'b', 'bb']);
+    await user.click(row('b'));
+    await user.keyboard('{Meta>}d{/Meta}');
+    expect(rowKeys()).toEqual(['Credential', 'person', 'b', 'b_2', 'bb']);
+    expect(selectedKeys()).toEqual(['b_2']);
+
+    await user.keyboard('{Backspace}');
+    // d comes after b_2 in the tree, but the filter hides it.
+    expect(selectedKeys()).toEqual(['bb']);
+    await waitFor(() => expect(row('bb')).toHaveFocus());
+  });
+
+  it('turns off drag and drop while filtering', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.type(filterBox(), 'a');
+    expect(tree()).toHaveAttribute('data-filtered', 'true');
+    const before = useStore.getState().project;
+    const handle = within(row('a')).getByRole('button', { name: 'Move a' });
+    fireEvent.pointerDown(handle, { isPrimary: true, button: 0, clientX: 10, clientY: 16 });
+    fireEvent.pointerMove(document, { clientX: 10, clientY: 80 });
+    expect(row('a').parentElement).not.toHaveClass('tree__dragging');
+    fireEvent.pointerUp(document, { clientX: 10 });
+    expect(useStore.getState().project).toBe(before);
   });
 });

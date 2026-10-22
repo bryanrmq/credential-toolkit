@@ -1082,6 +1082,15 @@ input[type='checkbox'] {
 .pane--output .pane__header {
   background: var(--canvas);
 }
+/* The Structure header wraps its filter box onto a line of its own, below the title and the Add menu. */
+.pane--structure .pane__header {
+  flex-wrap: wrap;
+}
+.tree-filter {
+  flex: 1 0 100%;
+  padding: 5px 8px;
+  font-size: 12.5px;
+}
 .pane__title {
   font-size: 12px;
   font-weight: 600;
@@ -1290,6 +1299,14 @@ button.tree__toggle:hover {
 }
 .tree__dragging {
   opacity: 0.4;
+}
+/* While the tree is filtered nothing drags, so the handles go; they keep their room so rows line up. */
+[role='tree'][data-filtered] .tree__handle {
+  visibility: hidden;
+}
+/* Below the Credential row when the filter matches nothing. */
+.tree__no-matches {
+  margin: 0;
 }
 /* Drop indicators, the only two: an outline on a group the drop goes into, and an insertion line
    (2px, with a 4px round cap on the left) on the edge of the row it goes before or after. */

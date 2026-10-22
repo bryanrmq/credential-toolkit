@@ -1,4 +1,4 @@
-import { type Group, type Project, findNode, walkNodes } from '../core/model';
+import { type Group, type LangTag, type Node, type Project, findNode, walkNodes } from '../core/model';
 import type { Selection, SelectionRequest } from './selection';
 
 /*
@@ -8,9 +8,11 @@ import type { Selection, SelectionRequest } from './selection';
 
 /**
  * The node rows the tree shows, in order: every node, depth-first, without the ones inside a
- * collapsed group. ↑ / ↓, Home / End and ⇧ ranges move over these rows only.
+ * collapsed group. ↑ / ↓, Home / End and ⇧ ranges move over these rows only. While the tree is
+ * filtered, the rows are the `shown` ones (`filteredIds`), whether or not a group around them is collapsed.
  */
-export function visibleRows(project: Project, collapsed: readonly string[]): string[] {
+export function visibleRows(project: Project, collapsed: readonly string[], shown: ReadonlySet<string> | null = null): string[] {
+  if (shown) return [...walkNodes(project.root)].flatMap(({ node }) => (shown.has(node.id) ? [node.id] : []));
   const shut = new Set(collapsed);
   const rows: string[] = [];
   const visit = (group: Group) => {
@@ -21,6 +23,36 @@ export function visibleRows(project: Project, collapsed: readonly string[]): str
   };
   visit(project.root);
   return rows;
+}
+
+/** Whether `node`'s key or its label in `lang` holds `text` (lower case), ignoring case. */
+function matchesFilter(node: Node, text: string, lang: LangTag): boolean {
+  return node.key.toLowerCase().includes(text) || (node.labels[lang] ?? '').toLowerCase().includes(text);
+}
+
+/**
+ * The node rows the tree's filter box shows for `text`: the nodes whose key or label in the editing
+ * language `lang` holds it, ignoring case, with the groups around them (expanded for the filtered view,
+ * collapsed or not). Null when `text` is blank: the tree is not filtered. Empty when nothing matches.
+ */
+export function filteredIds(project: Project, text: string, lang: LangTag): Set<string> | null {
+  const wanted = text.trim().toLowerCase();
+  if (!wanted) return null;
+  const shown = new Set<string>();
+  // Returns whether anything in `group` is shown, so the group node around it is shown too.
+  const visit = (group: Group): boolean => {
+    let any = false;
+    for (const node of group.children) {
+      const inside = node.kind === 'group' && visit(node.group);
+      if (inside || matchesFilter(node, wanted, lang)) {
+        shown.add(node.id);
+        any = true;
+      }
+    }
+    return any;
+  };
+  visit(project.root);
+  return shown;
 }
 
 /** The ids of the group nodes that hold node `id`, outermost first (none at the top level or for an unknown id). */

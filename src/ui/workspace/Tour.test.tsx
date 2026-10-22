@@ -75,7 +75,7 @@ describe('Tour', () => {
         'On a selected item, N adds, Del deletes, Ctrl+G groups and Alt+↑ Alt+↓ move it. Ctrl+Z undoes any change.',
       ]),
     );
-    expect(keys()).toEqual(['N', 'Del', 'Ctrl+G', 'Alt+↑', 'Alt+↓', 'Ctrl+Z']);
+    expect(keys()).toEqual(['N', 'Del', 'Ctrl+G', 'Alt+↑', 'Alt+↓', 'Ctrl+Z', 'Ctrl+F']);
     await next(user);
     expect(within(tour()).getByText('{{', { selector: 'kbd' })).toBeInTheDocument();
 
@@ -93,7 +93,7 @@ describe('Tour', () => {
     const user = userEvent.setup();
     render(<Workspace />);
     await next(user);
-    expect(keys()).toEqual(['N', '⌫', '⌘G', '⌥↑', '⌥↓', '⌘Z']);
+    expect(keys()).toEqual(['N', '⌫', '⌘G', '⌥↑', '⌥↓', '⌘Z', '⌘F']);
     await next(user, 2);
     expect(keys()).toEqual(['⌥⌘B']);
   });
