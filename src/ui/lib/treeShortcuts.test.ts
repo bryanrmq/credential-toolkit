@@ -26,6 +26,8 @@ describe('treeShortcut', () => {
     expect(press('g', { ctrl: true, shift: true })).toBe('ungroup');
     expect(press('ArrowUp', { alt: true })).toBe('moveUp');
     expect(press('ArrowDown', { alt: true })).toBe('moveDown');
+    expect(press('f', { meta: true })).toBe('filter');
+    expect(press('f', { ctrl: true })).toBe('filter');
   });
 
   it('ignores other keys and modifier combinations', () => {
@@ -45,6 +47,9 @@ describe('treeShortcut', () => {
     expect(press('c', { meta: true })).toBeNull();
     expect(press('x', { ctrl: true })).toBeNull();
     expect(press('v', { meta: true })).toBeNull();
+    expect(press('f')).toBeNull();
+    expect(press('F', { meta: true, shift: true })).toBeNull();
+    expect(press('f', { meta: true, alt: true })).toBeNull();
   });
 });
 
@@ -61,5 +66,7 @@ describe('treeShortcutLabel', () => {
     expect(treeShortcutLabel('rename', false)).toBe('F2');
     expect(treeShortcutLabel('copy', true)).toBe('⌘C');
     expect(treeShortcutLabel('paste', false)).toBe('Ctrl+V');
+    expect(treeShortcutLabel('filter', true)).toBe('⌘F');
+    expect(treeShortcutLabel('filter', false)).toBe('Ctrl+F');
   });
 });
