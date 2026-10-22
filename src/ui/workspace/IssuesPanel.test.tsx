@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { emptyGroup, emptyProject, newAttribute, newGroupLink } from '../../core/model';
+import { oneNode } from '../../state/selection';
 import { useStore } from '../../state/store';
 import { TOUR_SEEN_KEY } from '../lib/tour';
 import { Workspace } from './Workspace';
@@ -118,7 +119,7 @@ describe('IssuesPanel', () => {
     const user = userEvent.setup();
     render(<Workspace />);
     await user.click(within(row(/"broken" has no source path/)).getByText('broken'));
-    expect(useStore.getState().selection).toEqual({ kind: 'node', id: project.root.children[1].id });
+    expect(useStore.getState().selection).toEqual(oneNode(project.root.children[1].id));
     expect(screen.getByLabelText('Key')).toHaveValue('broken');
   });
 

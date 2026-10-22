@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProject } from '../../core/model';
+import { oneNode } from '../../state/selection';
 import { useStore } from '../../state/store';
 import concepts from '../../test/fixtures/i14y-concepts.json';
 import search from '../../test/fixtures/i14y-search-geschlecht.json';
@@ -47,7 +48,7 @@ describe('I14yDialog', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     const [attribute] = useStore.getState().project!.root.children;
     expect(attribute).toMatchObject({ key: 'sex', labels: { 'de-CH': 'Geschlecht' } });
-    expect(useStore.getState().selection).toEqual({ kind: 'node', id: attribute.id });
+    expect(useStore.getState().selection).toEqual(oneNode(attribute.id));
     const searchUrl = fetchMock.mock.calls.map(([url]) => url).find((url) => url.includes('/search?'));
     expect(searchUrl).toContain('query=Geschlecht');
     expect(searchUrl).toContain('language=de');

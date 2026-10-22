@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProject, newAttribute } from '../core/model';
 import { insertNode, removeLanguage, removeNode, renameLanguage } from '../core/operations';
 import type { Fix } from '../core/validate/fixes';
+import { oneNode } from './selection';
 import { HISTORY_LIMIT, TYPING_PAUSE_MS, endTyping, useStore } from './store';
 
 const setName = (name: string): Fix => ({ label: `Name ${name}`, apply: (draft) => void (draft.meta['de-CH'].name = name) });
@@ -99,6 +100,11 @@ describe('applyFixes', () => {
 describe('history', () => {
   const setDescription = (text: string, field?: string) => useStore.getState().update((draft) => void (draft.meta['de-CH'].description = text), { field });
   const description = () => useStore.getState().project?.meta['de-CH'].description;
+  const addAttributes = (...keys: string[]) => {
+    const attributes = keys.map((key) => newAttribute(key));
+    useStore.getState().update((draft) => attributes.forEach((attribute) => insertNode(draft, draft.root.id, attribute)));
+    return attributes;
+  };
 
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
@@ -204,7 +210,7 @@ describe('history', () => {
     useStore.getState().select({ kind: 'credential' });
 
     useStore.getState().undo();
-    expect(useStore.getState().selection).toEqual({ kind: 'node', id: attribute.id });
+    expect(useStore.getState().selection).toEqual(oneNode(attribute.id));
     useStore.getState().redo();
     expect(useStore.getState().selection).toEqual({ kind: 'credential' });
   });
@@ -212,13 +218,61 @@ describe('history', () => {
   it('selects the credential when the restored selection names a node that does not exist', () => {
     const attribute = newAttribute('age');
     useStore.getState().update((draft) => insertNode(draft, draft.root.id, attribute));
-    useStore.getState().select({ kind: 'node', id: attribute.id });
-    // The node goes while still selected, so the next step records a selection of a missing node.
+    // A selection of a node that is gone, recorded by the next step.
     useStore.getState().update((draft) => void removeNode(draft, attribute.id));
+    useStore.setState({ selection: oneNode(attribute.id) });
     setDescription('A');
 
     useStore.getState().undo();
     expect(useStore.getState().selection).toEqual({ kind: 'credential' });
+  });
+
+  it('restores a multi-selection on undo and redo', () => {
+    const [a, b, c] = addAttributes('a', 'b', 'c');
+    useStore.getState().select({ kind: 'node', id: c.id, ids: [a.id, c.id], anchor: a.id });
+    const multi = useStore.getState().selection;
+    setDescription('A');
+    useStore.getState().select({ kind: 'node', id: b.id });
+
+    useStore.getState().undo();
+    expect(useStore.getState().selection).toEqual(multi);
+    useStore.getState().redo();
+    expect(useStore.getState().selection).toEqual(oneNode(b.id));
+  });
+
+  it('drops the restored nodes that no longer exist and keeps the others', () => {
+    const [a, b] = addAttributes('a', 'b');
+    useStore.getState().update((draft) => void removeNode(draft, b.id));
+    // A multi-selection whose primary is gone, recorded by the next step.
+    useStore.setState({ selection: { kind: 'node', id: b.id, ids: [a.id, b.id], anchor: b.id } });
+    setDescription('A');
+
+    useStore.getState().undo();
+    expect(useStore.getState().selection).toEqual(oneNode(a.id));
+  });
+
+  it('selects the credential when none of the restored nodes exist', () => {
+    const [a, b] = addAttributes('a', 'b');
+    useStore.getState().update((draft) => {
+      removeNode(draft, a.id);
+      removeNode(draft, b.id);
+    });
+    useStore.setState({ selection: { kind: 'node', id: a.id, ids: [a.id, b.id], anchor: a.id } });
+    setDescription('A');
+
+    useStore.getState().undo();
+    expect(useStore.getState().selection).toEqual({ kind: 'credential' });
+  });
+
+  it('drops deleted nodes from the selection when an edit removes them', () => {
+    const [a, b] = addAttributes('a', 'b');
+    useStore.getState().select({ kind: 'node', id: b.id, ids: [a.id, b.id] });
+    useStore.getState().update((draft) => void removeNode(draft, b.id));
+    expect(useStore.getState().selection).toEqual(oneNode(a.id));
+
+    // Undo brings the node back with the selection it had.
+    useStore.getState().undo();
+    expect(useStore.getState().selection).toMatchObject({ id: b.id, ids: [a.id, b.id] });
   });
 
   it('brings a deleted node back on undo, selected as it was', () => {
@@ -230,7 +284,7 @@ describe('history', () => {
 
     useStore.getState().undo();
     expect(useStore.getState().project?.root.children.map((node) => node.id)).toEqual([attribute.id]);
-    expect(useStore.getState().selection).toEqual({ kind: 'node', id: attribute.id });
+    expect(useStore.getState().selection).toEqual(oneNode(attribute.id));
   });
 
   it('follows the edit language through undo and redo of a removal', () => {

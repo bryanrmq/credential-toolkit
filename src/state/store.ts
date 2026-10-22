@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import type { CardPlatform, CardVariant } from '../core/card/profiles';
 import type { ReportNote } from '../core/import/report';
-import { type LangTag, type Project, findNode } from '../core/model';
+import type { LangTag, Project } from '../core/model';
 import type { Fix } from '../core/validate/fixes';
+import { CREDENTIAL, type Selection, type SelectionRequest, normalizeSelection, selectionIn } from './selection';
 
-export type Selection = { kind: 'credential' } | { kind: 'node'; id: string };
+export type { Selection, SelectionRequest } from './selection';
 export type View = 'editor' | 'translations';
 export type Theme = 'light' | 'dark';
 export type OutputTab = 'bundle' | 'vct';
@@ -54,7 +55,8 @@ export interface AppState {
   update: (recipe: (draft: Project) => void, options?: { field?: string | Element }) => void;
   undo: () => void;
   redo: () => void;
-  select: (selection: Selection) => void;
+  /** Selects the credential, one node, or several nodes (`ids`) with `id` as the primary. */
+  select: (selection: SelectionRequest) => void;
   setEditLang: (lang: LangTag) => void;
   setView: (view: View) => void;
   setBrandingTheme: (theme: Theme) => void;
@@ -77,11 +79,6 @@ export interface AppState {
 function followEditLang(before: Project, after: Project, lang: LangTag): LangTag {
   if (after.languages.includes(lang)) return lang;
   return after.languages[before.languages.indexOf(lang)] ?? after.languages[0] ?? '';
-}
-
-/** `selection` if its node is still in `project`, else the credential. */
-function selectionIn(project: Project, selection: Selection): Selection {
-  return selection.kind === 'node' && !findNode(project.root, selection.id) ? { kind: 'credential' } : selection;
 }
 
 /** `past` with `step` added, keeping the last `HISTORY_LIMIT` steps. */
@@ -127,7 +124,7 @@ function travel(state: AppState, direction: 'undo' | 'redo'): Partial<AppState> 
 
 export const useStore = create<AppState>()((set, get) => ({
   project: null,
-  selection: { kind: 'credential' },
+  selection: CREDENTIAL,
   editLang: '',
   view: 'editor',
   brandingTheme: 'light',
@@ -149,7 +146,7 @@ export const useStore = create<AppState>()((set, get) => ({
       project,
       report: report && report.length ? report : null,
       i14yReview: options?.reviewI14y ?? false,
-      selection: { kind: 'credential' },
+      selection: CREDENTIAL,
       editLang: project.languages[0] ?? '',
       view: 'editor',
       brandingTheme: 'light',
@@ -164,7 +161,7 @@ export const useStore = create<AppState>()((set, get) => ({
       project: null,
       report: null,
       i14yReview: false,
-      selection: { kind: 'credential' },
+      selection: CREDENTIAL,
       languagesOpen: false,
       tourOpen: false,
       past: [],
@@ -184,6 +181,7 @@ export const useStore = create<AppState>()((set, get) => ({
     typing = field === undefined ? null : { field, at: now };
     set({
       project: next,
+      selection: selectionIn(next, selection),
       editLang,
       past: merges ? past : record(past, { project: current, selection }),
       future: [],
@@ -192,7 +190,7 @@ export const useStore = create<AppState>()((set, get) => ({
   },
   undo: () => set(travel(get(), 'undo')),
   redo: () => set(travel(get(), 'redo')),
-  select: (selection) => set({ selection }),
+  select: (selection) => set({ selection: normalizeSelection(get().project, selection) }),
   setEditLang: (editLang) => set({ editLang }),
   setView: (view) => set({ view }),
   setBrandingTheme: (brandingTheme) => set({ brandingTheme }),
@@ -231,6 +229,7 @@ export const useStore = create<AppState>()((set, get) => ({
       set({
         fixing: false,
         project: draft,
+        selection: selectionIn(draft, get().selection),
         editLang: followEditLang(before, draft, get().editLang),
         past: record(get().past, { project: before, selection: get().selection }),
         future: [],
