@@ -115,4 +115,11 @@ describe('selectionIn', () => {
   it('falls back to the credential when no node is left', () => {
     expect(selectionIn(project().project, several('gone', ['gone']))).toEqual(CREDENTIAL);
   });
+
+  it('puts the ids back in tree order after a move', () => {
+    const { project: p, a, g, b, d } = project();
+    p.root.children.reverse();
+    // d, g { b, c }, a
+    expect(selectionIn(p, several(a, [a, b, d], g))).toEqual(several(a, [d, b, a], g));
+  });
 });

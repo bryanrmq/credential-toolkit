@@ -157,6 +157,53 @@ export function moveNodes(project: Project, nodeIds: Iterable<string>, direction
   return moved;
 }
 
+/** The given node ids that do not sit inside another given node, in tree order. Unknown ids are left out. */
+export function outermostIds(project: Project, nodeIds: Iterable<string>): string[] {
+  return outermostNodes(project, nodeIds).map(({ node }) => node.id);
+}
+
+/**
+ * Where `moveNodesTo` puts the nodes: the target group and the first of its children, from `index`
+ * on, that is not moving (undefined for the end). Undefined when no given id names a node or the
+ * target group is missing or sits inside (or is) one of the moving nodes.
+ */
+function placement(project: Project, nodeIds: Iterable<string>, groupId: string, index: number) {
+  const visits = outermostNodes(project, nodeIds);
+  const group = findGroup(project.root, groupId);
+  if (!visits.length || !group || visits.some(({ node }) => containsGroup(node, groupId))) return undefined;
+  const moving = new Set(visits.map(({ node }) => node));
+  const anchor = group.children.slice(Math.max(0, index)).find((child) => !moving.has(child));
+  return { visits, group, anchor };
+}
+
+/**
+ * Whether `moveNodesTo` with the same arguments would change the tree: the target is valid and the
+ * nodes are not already side by side, in tree order, just before that spot in that group.
+ */
+export function canMoveNodesTo(project: Project, nodeIds: Iterable<string>, groupId: string, index: number): boolean {
+  const place = placement(project, nodeIds, groupId, index);
+  if (!place) return false;
+  const { visits, group, anchor } = place;
+  const end = anchor ? group.children.indexOf(anchor) : group.children.length;
+  const before = group.children.slice(end - visits.length, end);
+  return end < visits.length || visits.some(({ node }, at) => before[at] !== node);
+}
+
+/**
+ * Moves the given nodes, in tree order, into the group `groupId` just before the child now at
+ * `index` (the end when `index` is past the last child); a node inside another given node comes
+ * along with it. Every move goes through `moveNode`, so template references follow. Refuses
+ * (returns false, changes nothing) a target inside one of the nodes, and does nothing (returns
+ * false) when the nodes are already there.
+ */
+export function moveNodesTo(project: Project, nodeIds: Iterable<string>, groupId: string, index: number): boolean {
+  const ids = [...nodeIds];
+  if (!canMoveNodesTo(project, ids, groupId, index)) return false;
+  const { visits, group, anchor } = placement(project, ids, groupId, index)!;
+  for (const { node } of visits) moveNode(project, node.id, group.id, anchor ? group.children.indexOf(anchor) : group.children.length);
+  return true;
+}
+
 /** Removes every given node in one go; a node inside another given node goes with it. Returns the removed nodes. */
 export function removeNodes(project: Project, nodeIds: Iterable<string>): Node[] {
   return outermostNodes(project, nodeIds).map(({ node, parent }) => {
