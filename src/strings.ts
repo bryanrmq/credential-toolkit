@@ -102,6 +102,8 @@ export const t = {
     addFromI14yTitle: 'Add attributes from I14Y',
     dragHandle: (key: string) => `Move ${key}`,
     rename: (key: string) => `Rename ${key || 'node'}`,
+    expand: (key: string) => `Expand ${key || 'group'}`,
+    collapse: (key: string) => `Collapse ${key || 'group'}`,
     emptyDrop: 'Empty, drop items here',
     dragCount: (count: number) => `${count} items`,
   },

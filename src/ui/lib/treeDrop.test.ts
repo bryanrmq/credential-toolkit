@@ -95,6 +95,23 @@ describe('dropTarget', () => {
     });
   });
 
+  it('keeps a collapsed group shut: its middle drops inside it at its end, its lower part after it', () => {
+    const { project, a, d, empty, person } = tree();
+    // Collapsed, person's children have no rows: a, person, empty, its hint line, d.
+    const ids = [a.id, person.id, empty.id, emptyRowId(empty.group.id), d.id];
+    const rows: RowBox[] = ids.map((id, at) => ({ id, top: at * 32, bottom: at * 32 + 32 }));
+    expect(dropTarget(project, [d.id], rows, yOf(1), true, [person.id])).toEqual({
+      groupId: person.group.id,
+      index: 2,
+      indicator: { kind: 'inside', row: person.id },
+    });
+    expect(dropTarget(project, [d.id], rows, yOf(1, 30), true, [person.id])).toEqual({
+      groupId: project.root.id,
+      index: 2,
+      indicator: { kind: 'line', row: person.id, edge: 'bottom' },
+    });
+  });
+
   it('drops at the end of the top level below the last row', () => {
     const { project, b, rows } = tree();
     expect(dropTarget(project, [b.id], rows, 400, true)).toEqual({ groupId: project.root.id, index: 4, indicator: { kind: 'end' } });

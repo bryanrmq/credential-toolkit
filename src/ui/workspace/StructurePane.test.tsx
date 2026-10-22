@@ -364,6 +364,25 @@ describe('Structure tree', () => {
       expect(shape()).toEqual(['b', 'a', { person: ['c', 'd'] }]);
       expect(useStore.getState().project!.branding['de-CH'].light.primaryField).toBe('{{person.d}} {{b}}');
     });
+
+    it('never opens a collapsed group while dragging: its lower part drops after it, its middle inside at its end', () => {
+      render(<Workspace />);
+      act(() => useStore.getState().setGroupOpen(row('person').dataset.row!, false));
+      let drag = startDrag('a');
+      drag.moveTo(yOver(row('person'), 30));
+      expect(row('person')).toHaveAttribute('data-drop', 'after');
+      drag.drop();
+      expect(shape()).toEqual([{ person: ['b', 'c'] }, 'a', 'd']);
+
+      drag = startDrag('d');
+      drag.moveTo(yOver(row('person')));
+      expect(row('person')).toHaveAttribute('data-drop', 'inside');
+      expect(row('person')).toHaveAttribute('aria-expanded', 'false');
+      drag.drop();
+      expect(shape()).toEqual([{ person: ['b', 'c', 'd'] }, 'a']);
+      // `d` was not selected, so nothing needs revealing.
+      expect(row('person')).toHaveAttribute('aria-expanded', 'false');
+    });
   });
 });
 
@@ -655,5 +674,155 @@ describe('inline rename', () => {
     act(() => row('a').focus());
     await user.keyboard('{F2}');
     expect(within(tree()).queryByRole('textbox')).toBeNull();
+  });
+});
+
+describe('collapse and expand', () => {
+  const chevron = (key: string, action: 'Collapse' | 'Expand') => within(row(key)).getByRole('button', { name: `${action} ${key}` });
+  const rowKeys = () => within(tree()).getAllByRole('treeitem').map((item) => item.querySelector('.tree__key')?.textContent);
+
+  it('a chevron on each group row, lists of objects too, toggles it without changing the selection', async () => {
+    act(() => useStore.getState().update((draft) => void draft.root.children.push(newGroupLink('items', { array: true, group: { id: 'items-group', children: [newAttribute('e')], passthrough: [] } }))));
+    const user = userEvent.setup();
+    render(<Workspace />);
+    expect(row('person')).toHaveAttribute('aria-expanded', 'true');
+    expect(row('items')).toHaveAttribute('aria-expanded', 'true');
+    expect(row('a')).not.toHaveAttribute('aria-expanded');
+    expect(within(row('a')).queryByRole('button', { name: /^(Collapse|Expand) / })).toBeNull();
+    // Like the drag handles, the chevrons are out of the tab order.
+    expect(chevron('person', 'Collapse')).toHaveAttribute('tabindex', '-1');
+
+    await user.click(row('a'));
+    await user.click(chevron('person', 'Collapse'));
+    expect(row('person')).toHaveAttribute('aria-expanded', 'false');
+    expect(rowKeys()).toEqual(['Credential', 'a', 'person', 'd', 'items', 'e']);
+    expect(selectedKeys()).toEqual(['a']);
+    await user.click(chevron('items', 'Collapse'));
+    expect(rowKeys()).toEqual(['Credential', 'a', 'person', 'd', 'items']);
+
+    await user.click(chevron('person', 'Expand'));
+    expect(row('person')).toHaveAttribute('aria-expanded', 'true');
+    expect(rowKeys()).toEqual(['Credential', 'a', 'person', 'b', 'c', 'd', 'items']);
+    expect(selectedKeys()).toEqual(['a']);
+  });
+
+  it('collapsing a group that holds selected rows selects the group in their place', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('a'));
+    await user.keyboard('{Meta>}');
+    await user.click(row('c'));
+    await user.keyboard('{/Meta}');
+    await user.click(chevron('person', 'Collapse'));
+    expect(selectedKeys()).toEqual(['a', 'person']);
+    expect(primaryKey()).toBe('person');
+    await waitFor(() => expect(row('person')).toHaveFocus());
+  });
+
+  it('→ expands a collapsed group, then goes to its first child; ← goes to the group around, then collapses it', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('person'));
+    await user.keyboard('{ArrowLeft}');
+    expect(row('person')).toHaveAttribute('aria-expanded', 'false');
+    expect(row('person')).toHaveFocus();
+    // Nothing above the top level, and nothing to the right of an attribute.
+    await user.keyboard('{ArrowLeft}');
+    expect(selectedKeys()).toEqual(['person']);
+
+    await user.keyboard('{ArrowRight}');
+    expect(row('person')).toHaveAttribute('aria-expanded', 'true');
+    expect(selectedKeys()).toEqual(['person']);
+    await user.keyboard('{ArrowRight}');
+    expect(selectedKeys()).toEqual(['b']);
+    expect(row('b')).toHaveFocus();
+    await user.keyboard('{ArrowRight}');
+    expect(selectedKeys()).toEqual(['b']);
+
+    await user.keyboard('{ArrowLeft}');
+    expect(selectedKeys()).toEqual(['person']);
+    expect(row('person')).toHaveFocus();
+    expect(row('person')).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('↑ / ↓, End and ⇧ ranges skip the rows inside a collapsed group', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(chevron('person', 'Collapse'));
+    await user.click(row('a'));
+    await user.keyboard('{ArrowDown}');
+    expect(selectedKeys()).toEqual(['person']);
+    await user.keyboard('{ArrowDown}');
+    expect(selectedKeys()).toEqual(['d']);
+    await user.keyboard('{Shift>}{ArrowUp}{ArrowUp}{/Shift}');
+    expect(selectedKeys()).toEqual(['a', 'person', 'd']);
+    expect(row('person')).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(row('d'));
+    await user.keyboard('{Shift>}');
+    await user.click(row('a'));
+    await user.keyboard('{/Shift}');
+    expect(selectedKeys()).toEqual(['a', 'person', 'd']);
+    await user.keyboard('{End}');
+    expect(selectedKeys()).toEqual(['d']);
+  });
+
+  it('remembers the collapsed groups per project', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<Workspace />);
+    const first = useStore.getState().project!;
+    await user.click(chevron('person', 'Collapse'));
+    unmount();
+
+    // Another project starts with its groups expanded.
+    loadProject();
+    const second = render(<Workspace />);
+    expect(row('person')).toHaveAttribute('aria-expanded', 'true');
+    second.unmount();
+
+    act(() => useStore.getState().load(first));
+    render(<Workspace />);
+    expect(row('person')).toHaveAttribute('aria-expanded', 'false');
+    expect(within(tree()).queryByText('b')).toBeNull();
+  });
+
+  it('expands the groups around a node selected any other way: undo, a new node, the store', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('b'));
+    act(() => useStore.getState().update((draft) => void (draft.meta['de-CH'].description = 'Edited')));
+    await user.click(row('d'));
+    await user.click(chevron('person', 'Collapse'));
+    act(() => useStore.getState().undo());
+    expect(row('person')).toHaveAttribute('aria-expanded', 'true');
+    expect(selectedKeys()).toEqual(['b']);
+
+    // N with a collapsed group selected adds inside it, at its end, and shows the new row.
+    await user.click(chevron('person', 'Collapse'));
+    expect(selectedKeys()).toEqual(['person']);
+    act(() => row('person').focus());
+    await user.keyboard('n');
+    expect(row('person')).toHaveAttribute('aria-expanded', 'true');
+    expect(rowKeys()).toEqual(['Credential', 'a', 'person', 'b', 'c', 'attribute', 'd']);
+
+    await user.click(chevron('person', 'Collapse'));
+    const c = useStore.getState().project!.root.children[1];
+    act(() => useStore.getState().select({ kind: 'node', id: c.kind === 'group' ? c.group.children[1].id : '' }));
+    expect(selectedKeys()).toEqual(['c']);
+  });
+
+  it('jumping to an issue on a node inside a collapsed group reveals it', async () => {
+    act(() =>
+      useStore.getState().update((draft) => {
+        const person = draft.root.children[1];
+        if (person.kind === 'group') person.group.children.push(newAttribute('broken', { source: [] }));
+      }),
+    );
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(chevron('person', 'Collapse'));
+    await user.click(within(screen.getByRole('region', { name: 'Issues' })).getByRole('button', { name: /"broken" has no source path/ }));
+    expect(row('person')).toHaveAttribute('aria-expanded', 'true');
+    expect(selectedKeys()).toEqual(['broken']);
   });
 });
