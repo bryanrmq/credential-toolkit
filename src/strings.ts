@@ -248,8 +248,6 @@ export const t = {
     integrity: 'uri#integrity',
     size: (kb: string) => `${kb} KB`,
     vctHint: 'Add these entries to the "display" array of your SD-JWT VC Type Metadata. The type metadata also needs "profile_version": "swiss-profile-vc:1.0.0".',
-    preview: 'Preview on device',
-    previewSoon: 'Coming later: open the bundle in the swiyu preview app.',
     working: 'Building…',
     failed: (message: string) => `The bundle could not be built: ${message}`,
   },
