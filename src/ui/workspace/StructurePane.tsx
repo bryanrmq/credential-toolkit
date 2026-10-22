@@ -54,7 +54,7 @@ import {
 import { moveNodesTo, outermostIds, renameNode } from '../../core/operations';
 import { CREDENTIAL, extendTo, isSelected, oneNode, rowAfter, selectedIds, toggleNode } from '../../state/selection';
 import { type Selection, useStore } from '../../state/store';
-import { ancestorIds, visibleRows } from '../../state/treeView';
+import { ancestorIds, filteredIds, visibleRows } from '../../state/treeView';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
 import { PopupMenu, type PopupMenuItem } from '../components/PopupMenu';
@@ -124,11 +124,13 @@ const CREDENTIAL_ROW = 'credential';
 
 /**
  * What every row needs from the tree: the I14Y matches, the one row in the tab order, the click
- * handlers, the row being renamed and how a rename ends, how a group expands or collapses and, while
- * dragging, the dragged nodes, where a drop would land and whether groups take drops inside (wide windows only).
+ * handlers, the row being renamed and how a rename ends, how a group expands or collapses, the rows a
+ * filter shows (null when the tree is not filtered) and, while dragging, the dragged nodes, where a drop
+ * would land and whether groups take drops inside (wide windows only).
  */
 interface RowContext {
   matches: Matches;
+  shown: ReadonlySet<string> | null;
   focusId: string;
   onRowClick: (id: string, event: MouseEvent) => void;
   onRowDoubleClick: (id: string, event: MouseEvent) => void;
@@ -138,6 +140,11 @@ interface RowContext {
   drop: DropIndicator | null;
   inside: boolean;
   onToggle: (id: string, open: boolean) => void;
+}
+
+/** Whether a filtered tree shows anything inside `group`: the group node around it is then expanded. */
+function showsInside(group: Group, shown: ReadonlySet<string>): boolean {
+  return group.children.some((child) => shown.has(child.id));
 }
 
 /** The `data-drop` value of row `id` for `indicator`: an outline (inside) or an insertion line above or below it. */
@@ -154,10 +161,13 @@ function NodeRow({ node, level, context }: { node: Node; level: number; context:
   const editLang = useStore((state) => state.editLang);
   const issues = useIssues().filter((issue) => issue.target.kind === 'node' && issue.target.nodeId === node.id);
   const severity = issues.some((issue) => issue.severity === 'error') ? 'error' : issues.length ? 'warning' : null;
-  const draggable = useDraggable({ id: node.id });
-  const droppable = useDroppable({ id: node.id });
+  // While filtering, nothing drags: drop places among hidden rows would be ambiguous.
+  const draggable = useDraggable({ id: node.id, disabled: context.shown !== null });
+  const droppable = useDroppable({ id: node.id, disabled: context.shown !== null });
   const match = context.matches.get(node.id)?.hits[0];
-  const open = useStore((state) => node.kind === 'group' && !state.collapsed.includes(node.id));
+  const saidOpen = useStore((state) => node.kind === 'group' && !state.collapsed.includes(node.id));
+  // A filtered tree expands the groups around its matches, without changing which groups are collapsed.
+  const open = context.shown && node.kind === 'group' ? showsInside(node.group, context.shown) : saidOpen;
 
   return (
     <li role="none" className={context.dragged?.includes(node.id) ? 'tree__dragging' : undefined}>
@@ -189,7 +199,12 @@ function NodeRow({ node, level, context }: { node: Node; level: number; context:
         >
           <DotsSixVerticalIcon />
         </button>
-        {node.kind === 'group' ? (
+        {node.kind === 'group' && context.shown ? (
+          // While filtering, the matches decide what shows: the chevron only tells.
+          <span className="tree__toggle" aria-hidden="true">
+            <CaretRightIcon size={12} weight="bold" />
+          </span>
+        ) : node.kind === 'group' ? (
           // Also out of the tab order (← / → expand and collapse), and a click on it neither takes focus nor selects the row.
           <button
             type="button"
@@ -298,10 +313,12 @@ function EmptyDrop({ group }: { group: Group }) {
 }
 
 function NodeList({ group, level, context }: { group: Group; level: number; context: RowContext }) {
+  const { shown } = context;
   // The top level's rows belong to the tree itself; a group's rows form a nested group.
   return (
     <ul className="tree" role={level === 1 ? 'none' : 'group'} data-drop-end={(level === 1 && context.drop?.kind === 'end') || undefined}>
       {group.children.length === 0 &&
+        !shown &&
         (context.dragged && context.inside ? (
           <EmptyDrop group={group} />
         ) : (
@@ -309,9 +326,7 @@ function NodeList({ group, level, context }: { group: Group; level: number; cont
             {t.structure.empty}
           </li>
         ))}
-      {group.children.map((child) => (
-        <NodeRow key={child.id} node={child} level={level} context={context} />
-      ))}
+      {group.children.map((child) => (!shown || shown.has(child.id)) && <NodeRow key={child.id} node={child} level={level} context={context} />)}
     </ul>
   );
 }
@@ -336,13 +351,17 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
   const project = useStore((state) => state.project)!;
   const selection = useStore((state) => state.selection);
   const collapsed = useStore((state) => state.collapsed);
-  const { update, select, setGroupOpen, setReport } = useStore.getState();
+  const filterText = useStore((state) => state.treeFilter);
+  const editLang = useStore((state) => state.editLang);
+  const { update, select, setGroupOpen, setReport, setTreeFilter } = useStore.getState();
+  // The rows a filter shows, or null when the tree is not filtered.
+  const shown = filteredIds(project, filterText, editLang);
   // The node rows on screen, in order: arrows, Home / End and ⇧ ranges move over these only.
-  const nodeRows = visibleRows(project, collapsed);
+  const nodeRows = visibleRows(project, collapsed, shown);
   const [filling, setFilling] = useState(false);
   const [i14yGroupId, setI14yGroupId] = useState<string | null>(null);
   const [menu, setMenu] = useState<TreeMenu | null>(null);
-  const closeMenu = useCallback(() => setMenu(null), []);
+  const closeMenu = useCallback(() => setMenu(null), [setMenu]);
   // Whether the Add menu was open when its button was pressed: the press closes it, so the click must not reopen it.
   const addWasOpen = useRef(false);
   // With unlinked attributes, load the cached I14Y catalogue to mark the ones that look like a concept.
@@ -352,14 +371,18 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
   const wide = useWideWindow();
   const treeRef = useRef<HTMLDivElement>(null);
+  const filterRef = useRef<HTMLInputElement>(null);
   // How the last press on the tree came: a touch tap always selects one node.
   const pointerType = useRef('mouse');
-  // Roving tabindex: the primary row is the tree's one tab stop.
-  const focusId = selection.kind === 'node' && findNode(project.root, selection.id) ? selection.id : CREDENTIAL_ROW;
+  // Roving tabindex: the primary row is the tree's one tab stop, or the Credential row while a filter hides the primary.
+  const focusId = selection.kind === 'node' && nodeRows.includes(selection.id) ? selection.id : CREDENTIAL_ROW;
 
-  const focusRow = (id: string) => {
+  /** Focuses row `id`; returns whether it is on screen. */
+  const focusRow = (id: string): boolean => {
     const rows = treeRef.current?.querySelectorAll<HTMLElement>('[data-row]') ?? [];
-    [...rows].find((row) => row.dataset.row === id)?.focus();
+    const found = [...rows].find((row) => row.dataset.row === id);
+    found?.focus();
+    return found !== undefined;
   };
 
   // On wide windows with a mouse, ⌘-click (Ctrl-click) toggles a node and ⇧-click selects a range.
@@ -409,19 +432,43 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     if (focused) refocusTree();
   };
 
-  /** Keeps keyboard focus in the tree once a change has re-rendered it: on the primary row, or the Credential row. */
+  /**
+   * Keeps keyboard focus in the tree once a change has re-rendered it: on the primary row, or the
+   * Credential row, or the tree's tab stop when a filter hides the primary.
+   */
   const refocusTree = () =>
     requestAnimationFrame(() => {
       const current = useStore.getState().selection;
-      focusRow(current.kind === 'node' ? current.id : CREDENTIAL_ROW);
+      if (focusRow(current.kind === 'node' ? current.id : CREDENTIAL_ROW)) return;
+      treeRef.current?.querySelector<HTMLElement>('[role="treeitem"][tabindex="0"]')?.focus();
     });
 
   // ⌘C, ⌘X and ⌘V while a row has focus; paste puts the nodes where N adds one.
   useTreeClipboard(treeRef, wide, refocusTree);
 
+  const focusFilter = () => {
+    filterRef.current?.focus();
+    filterRef.current?.select();
+  };
+
+  // In the filter box, Escape clears it and goes back to the tree, and ↓ goes to the first row it shows.
+  const onFilterKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing || event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setTreeFilter('');
+      refocusTree();
+    } else if (event.key === 'ArrowDown' && nodeRows.length > 0) {
+      event.preventDefault();
+      select({ kind: 'node', id: nodeRows[0] });
+      focusRow(nodeRows[0]);
+    }
+  };
+
   // The tree shortcuts other than ⏎, which the Enter branch below handles. Adding and grouping focus the new key field.
   const runShortcut = (shortcut: Exclude<TreeShortcut, 'edit'>) => {
-    if (shortcut === 'add') addNode();
+    if (shortcut === 'filter') focusFilter();
+    else if (shortcut === 'add') addNode();
     else if (shortcut === 'rename') renameSelection();
     else if (shortcut === 'group') groupSelection();
     else {
@@ -435,17 +482,19 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
 
   /**
    * → (`inward`) expands the primary row's group when collapsed, else goes to its first child; ← collapses
-   * it when expanded, else goes to the group around the row (ARIA tree pattern).
+   * it when expanded, else goes to the group around the row (ARIA tree pattern). While filtering, the
+   * matches decide which groups are expanded, so ← and → only step across levels.
    */
   const stepAcross = (current: Selection, inward: boolean) => {
     const node = current.kind === 'node' ? findNode(project.root, current.id)?.node : undefined;
     if (!node) return;
-    const open = node.kind === 'group' && !collapsed.includes(node.id);
-    if (node.kind === 'group' && open !== inward) {
+    const open = node.kind === 'group' && (shown ? showsInside(node.group, shown) : !collapsed.includes(node.id));
+    if (node.kind === 'group' && open !== inward && !shown) {
       setGroupOpen(node.id, inward);
       return;
     }
-    const target = inward ? (open ? node.group.children[0]?.id : undefined) : ancestorIds(project, node.id).at(-1);
+    const firstChild = node.kind === 'group' ? node.group.children.find((child) => !shown || shown.has(child.id))?.id : undefined;
+    const target = inward ? (open ? firstChild : undefined) : ancestorIds(project, node.id).at(-1);
     if (!target) return;
     select({ kind: 'node', id: target });
     focusRow(target);
@@ -466,7 +515,8 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     }
     const shortcut = treeShortcut(event.nativeEvent);
     const active = treeShortcutsActive(event.target, wide);
-    if (shortcut && shortcut !== 'edit' && active) {
+    // ⌘F goes to the filter box, which an empty structure does not have: the browser's find runs then.
+    if (shortcut && shortcut !== 'edit' && active && (shortcut !== 'filter' || filterRef.current)) {
       event.preventDefault();
       runShortcut(shortcut);
       return;
@@ -507,6 +557,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
   const [drop, setDrop] = useState<DropTarget | null>(null);
   const context: RowContext = {
     matches,
+    shown,
     focusId,
     onRowClick,
     onRowDoubleClick,
@@ -712,6 +763,20 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
           <PlusIcon /> {t.structure.add}
           <CaretDownIcon className="btn__caret" />
         </Button>
+        {(project.root.children.length > 0 || filterText) && (
+          <input
+            ref={filterRef}
+            className="input tree-filter"
+            type="search"
+            aria-label={t.structure.filter}
+            placeholder={t.structure.filterPlaceholder}
+            value={filterText}
+            spellCheck={false}
+            autoComplete="off"
+            onChange={(event) => setTreeFilter(event.target.value)}
+            onKeyDown={onFilterKeyDown}
+          />
+        )}
       </div>
       <div className="pane__body" onContextMenu={onContextMenu}>
         <div
@@ -719,6 +784,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
           role="tree"
           aria-label={t.structure.title}
           aria-multiselectable={wide}
+          data-filtered={shown !== null || undefined}
           onKeyDown={onTreeKeyDown}
           onPointerDown={(event) => {
             pointerType.current = event.pointerType;
@@ -755,6 +821,11 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
             </DndContext>
           )}
         </div>
+        {shown?.size === 0 && (
+          <p className="tree__empty tree__no-matches" role="status">
+            {t.structure.noMatches}
+          </p>
+        )}
         {project.root.children.length === 0 && (
           <div className="empty-structure">
             <p className="empty-structure__title">{t.structure.empty}</p>

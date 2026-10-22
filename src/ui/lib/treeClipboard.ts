@@ -2,6 +2,7 @@ import { type RefObject, useEffect, useLayoutEffect, useRef } from 'react';
 import { parseClipboard, pasteNodes, serializeNodes } from '../../core/clipboard';
 import { type Selection, selectedIds } from '../../state/selection';
 import { useStore } from '../../state/store';
+import { filteredIds } from '../../state/treeView';
 import { copyText } from './download';
 import { type NodePlace, deleteNodes, newNodePlace } from './treeActions';
 import { treeShortcutsActive } from './treeShortcuts';
@@ -52,10 +53,11 @@ export function cutSelection(): void {
 
 /**
  * Pastes the nodes in clipboard `text` at `place` (by default where N adds a node), as one undo step,
- * and selects the copies. Returns false, changing nothing, for text that is not nodes from this app.
+ * and selects the copies. A tree filter stays on while it shows every copy, and is cleared otherwise.
+ * Returns false, changing nothing, for text that is not nodes from this app.
  */
 export function pasteText(text: string, place?: NodePlace): boolean {
-  const { project, selection, update, select } = useStore.getState();
+  const { project, selection, update, select, treeFilter, editLang, setTreeFilter } = useStore.getState();
   const nodes = project ? parseClipboard(text) : null;
   if (!project || !nodes) return false;
   const { groupId, index } = place ?? newNodePlace(project, selection);
@@ -63,6 +65,8 @@ export function pasteText(text: string, place?: NodePlace): boolean {
   update((draft) => void (ids = pasteNodes(draft, nodes, groupId, index)));
   if (!ids.length) return false;
   lastNodes = text;
+  const shown = filteredIds(useStore.getState().project!, treeFilter, editLang);
+  if (shown && ids.some((id) => !shown.has(id))) setTreeFilter('');
   select({ kind: 'node', id: ids[0], ids });
   return true;
 }
