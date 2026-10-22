@@ -41,6 +41,10 @@ describe('treeShortcut', () => {
     expect(press('Backspace', { meta: true })).toBeNull();
     expect(press('n', { composing: true })).toBeNull();
     expect(press('F2', { meta: true })).toBeNull();
+    // Copy, cut and paste come from the clipboard events, so their keys keep the browser's behaviour.
+    expect(press('c', { meta: true })).toBeNull();
+    expect(press('x', { ctrl: true })).toBeNull();
+    expect(press('v', { meta: true })).toBeNull();
   });
 });
 
@@ -55,5 +59,7 @@ describe('treeShortcutLabel', () => {
     expect(treeShortcutLabel('moveDown', false)).toBe('Alt+↓');
     expect(treeShortcutLabel('add', false)).toBe('N');
     expect(treeShortcutLabel('rename', false)).toBe('F2');
+    expect(treeShortcutLabel('copy', true)).toBe('⌘C');
+    expect(treeShortcutLabel('paste', false)).toBe('Ctrl+V');
   });
 });

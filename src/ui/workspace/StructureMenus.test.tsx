@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type Node, emptyProject, newAttribute, newGroupLink, walkNodes } from '../../core/model';
 import { useStore } from '../../state/store';
 import { TOUR_SEEN_KEY } from '../lib/tour';
+import { forgetCopiedNodes } from '../lib/treeClipboard';
 import { Workspace } from './Workspace';
 
 // The real dialog searches I14Y; this one only shows which group it would add to.
@@ -75,11 +76,12 @@ const rightClick = (user: User, target: Element) => user.pointer({ keys: '[Mouse
 beforeEach(() => {
   localStorage.clear();
   localStorage.setItem(TOUR_SEEN_KEY, '1');
+  forgetCopiedNodes();
   loadProject();
 });
 
 describe('Structure right-click menus', () => {
-  it('on an attribute: group, duplicate, add below, the moves that apply and Delete, with their shortcuts', async () => {
+  it('on an attribute: group, duplicate, add below, the moves that apply, Cut, Copy and Delete, with their shortcuts', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
     await rightClick(user, row('a'));
@@ -93,6 +95,9 @@ describe('Structure right-click menus', () => {
       'Add attribute below [N]',
       '—',
       'Move down [Alt+↓]',
+      '—',
+      'Cut [Ctrl+X]',
+      'Copy [Ctrl+C]',
       '—',
       'Delete [Del]',
     ]);
@@ -118,6 +123,7 @@ describe('Structure right-click menus', () => {
     await rightClick(user, row('d'));
     expect(selectedKeys()).toEqual(['c', 'd']);
     expect(menuContents()).toContain('Duplicate 2 items [Ctrl+D]');
+    expect(menuContents()).toContain('Copy 2 items [Ctrl+C]');
     expect(menuContents()).toContain('Delete 2 items [Del]');
     await user.click(item('Delete 2 items'));
     expect(keys()).toEqual(['a', 'person', 'items']);
@@ -166,7 +172,7 @@ describe('Structure right-click menus', () => {
     await waitFor(() => expect(row('person_2')).toHaveFocus());
   });
 
-  it('on a group: adds inside it at its end, duplicates, ungroups, moves and deletes it', async () => {
+  it('on a group: adds inside it at its end, duplicates, ungroups, moves, cuts, copies and deletes it', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
     await rightClick(user, row('person'));
@@ -181,6 +187,9 @@ describe('Structure right-click menus', () => {
       'Ungroup [Ctrl+Shift+G]',
       'Move up [Alt+↑]',
       'Move down [Alt+↓]',
+      '—',
+      'Cut [Ctrl+X]',
+      'Copy [Ctrl+C]',
       '—',
       'Delete group [Del]',
     ]);
@@ -198,6 +207,56 @@ describe('Structure right-click menus', () => {
     await rightClick(user, row('person'));
     await user.click(item('Ungroup'));
     expect(keys()).toEqual(['a', 'b', 'c', 'group', 'items', 'attribute', 'd', 'items']);
+  });
+
+  it('Copy, then Paste on another row, pastes copies after it and selects them', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await rightClick(user, row('a'));
+    // Nothing copied yet: no Paste.
+    expect(menuContents()).not.toContain('Paste [Ctrl+V]');
+    await user.click(item('Copy'));
+    expect(keys()).toEqual(['a', 'person', 'd', 'items']);
+    expect(await navigator.clipboard.readText()).toContain('"oca-generator/nodes"');
+
+    await rightClick(user, row('d'));
+    expect(menuContents().slice(-6)).toEqual(['—', 'Cut [Ctrl+X]', 'Copy [Ctrl+C]', 'Paste [Ctrl+V]', '—', 'Delete [Del]']);
+    await user.click(item('Paste'));
+    expect(keys()).toEqual(['a', 'person', 'd', 'a_2', 'items']);
+    expect(selectedKeys()).toEqual(['a_2']);
+    await waitFor(() => expect(row('a_2')).toHaveFocus());
+
+    // On a group, Paste goes inside it, at its end.
+    await rightClick(user, row('person'));
+    await user.click(item('Paste'));
+    expect(childKeys('person')).toEqual(['b', 'c', 'a']);
+  });
+
+  it('Cut removes the selection, and Paste on the empty area puts it back at the top level', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await rightClick(user, row('person'));
+    await user.click(item('Cut'));
+    expect(keys()).toEqual(['a', 'd', 'items']);
+
+    await rightClick(user, emptyArea());
+    expect(menuContents()).toEqual(['Add attribute here', 'Add group here', 'Add list of objects here', 'Add from I14Y…', '—', 'Paste']);
+    await user.click(item('Paste'));
+    expect(keys()).toEqual(['a', 'd', 'items', 'person']);
+    expect(childKeys('person')).toEqual(['b', 'c']);
+    expect(selectedKeys()).toEqual(['person']);
+  });
+
+  it('offers no Paste once something else is copied', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await rightClick(user, row('a'));
+    await user.click(item('Copy'));
+    // Copying the key's text in the Edit pane.
+    await user.tripleClick(screen.getByLabelText('Key'));
+    await user.copy();
+    await rightClick(user, row('d'));
+    expect(menuContents()).not.toContain('Paste [Ctrl+V]');
   });
 
   it('on a group, Add from I14Y… opens the I14Y dialog for that group', async () => {
@@ -220,6 +279,9 @@ describe('Structure right-click menus', () => {
       '—',
       'Duplicate [Ctrl+D]',
       'Move up [Alt+↑]',
+      '—',
+      'Cut [Ctrl+X]',
+      'Copy [Ctrl+C]',
       '—',
       'Delete group [Del]',
     ]);
