@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { type GroupLink, emptyProject, newAttribute, newGroupLink, walkNodes } from './model';
+import { type Group, type GroupLink, emptyProject, findNode, newAttribute, newGroupLink, walkNodes } from './model';
 import {
   addLanguage,
   NEW_NODE_KEYS,
+  groupNodes,
   insertNode,
   moveLanguage,
   moveNode,
+  moveNodes,
   removeLanguage,
   removeNode,
+  removeNodes,
   renameLanguage,
   renameNode,
   sourcePrefixFor,
+  ungroupNode,
   uniqueKey,
 } from './operations';
 
@@ -298,5 +302,241 @@ describe('moving nodes keeps template references', () => {
     moveNode(p, given.id, person.group.id, Number.MAX_SAFE_INTEGER);
     expect(keys(person.group.children)).toEqual(['name', 'address', 'given_name']);
     expect(nickname.labels.en).toBe('{{person.given_name}}');
+  });
+});
+
+describe('group, ungroup, move up/down and delete several', () => {
+  /** Root: a, b, g { x, y, z }, c, pets[] { name }. */
+  function tree() {
+    const p = emptyProject(['en']);
+    const [a, b, c, x, y, z, name] = ['a', 'b', 'c', 'x', 'y', 'z', 'name'].map((key) => newAttribute(key));
+    const g = newGroupLink('g', { source: ['g'] });
+    g.group.children.push(x, y, z);
+    const pets = newGroupLink('pets', { array: true, source: ['pets', null] });
+    pets.group.children.push(name);
+    p.root.children.push(a, b, g, c, pets);
+    return { p, a, b, c, g, x, y, z, pets, name };
+  }
+
+  /** The tree as nested keys, e.g. ['a', { g: ['x'] }]. */
+  type Shape = (string | { [key: string]: Shape })[];
+  const shape = (group: Group): Shape =>
+    group.children.map((child) => (child.kind === 'group' ? { [child.key]: shape(child.group) } : child.key));
+
+  describe('group selection', () => {
+    it('wraps the nodes in a group without a source at the first node, keeping their order', () => {
+      const { p, a, c, y } = tree();
+      const id = groupNodes(p, [c.id, y.id, a.id]);
+      const link = findNode(p.root, id!)!.node as GroupLink;
+      expect(link.kind).toBe('group');
+      expect(link.array).toBe(false);
+      expect(link.source).toBeUndefined();
+      expect(shape(p.root)).toEqual([{ group: ['a', 'y', 'c'] }, 'b', { g: ['x', 'z'] }, { pets: ['name'] }]);
+    });
+
+    it('places the group inside the parent of the first node in tree order', () => {
+      const { p, c, y } = tree();
+      groupNodes(p, [c.id, y.id]);
+      expect(shape(p.root)).toEqual(['a', 'b', { g: ['x', { group: ['y', 'c'] }, 'z'] }, { pets: ['name'] }]);
+    });
+
+    it('moves only the group when a group and some of its children are selected', () => {
+      const { p, b, g, x, z } = tree();
+      groupNodes(p, [x.id, g.id, z.id, b.id]);
+      expect(shape(p.root)).toEqual(['a', { group: ['b', { g: ['x', 'y', 'z'] }] }, 'c', { pets: ['name'] }]);
+    });
+
+    it('gives the new group a unique key', () => {
+      const { p, a, b, c } = tree();
+      groupNodes(p, [a.id]);
+      groupNodes(p, [b.id]);
+      groupNodes(p, [c.id]);
+      expect(keys(p.root.children)).toEqual(['group', 'group_2', 'g', 'group_3', 'pets']);
+    });
+
+    it('returns undefined and changes nothing when no id names a node', () => {
+      const { p } = tree();
+      expect(groupNodes(p, [])).toBeUndefined();
+      expect(groupNodes(p, ['missing', p.root.id])).toBeUndefined();
+      expect(keys(p.root.children)).toEqual(['a', 'b', 'g', 'c', 'pets']);
+    });
+
+    it('keeps the wrapped attributes reading the same claims', () => {
+      const { p, a, x } = tree();
+      const id = groupNodes(p, [a.id, x.id])!;
+      expect([a.source, x.source]).toEqual([['a'], ['x']]);
+      expect(sourcePrefixFor(p, (findNode(p.root, id)!.node as GroupLink).group.id)).toEqual([]);
+    });
+
+    it('rewrites template references to the grouped nodes', () => {
+      const { p, a, b, c, g, y } = tree();
+      p.branding.en = { light: { primaryField: '{{a}} {{g.y}}', secondaryField: '{{/c}}' } };
+      b.labels = { en: '{{a}} and {{g.y}}' };
+      a.labels = { en: 'Next to {{b}}' };
+      g.labels = { en: '{{g.y}}' };
+      groupNodes(p, [a.id, y.id, c.id]);
+      expect(p.branding.en.light).toEqual({ primaryField: '{{group.a}} {{group.y}}', secondaryField: '{{/group.c}}' });
+      expect(b.labels.en).toBe('{{group.a}} and {{group.y}}');
+      expect(a.labels.en).toBe('Next to {{/b}}');
+      expect(g.labels.en).toBe('{{group.y}}');
+    });
+  });
+
+  describe('ungroup', () => {
+    it("lifts the children into the parent at the group's position, in order, and removes the group", () => {
+      const { p, g, x, y, z } = tree();
+      expect(ungroupNode(p, g.id)).toEqual([x.id, y.id, z.id]);
+      expect(shape(p.root)).toEqual(['a', 'b', 'x', 'y', 'z', 'c', { pets: ['name'] }]);
+    });
+
+    it('removes an empty group', () => {
+      const { p } = tree();
+      const empty = newGroupLink('empty');
+      p.root.children.unshift(empty);
+      expect(ungroupNode(p, empty.id)).toEqual([]);
+      expect(keys(p.root.children)).toEqual(['a', 'b', 'g', 'c', 'pets']);
+    });
+
+    it('refuses a list of objects and anything that is not a group', () => {
+      const { p, a, pets } = tree();
+      expect(ungroupNode(p, pets.id)).toBeUndefined();
+      expect(ungroupNode(p, a.id)).toBeUndefined();
+      expect(ungroupNode(p, 'missing')).toBeUndefined();
+      expect(shape(p.root)).toEqual(['a', 'b', { g: ['x', 'y', 'z'] }, 'c', { pets: ['name'] }]);
+    });
+
+    it('lifts a nested group into its own parent', () => {
+      const { p, y, z } = tree();
+      const inner = findNode(p.root, groupNodes(p, [y.id, z.id])!)!.node;
+      ungroupNode(p, inner.id);
+      expect(shape(p.root)).toEqual(['a', 'b', { g: ['x', 'y', 'z'] }, 'c', { pets: ['name'] }]);
+    });
+
+    it('rewrites template references to the lifted children', () => {
+      const { p, a, g, x, z } = tree();
+      p.branding.en = { light: { primaryField: '{{g.x}} {{g.z}}' } };
+      a.labels = { en: '{{g.y}}' };
+      x.labels = { en: '{{y}} near {{/a}}' };
+      ungroupNode(p, g.id);
+      expect(p.branding.en.light.primaryField).toBe('{{x}} {{z}}');
+      expect(a.labels.en).toBe('{{y}}');
+      expect(x.labels.en).toBe('{{y}} near {{/a}}');
+      expect(z.labels).toEqual({});
+    });
+
+    it('undoes a group of several nodes, templates included', () => {
+      const { p, a, b, c, y } = tree();
+      p.branding.en = { light: { primaryField: '{{a}} {{g.y}} {{c}}' } };
+      b.labels = { en: '{{g.y}}' };
+      const id = groupNodes(p, [a.id, y.id, c.id])!;
+      ungroupNode(p, id);
+      expect(shape(p.root)).toEqual(['a', 'y', 'c', 'b', { g: ['x', 'z'] }, { pets: ['name'] }]);
+      expect(p.branding.en.light.primaryField).toBe('{{a}} {{y}} {{c}}');
+      expect(b.labels.en).toBe('{{y}}');
+    });
+  });
+
+  describe('move up and down', () => {
+    it('moves a node one place within its group', () => {
+      const { p, b, y } = tree();
+      expect(moveNodes(p, [b.id], 'up')).toBe(true);
+      expect(moveNodes(p, [y.id], 'down')).toBe(true);
+      expect(shape(p.root)).toEqual(['b', 'a', { g: ['x', 'z', 'y'] }, 'c', { pets: ['name'] }]);
+    });
+
+    it('moves out of the group at its edges, just before or after it', () => {
+      const { p, x, z } = tree();
+      moveNodes(p, [x.id], 'up');
+      moveNodes(p, [z.id], 'down');
+      expect(shape(p.root)).toEqual(['a', 'b', 'x', { g: ['y'] }, 'z', 'c', { pets: ['name'] }]);
+    });
+
+    it('passes over a neighbouring group without entering it', () => {
+      const { p, b, c } = tree();
+      moveNodes(p, [b.id], 'down');
+      expect(shape(p.root)).toEqual(['a', { g: ['x', 'y', 'z'] }, 'b', 'c', { pets: ['name'] }]);
+      moveNodes(p, [c.id], 'down');
+      expect(shape(p.root)).toEqual(['a', { g: ['x', 'y', 'z'] }, 'b', { pets: ['name'] }, 'c']);
+      moveNodes(p, [b.id], 'up');
+      expect(shape(p.root)).toEqual(['a', 'b', { g: ['x', 'y', 'z'] }, { pets: ['name'] }, 'c']);
+    });
+
+    it('moves a group as a whole', () => {
+      const { p, g } = tree();
+      moveNodes(p, [g.id], 'up');
+      expect(shape(p.root)).toEqual(['a', { g: ['x', 'y', 'z'] }, 'b', 'c', { pets: ['name'] }]);
+    });
+
+    it('does nothing at the very top or bottom of the tree', () => {
+      const { p, a, pets } = tree();
+      expect(moveNodes(p, [a.id], 'up')).toBe(false);
+      expect(moveNodes(p, [pets.id], 'down')).toBe(false);
+      expect(moveNodes(p, ['missing'], 'down')).toBe(false);
+      expect(shape(p.root)).toEqual(['a', 'b', { g: ['x', 'y', 'z'] }, 'c', { pets: ['name'] }]);
+    });
+
+    it('moves several nodes together, keeping their order', () => {
+      const { p, b, c, x, y } = tree();
+      moveNodes(p, [c.id, b.id], 'up');
+      expect(shape(p.root)).toEqual(['b', 'a', 'c', { g: ['x', 'y', 'z'] }, { pets: ['name'] }]);
+      moveNodes(p, [x.id, y.id], 'up');
+      expect(shape(p.root)).toEqual(['b', 'a', 'c', 'x', 'y', { g: ['z'] }, { pets: ['name'] }]);
+      moveNodes(p, [y.id, x.id], 'down');
+      expect(shape(p.root)).toEqual(['b', 'a', 'c', { g: ['z'] }, 'x', 'y', { pets: ['name'] }]);
+    });
+
+    it('keeps nodes stacked against the top or bottom of the tree in place, and their order', () => {
+      const { p, a, b, c, name, pets } = tree();
+      expect(moveNodes(p, [b.id, a.id], 'up')).toBe(false);
+      expect(moveNodes(p, [a.id, c.id], 'up')).toBe(true);
+      expect(keys(p.root.children)).toEqual(['a', 'b', 'c', 'g', 'pets']);
+      moveNodes(p, [name.id], 'down');
+      expect(moveNodes(p, [pets.id, name.id], 'down')).toBe(false);
+      expect(shape(p.root)).toEqual(['a', 'b', 'c', { g: ['x', 'y', 'z'] }, { pets: [] }, 'name']);
+    });
+
+    it('moves a group and its selected children as the group alone', () => {
+      const { p, g, x } = tree();
+      moveNodes(p, [x.id, g.id], 'down');
+      expect(shape(p.root)).toEqual(['a', 'b', 'c', { g: ['x', 'y', 'z'] }, { pets: ['name'] }]);
+    });
+
+    it('moves into and out of a list of objects like any group, at its edges', () => {
+      const { p, name } = tree();
+      moveNodes(p, [name.id], 'up');
+      expect(shape(p.root)).toEqual(['a', 'b', { g: ['x', 'y', 'z'] }, 'c', 'name', { pets: [] }]);
+    });
+
+    it('rewrites template references when nodes cross group edges', () => {
+      const { p, a, x, z } = tree();
+      p.branding.en = { light: { primaryField: '{{g.x}} {{g.z}} {{/pets.name}}' } };
+      a.labels = { en: '{{g.x}}' };
+      x.labels = { en: '{{y}}' };
+      moveNodes(p, [x.id, z.id], 'up');
+      expect(p.branding.en.light.primaryField).toBe('{{x}} {{g.z}} {{/pets.name}}');
+      expect(a.labels.en).toBe('{{x}}');
+      expect(x.labels.en).toBe('{{g.y}}');
+      moveNodes(p, [z.id], 'down');
+      moveNodes(p, [z.id], 'down');
+      expect(shape(p.root)).toEqual(['a', 'b', 'x', { g: ['y'] }, 'z', 'c', { pets: ['name'] }]);
+      expect(p.branding.en.light.primaryField).toBe('{{x}} {{z}} {{/pets.name}}');
+      moveNodes(p, [x.id], 'down');
+      expect(shape(p.root)).toEqual(['a', 'b', { g: ['y'] }, 'x', 'z', 'c', { pets: ['name'] }]);
+      expect([p.branding.en.light.primaryField, a.labels.en, x.labels.en]).toEqual(['{{x}} {{z}} {{/pets.name}}', '{{x}}', '{{g.y}}']);
+    });
+  });
+
+  describe('delete several', () => {
+    it('removes every given node', () => {
+      const { p, a, c, y, name } = tree();
+      expect(removeNodes(p, [a.id, y.id, c.id, name.id])).toEqual([a, y, c, name]);
+      expect(shape(p.root)).toEqual(['b', { g: ['x', 'z'] }, { pets: [] }]);
+    });
+
+    it('removes a group together with its own selected children without error', () => {
+      const { p, g, x, z, b } = tree();
+      expect(removeNodes(p, [x.id, g.id, z.id, b.id, 'missing'])).toEqual([b, g]);
+      expect(shape(p.root)).toEqual(['a', 'c', { pets: ['name'] }]);
+    });
   });
 });
