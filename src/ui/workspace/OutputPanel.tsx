@@ -7,7 +7,7 @@ import { useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
 import { Button, InlineIssueFixes, Tabs } from '../components/controls';
-import { useFieldIssues, useIssues } from '../issues';
+import { blocksBundle, useFieldIssues, useIssues } from '../issues';
 import { useBaseline } from '../lib/baseline';
 import { useChanges } from '../lib/changes';
 import { copyText, downloadText } from '../lib/download';
@@ -132,7 +132,7 @@ export function OutputPanel({ exportState, onHide, onJump }: { exportState: Expo
 
 /** The Bundle and VCT tabs: the JSON, its `#integrity` and, under Bundle, the download. */
 function BundleOutput({ exportState, tab, snippet }: { exportState: ExportState; tab: 'bundle' | 'vct'; snippet: string }) {
-  const errors = useIssues().filter((issue) => issue.severity === 'error');
+  const errors = useIssues().filter(blocksBundle);
   const ready = exportState.status === 'ready' ? exportState : null;
   return (
     <>

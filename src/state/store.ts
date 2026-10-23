@@ -10,6 +10,8 @@ import { loadCollapsed, revealSelection, saveCollapsed, selectionOnCollapse } fr
 
 export type { Selection, SelectionRequest } from './selection';
 export type View = 'editor' | 'translations';
+/** Which file the workspace edits: the OCA bundle (in the Editor or the Translations view) or the Issuer and Type Metadata. */
+export type Area = 'oca' | 'metadata';
 export type Theme = 'light' | 'dark';
 export type OutputTab = 'bundle' | 'vct' | 'changes';
 
@@ -61,6 +63,8 @@ export interface AppState {
   treeFilter: string;
   editLang: LangTag;
   view: View;
+  /** The top bar's OCA / Metadata switch. `view` is the OCA's view and is kept while Metadata shows. */
+  area: Area;
   brandingTheme: Theme;
   languagesOpen: boolean;
   tourOpen: boolean;
@@ -100,7 +104,9 @@ export interface AppState {
   setGroupOpen: (id: string, open: boolean) => void;
   setEditLang: (lang: LangTag) => void;
   setTreeFilter: (text: string) => void;
+  /** Shows the OCA in `view`. */
   setView: (view: View) => void;
+  setArea: (area: Area) => void;
   setBrandingTheme: (theme: Theme) => void;
   setLanguagesOpen: (open: boolean) => void;
   setTourOpen: (open: boolean) => void;
@@ -201,6 +207,7 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
   treeFilter: '',
   editLang: '',
   view: 'editor',
+  area: 'oca',
   brandingTheme: 'light',
   languagesOpen: false,
   tourOpen: false,
@@ -229,6 +236,7 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
       treeFilter: '',
       editLang: project.languages[0] ?? '',
       view: 'editor',
+      area: 'oca',
       brandingTheme: 'light',
       past: [],
       future: [],
@@ -291,7 +299,8 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
   },
   setEditLang: (editLang) => set({ editLang }),
   setTreeFilter: (treeFilter) => set({ treeFilter }),
-  setView: (view) => set({ view }),
+  setView: (view) => set({ view, area: 'oca' }),
+  setArea: (area) => set({ area }),
   setBrandingTheme: (brandingTheme) => set({ brandingTheme }),
   setLanguagesOpen: (languagesOpen) => set({ languagesOpen }),
   setTourOpen: (tourOpen) => set({ tourOpen }),

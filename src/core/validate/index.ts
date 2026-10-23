@@ -1,5 +1,6 @@
 import { structuralSignature } from '../export/bundle.ts';
 import { imageInfo } from '../image.ts';
+import { IDENTIFIER_PATTERN, isIssuerLogo, isIssuerUrl, issuerOf } from '../issuer.ts';
 import { hasRegion, isValidLanguageTag } from '../langs.ts';
 import {
   type Branding,
@@ -17,13 +18,28 @@ import { MAX_JOIN_SEPARATOR, joinSeparator, listExpressions, resolveEditorPath }
 
 export type Severity = 'error' | 'warning';
 
-export type CredentialField = 'name' | 'description' | 'logo' | 'primaryBackgroundColor' | 'primaryField' | 'secondaryField' | 'issuerName';
+export type CredentialField =
+  | 'name'
+  | 'description'
+  | 'logo'
+  | 'primaryBackgroundColor'
+  | 'primaryField'
+  | 'secondaryField'
+  | 'issuerName'
+  | 'issuerLogo'
+  | 'issuerUrl'
+  | 'issuerConfigurationId'
+  | 'issuerTypeKey';
+/** The credential fields of the issuer settings, edited on the Metadata page rather than in the OCA editor. */
+export const ISSUER_FIELDS: readonly CredentialField[] = ['issuerName', 'issuerLogo', 'issuerUrl', 'issuerConfigurationId', 'issuerTypeKey'];
+
 export type NodeField = 'key' | 'type' | 'source' | 'label' | 'entries';
 
 export type IssueTarget =
   | { kind: 'languages' }
   | { kind: 'hosting' }
-  | { kind: 'credential'; field: CredentialField; lang: LangTag; theme?: 'light' | 'dark' }
+  /** Without `lang` for the fields that are the same in every language: the issuer logo, URL and identifiers. */
+  | { kind: 'credential'; field: CredentialField; lang?: LangTag; theme?: 'light' | 'dark' }
   | { kind: 'node'; nodeId: string; field: NodeField; lang?: LangTag };
 
 export interface Issue {
@@ -300,6 +316,44 @@ export function validate(project: Project): Issue[] {
     }
   }
 
+  return issues;
+}
+
+/** The codes `validateIssuer` raises. Their errors do not block the bundle download, as the bundle never has the issuer settings. */
+export const ISSUER_ISSUE_CODES: readonly string[] = ['issuer-name-missing', 'issuer-logo-format', 'issuer-url-invalid', 'issuer-identifier-invalid'];
+
+/**
+ * The issues of the issuer settings (`project.issuer`), which go into the Issuer Metadata and the Type Metadata,
+ * never into the bundle. Kept apart from `validate` so they never block the bundle export; the app lists both.
+ */
+export function validateIssuer(project: Project): Issue[] {
+  const issues: Issue[] = [];
+  const error = (code: string, message: string, target: IssueTarget) => issues.push({ severity: 'error', code, message, summary: message, target });
+  const warn = (code: string, message: string, target: IssueTarget, summary: string) => issues.push({ severity: 'warning', code, message, summary, target });
+  const issuer = issuerOf(project);
+  for (const lang of project.languages) {
+    if (!issuer.name[lang]) {
+      warn('issuer-name-missing', `The issuer name is missing in ${lang}.`, { kind: 'credential', field: 'issuerName', lang }, 'The issuer name is missing.');
+    }
+  }
+  if (issuer.logo && !isIssuerLogo(issuer.logo)) {
+    error('issuer-logo-format', 'The issuer logo must be a PNG or JPEG data URL.', { kind: 'credential', field: 'issuerLogo' });
+  }
+  const issuerUrl = issuer.url?.trim();
+  if (issuerUrl && !isIssuerUrl(issuerUrl)) {
+    error('issuer-url-invalid', 'The Issuer URL must be an https URL such as https://issuer.example.ch.', { kind: 'credential', field: 'issuerUrl' });
+  }
+  // Unset or empty identifiers are derived from the credential name, which always matches the pattern.
+  const identifiers: Array<[CredentialField, string, string | undefined]> = [
+    ['issuerConfigurationId', 'Configuration id', issuer.configurationId],
+    ['issuerTypeKey', 'Type key', issuer.typeKey],
+  ];
+  for (const [field, label, value] of identifiers) {
+    const id = value?.trim();
+    if (id && !IDENTIFIER_PATTERN.test(id)) {
+      error('issuer-identifier-invalid', `The ${label} may only contain lower-case letters, digits, _ and -.`, { kind: 'credential', field });
+    }
+  }
   return issues;
 }
 

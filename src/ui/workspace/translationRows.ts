@@ -48,6 +48,15 @@ export function primaryFieldRow(theme: 'light' | 'dark' = 'light'): TranslationR
   };
 }
 
+/** The issuer name, which goes into the Issuer Metadata rather than the bundle. */
+export function issuerNameRow(): TranslationRow {
+  return {
+    id: 'issuer-name',
+    label: t.metadata.name,
+    ...accessors({ kind: 'issuerName' }),
+  };
+}
+
 /** Credential name, description and the (light) primary field. */
 export function credentialRows(): TranslationRow[] {
   return [metaRow('name', t.translations.name), metaRow('description', t.translations.description), primaryFieldRow()];

@@ -3,11 +3,11 @@ import type { Ref } from 'react';
 import { BUNDLE_FILE_NAME } from '../../core/export/outputs';
 import { canFillFromI14y } from '../../core/import/i14y';
 import { hasUnreviewed } from '../../core/review';
-import { useStore } from '../../state/store';
+import { type Area, useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
-import { Badge, Button, Menu, type MenuItem, Segmented } from '../components/controls';
-import { groupIssues, useIssues } from '../issues';
+import { Badge, Button, Menu, type MenuItem, Segmented, Tabs } from '../components/controls';
+import { blocksBundle, groupIssues, useIssues } from '../issues';
 import { setDownloadedBaseline } from '../lib/baseline';
 import { type CommandId, applies, ariaKeyShortcuts, commandLabel, runCommand, shortcutLabel } from '../lib/commands';
 import { downloadText } from '../lib/download';
@@ -31,8 +31,10 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
   const project = useStore((state) => state.project)!;
   const editLang = useStore((state) => state.editLang);
   const view = useStore((state) => state.view);
+  const area = useStore((state) => state.area);
   const outputOpen = useStore((state) => state.outputOpen);
-  const { setEditLang, setView, setLanguagesOpen, setTourOpen, setOutputOpen, close } = useStore.getState();
+  const { setEditLang, setView, setArea, setLanguagesOpen, setTourOpen, setOutputOpen, close } = useStore.getState();
+  const areas = (['oca', 'metadata'] as const).map((value) => ({ value, label: t.workspace.areas[value] }));
   const wide = useWideWindow();
   // Re-renders the menu when a translation starts or ends, since "Translate missing languages" waits for it.
   useTranslationState((state) => state.running);
@@ -40,7 +42,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
   const errors = groups.filter((group) => group.severity === 'error').length;
   const warnings = groups.length - errors;
   const name = project.meta[editLang]?.name || t.workspace.untitled;
-  const canDownload = errors === 0 && exportState.status === 'ready';
+  const blocking = groups.filter(blocksBundle).length;
+  const canDownload = blocking === 0 && exportState.status === 'ready';
 
   return (
     <header className="topbar" ref={ref}>
@@ -52,6 +55,9 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
         <span className="topbar__name" title={name}>
           {name}
         </span>
+        <div className="topbar__areas wide-only">
+          <Tabs label={t.workspace.area} value={area} onChange={setArea} options={areas} />
+        </div>
       </div>
       <div className="topbar__actions" data-tour="topbar">
         <Segmented
@@ -73,16 +79,30 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
             </option>
           ))}
         </select>
-        <Segmented
-          className="wide-only"
-          label={t.workspace.view}
-          value={view}
-          onChange={setView}
-          options={[
-            { value: 'editor', label: t.workspace.editor },
-            { value: 'translations', label: t.workspace.translations },
-          ]}
-        />
+        <select
+          className="select select--compact narrow-only"
+          aria-label={t.workspace.area}
+          value={area}
+          onChange={(event) => setArea(event.target.value as Area)}
+        >
+          {areas.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {area === 'oca' && (
+          <Segmented
+            className="wide-only"
+            label={t.workspace.view}
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'editor', label: t.workspace.editor },
+              { value: 'translations', label: t.workspace.translations },
+            ]}
+          />
+        )}
         {groups.length > 0 && (
           <Button
             variant="ghost"
@@ -99,7 +119,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
             {warnings > 0 && <Badge tone="yellow">{t.workspace.warningCount(warnings)}</Badge>}
           </Button>
         )}
-        {wide && (
+        {/* The Output pane belongs to the OCA; the Metadata page has its own preview column. */}
+        {wide && area === 'oca' && (
           <Button
             variant="ghost"
             size="icon"
@@ -129,7 +150,7 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
         <Button
           variant="primary"
           disabled={!canDownload}
-          title={errors > 0 ? t.workspace.downloadBlocked(errors) : undefined}
+          title={blocking > 0 ? t.workspace.downloadBlocked(blocking) : undefined}
           onClick={() => {
             if (exportState.status !== 'ready') return;
             downloadText(BUNDLE_FILE_NAME, exportState.outputs.json);

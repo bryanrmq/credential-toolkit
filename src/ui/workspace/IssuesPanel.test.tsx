@@ -2,7 +2,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { emptyGroup, emptyProject, newAttribute, newGroupLink } from '../../core/model';
+import { emptyGroup, emptyProject, ensureIssuer, newAttribute, newGroupLink } from '../../core/model';
 import { oneNode } from '../../state/selection';
 import { useStore } from '../../state/store';
 import { TOUR_SEEN_KEY } from '../lib/tour';
@@ -14,6 +14,7 @@ function cleanProject() {
   project.meta['de-CH'] = { name: 'Hundebewilligung', description: 'Für Hundehalter' };
   project.root.children.push(newAttribute('name', { source: ['name'], labels: { 'de-CH': 'Name' } }));
   project.hosting = { mode: 'dataUrl' };
+  ensureIssuer(project).name['de-CH'] = 'Kanton Bern';
   return project;
 }
 

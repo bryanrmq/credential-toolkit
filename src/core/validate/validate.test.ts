@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { pngDataUrl } from '../../test/images';
-import { KNOWN_STANDARDS, type Project, emptyGroup, emptyProject, newAttribute, newGroupLink } from '../model';
-import { type Issue, hasErrors, isValidPathSegment, pathExists, validate, valuesAt } from './index';
+import { jpegDataUrl, pngDataUrl } from '../../test/images';
+import { KNOWN_STANDARDS, type Project, emptyGroup, emptyProject, ensureIssuer, newAttribute, newGroupLink } from '../model';
+import { ISSUER_ISSUE_CODES, type Issue, hasErrors, isValidPathSegment, pathExists, validate, validateIssuer, valuesAt } from './index';
 
 /** A project with no issues at all, to which each test adds one problem. */
 function clean(): Project {
@@ -235,5 +235,95 @@ describe('issue summaries', () => {
     project.hosting = { mode: 'url', url: '' };
     const [hosting] = validate(project);
     expect(hosting.summary).toBe(hosting.message);
+  });
+});
+
+describe('validateIssuer', () => {
+  /** `clean()` with an issuer name in its one language: no issuer issues. */
+  function withIssuer(languages = ['de-CH']): Project {
+    const project = clean();
+    for (const lang of languages.slice(1)) {
+      project.languages.push(lang);
+      project.meta[lang] = { name: 'Permis', description: 'Pour les chiens' };
+    }
+    const issuer = ensureIssuer(project);
+    for (const lang of languages) issuer.name[lang] = 'Kanton Bern';
+    return project;
+  }
+
+  it('reports nothing for complete issuer settings, and an unset logo, URL and identifiers are fine', () => {
+    const project = withIssuer();
+    expect(validateIssuer(project)).toEqual([]);
+    Object.assign(ensureIssuer(project), { logo: pngDataUrl(64, 64), url: 'https://issuer.example.ch', configurationId: 'lfa_sd_jwt', typeKey: 'lfa-v01' });
+    expect(validateIssuer(project)).toEqual([]);
+    ensureIssuer(project).logo = jpegDataUrl(64, 64);
+    expect(validateIssuer(project)).toEqual([]);
+  });
+
+  it('warns about a missing issuer name per language, on projects saved without issuer settings too', () => {
+    const project = withIssuer(['de-CH', 'fr-CH', 'en-GB']);
+    ensureIssuer(project).name['fr-CH'] = '';
+    delete ensureIssuer(project).name['en-GB'];
+    const issues = validateIssuer(project);
+    expect(issues.map((issue) => [issue.severity, issue.code, issue.target])).toEqual([
+      ['warning', 'issuer-name-missing', { kind: 'credential', field: 'issuerName', lang: 'fr-CH' }],
+      ['warning', 'issuer-name-missing', { kind: 'credential', field: 'issuerName', lang: 'en-GB' }],
+    ]);
+    expect(issues[0].message).toBe('The issuer name is missing in fr-CH.');
+    expect(issues[0].summary).toBe('The issuer name is missing.');
+
+    const legacy = clean();
+    delete legacy.issuer;
+    expect(codes(validateIssuer(legacy))).toEqual(['warning:issuer-name-missing']);
+  });
+
+  it('rejects an issuer logo that is not a PNG or JPEG data URL', () => {
+    for (const logo of ['data:image/gif;base64,R0lGODlh', 'data:image/svg+xml;base64,PHN2Zz4=', 'https://issuer.example.ch/logo.png', 'data:image/png,raw']) {
+      const project = withIssuer();
+      ensureIssuer(project).logo = logo;
+      expect(validateIssuer(project).map((issue) => [issue.severity, issue.code, issue.target])).toEqual([
+        ['error', 'issuer-logo-format', { kind: 'credential', field: 'issuerLogo' }],
+      ]);
+    }
+  });
+
+  it('rejects an Issuer URL that is set but not an https URL', () => {
+    for (const url of ['http://issuer.example.ch', 'issuer.example.ch', '${external-url}', 'https://']) {
+      const project = withIssuer();
+      ensureIssuer(project).url = url;
+      expect(validateIssuer(project).map((issue) => [issue.severity, issue.code, issue.target])).toEqual([
+        ['error', 'issuer-url-invalid', { kind: 'credential', field: 'issuerUrl' }],
+      ]);
+    }
+    const blank = withIssuer();
+    ensureIssuer(blank).url = '  ';
+    expect(validateIssuer(blank)).toEqual([]);
+  });
+
+  it('rejects a Configuration id or Type key with anything but lower-case letters, digits, _ and -', () => {
+    const project = withIssuer();
+    Object.assign(ensureIssuer(project), { configurationId: 'Lernfahrausweis_SD_JWT', typeKey: 'lfa v01' });
+    const issues = validateIssuer(project);
+    expect(issues.map((issue) => [issue.severity, issue.code, issue.target])).toEqual([
+      ['error', 'issuer-identifier-invalid', { kind: 'credential', field: 'issuerConfigurationId' }],
+      ['error', 'issuer-identifier-invalid', { kind: 'credential', field: 'issuerTypeKey' }],
+    ]);
+    expect(issues.map((issue) => issue.message)).toEqual([
+      'The Configuration id may only contain lower-case letters, digits, _ and -.',
+      'The Type key may only contain lower-case letters, digits, _ and -.',
+    ]);
+
+    // Empty means derived from the credential name, which always matches.
+    Object.assign(ensureIssuer(project), { configurationId: '', typeKey: '   ' });
+    project.meta['de-CH'].name = 'Lernfahrausweis (Kat. B) – Zürich';
+    expect(validateIssuer(project)).toEqual([]);
+  });
+
+  it('stays out of validate, so issuer settings never block the bundle export', () => {
+    const project = clean();
+    Object.assign(ensureIssuer(project), { logo: 'data:image/gif;base64,R0lGODlh', url: 'http://x', configurationId: 'A B' });
+    expect(validate(project)).toEqual([]);
+    expect(hasErrors(validateIssuer(project))).toBe(true);
+    expect(new Set(validateIssuer(project).map((issue) => issue.code))).toEqual(new Set(ISSUER_ISSUE_CODES));
   });
 });
