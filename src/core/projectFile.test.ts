@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { Baseline } from './baseline';
 import { type Project, emptyProject, newAttribute, newGroupLink } from './model';
 import { PROJECT_FILE_FORMAT, PROJECT_FILE_VERSION, parseProjectFile, projectFileName, serializeProjectFile } from './projectFile';
 
@@ -30,6 +31,8 @@ function fullProject(): Project {
 
 const file = (content: unknown) => JSON.stringify(content);
 
+const baseline: Baseline = { json: '{"capture_bases":[]}', integrity: 'sha256-abc=', source: 'download', setAt: 1_700_000_000_000 };
+
 describe('project files', () => {
   it('round-trips every part of a project, the sample and I14Y links included', () => {
     const project = fullProject();
@@ -45,6 +48,24 @@ describe('project files', () => {
     expect(content.format).toBe(PROJECT_FILE_FORMAT);
     expect(content.version).toBe(1);
     expect(content.version).toBe(PROJECT_FILE_VERSION);
+  });
+
+  it('round-trips the published baseline next to the project', () => {
+    const project = fullProject();
+    const text = serializeProjectFile(project, baseline);
+    expect(Object.keys(JSON.parse(text))).toEqual(['format', 'version', 'project', 'baseline']);
+    expect(parseProjectFile(text)).toEqual({ ok: true, project, baseline });
+    expect(serializeProjectFile(project, null)).toBe(serializeProjectFile(project));
+  });
+
+  it('opens a file saved before baselines, and leaves out a baseline that is not one', () => {
+    const project = fullProject();
+    const older = parseProjectFile(file({ format: PROJECT_FILE_FORMAT, version: 1, project }));
+    expect(older).toEqual({ ok: true, project });
+    expect(older.ok && 'baseline' in older).toBe(false);
+    const broken = parseProjectFile(file({ format: PROJECT_FILE_FORMAT, version: 1, project, baseline: { json: 1 } }));
+    expect(broken.ok && 'baseline' in broken).toBe(false);
+    expect(broken).toEqual({ ok: true, project });
   });
 
   it('names the file after the credential name in the first language', () => {

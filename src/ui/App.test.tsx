@@ -5,6 +5,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProject } from '../core/model';
+import bundle from '../test/fixtures/oca-bundle-simple-sample.json';
 import { getDraft, initDrafts, restoreDraft, useDrafts } from '../state/persistence';
 import { useStore } from '../state/store';
 import { App } from './App';
@@ -53,6 +54,22 @@ describe('App', () => {
     const structure = screen.getByRole('region', { name: 'Structure' });
     expect(within(structure).getByText('given_name')).toBeInTheDocument();
     expect(within(structure).getByText('birth_date')).toBeInTheDocument();
+  });
+
+  it('opens a bundle as a draft whose published baseline is that bundle', async () => {
+    const user = userEvent.setup();
+    const text = JSON.stringify(bundle);
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /Open an OCA bundle/ }));
+    const dialog = screen.getByRole('dialog');
+    await user.click(within(dialog).getByLabelText(/Paste JSON/));
+    await user.paste(text);
+    await user.click(within(dialog).getByRole('button', { name: 'Open in editor' }));
+
+    await waitFor(() => expect(useStore.getState().project).not.toBeNull());
+    const { baseline, draftId } = useStore.getState();
+    expect(baseline).toMatchObject({ json: text, source: 'import', integrity: expect.stringMatching(/^sha256-/) });
+    await waitFor(async () => expect((await getDraft(draftId!))?.baseline).toEqual(baseline));
   });
 
   it('shows the import error for invalid JSON', async () => {

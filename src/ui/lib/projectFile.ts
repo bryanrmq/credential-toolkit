@@ -1,3 +1,4 @@
+import type { Baseline } from '../../core/baseline';
 import type { Project } from '../../core/model';
 import { PROJECT_FILE_ACCEPT, parseProjectFile, projectFileName, serializeProjectFile } from '../../core/projectFile';
 import { createDraft, getDraft } from '../../state/persistence';
@@ -11,28 +12,29 @@ import { downloadText } from './download';
  * project file" is `downloadDraftProjectFile`.
  */
 
-/** Saves `project` as `<credential-name>.oca-project.json`. */
-export function downloadProjectFile(project: Project): void {
-  downloadText(projectFileName(project), serializeProjectFile(project));
+/** Saves `project` as `<credential-name>.oca-project.json`, with its published baseline when it has one. */
+export function downloadProjectFile(project: Project, baseline?: Baseline | null): void {
+  downloadText(projectFileName(project), serializeProjectFile(project, baseline));
 }
 
-/** Saves the project open in the workspace as a project file; does nothing on the start screen. */
+/** Saves the project open in the workspace, and its baseline, as a project file; does nothing on the start screen. */
 export function saveProjectFile(): void {
-  const { project } = useStore.getState();
-  if (project) downloadProjectFile(project);
+  const { project, baseline } = useStore.getState();
+  if (project) downloadProjectFile(project, baseline);
 }
 
 /** Saves stored draft `id` as a project file. Resolves false when the draft cannot be read. */
 export async function downloadDraftProjectFile(id: string): Promise<boolean> {
   const record = await getDraft(id);
   if (!record) return false;
-  downloadProjectFile(record.project);
+  downloadProjectFile(record.project, record.baseline);
   return true;
 }
 
 /**
- * Opens the project file `file` in the workspace as a new draft, which is stored at once; the draft open before
- * stays stored. Shows the error toast and resolves false when `file` is not a project this app can open.
+ * Opens the project file `file`, with its baseline, in the workspace as a new draft, which is stored at once; the
+ * draft open before stays stored. Shows the error toast and resolves false when `file` is not a project this app
+ * can open.
  */
 export async function openProjectFileFrom(file: Blob): Promise<boolean> {
   let text: string;
@@ -46,7 +48,7 @@ export async function openProjectFileFrom(file: Blob): Promise<boolean> {
     useStore.getState().showError(parsed.error === 'newer' ? t.projectFile.newer : t.projectFile.invalid);
     return false;
   }
-  createDraft(parsed.project);
+  createDraft(parsed.project, undefined, { baseline: parsed.baseline });
   return true;
 }
 

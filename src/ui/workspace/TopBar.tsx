@@ -6,6 +6,7 @@ import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
 import { Badge, Button, Menu, type MenuItem, Segmented } from '../components/controls';
 import { groupIssues, useIssues } from '../issues';
+import { setDownloadedBaseline } from '../lib/baseline';
 import { type CommandId, ariaKeyShortcuts, commandLabel, runCommand, shortcutLabel } from '../lib/commands';
 import { downloadText } from '../lib/download';
 import { useWideWindow } from '../lib/wideWindow';
@@ -110,7 +111,12 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
           variant="primary"
           disabled={!canDownload}
           title={errors > 0 ? t.workspace.downloadBlocked(errors) : undefined}
-          onClick={() => exportState.status === 'ready' && downloadText(BUNDLE_FILE_NAME, exportState.outputs.json)}
+          onClick={() => {
+            if (exportState.status !== 'ready') return;
+            downloadText(BUNDLE_FILE_NAME, exportState.outputs.json);
+            // What was downloaded is what gets published: the Changes tab compares with it from now on.
+            setDownloadedBaseline(exportState.outputs);
+          }}
         >
           <DownloadSimpleIcon /> <span className="label-phone-hidden">{t.workspace.download}</span>
         </Button>

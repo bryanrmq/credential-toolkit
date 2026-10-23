@@ -1,5 +1,6 @@
 import { FileArrowUpIcon } from '@phosphor-icons/react';
 import { useMemo, useRef, useState } from 'react';
+import { type Baseline, makeBaseline } from '../../core/baseline';
 import { importBundle } from '../../core/import/bundle';
 import { importIssuerMetadata, listCredentialConfigurations } from '../../core/import/issuerMetadata';
 import { ImportError, type ImportResult, parseJsonText } from '../../core/import/report';
@@ -43,12 +44,17 @@ export function ImportDialog({ kind, onClose }: { kind: ImportKind; onClose: () 
     setBusy(true);
     try {
       let result: ImportResult;
+      let baseline: Baseline | undefined;
       if (kind === 'blank') result = { project: emptyProject(languages), report: [] };
       else if (kind === 'sample') result = importSample(parseSampleText(text), languages);
-      else if (kind === 'bundle') result = await importBundle(parseJsonText(text));
+      else if (kind === 'bundle') {
+        result = await importBundle(parseJsonText(text));
+        // A draft made from a published bundle compares with that bundle.
+        baseline = await makeBaseline(text, result.project.hosting, 'import');
+      }
       else result = importIssuerMetadata(parseJsonText(text), configuration || configurations[0]?.id || '');
       // A new draft: the drafts stored before stay in Recent projects.
-      load(result.project, result.report, { reviewI14y: kind === 'bundle' });
+      load(result.project, result.report, { reviewI14y: kind === 'bundle', baseline });
     } catch (caught) {
       setError(caught instanceof ImportError ? caught.message : `Unexpected error: ${String(caught)}`);
       setBusy(false);
