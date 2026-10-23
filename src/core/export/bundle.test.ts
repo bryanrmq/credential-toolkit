@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { walletAcceptsDigest } from '../../test/walletCesr';
-import { KNOWN_STANDARDS, emptyGroup, emptyProject, newAttribute, newGroupLink } from '../model';
+import { type CredentialFormat, type Wallet, walletDataSources, walletPath } from '../../test/walletDataSource';
+import { sriSha256, utf8 } from '../cesr';
+import { KNOWN_STANDARDS, emptyGroup, emptyProject, newAttribute, newGroupLink, walkGroups } from '../model';
 import { OVERLAY_TYPES, buildBundle, serializeBundle } from './bundle';
+import { buildOutputs } from './outputs';
 
 /** The "Pet Permit" example from the swiyu OCA 1.0 spec, built in the editor model. */
 function petPermit() {
@@ -57,13 +60,19 @@ describe('buildBundle', () => {
       OVERLAY_TYPES.label,
       OVERLAY_TYPES.order,
       OVERLAY_TYPES.dataSource,
+      OVERLAY_TYPES.dataSource,
     ]);
     const label = rootOverlays.find((overlay) => overlay.type === OVERLAY_TYPES.label)!;
     expect(label.attribute_labels).toMatchObject({ pets: `Pet {{refs:${pets.digest}:name}}` });
     const order = rootOverlays.find((overlay) => overlay.type === OVERLAY_TYPES.order)!;
     expect(order.attribute_orders).toEqual({ firstname: 1, lastname: 2, address: 3, pets: 4 });
-    const dataSource = rootOverlays.find((overlay) => overlay.type === OVERLAY_TYPES.dataSource)!;
-    expect(dataSource).toMatchObject({ format: 'dc+sd-jwt', attribute_sources: { firstname: ['firstname'], pets: ['pets', null] } });
+    const dataSources = rootOverlays.filter((overlay) => overlay.type === OVERLAY_TYPES.dataSource);
+    expect(dataSources.map((overlay) => overlay.format)).toEqual(['vc+sd-jwt', 'dc+sd-jwt']);
+    for (const dataSource of dataSources) {
+      expect(dataSource.attribute_sources).toMatchObject({ firstname: ['firstname'], pets: ['pets', null] });
+    }
+    expect(dataSources[0].attribute_sources).toEqual(dataSources[1].attribute_sources);
+    expect(dataSources[0].attribute_sources).not.toBe(dataSources[1].attribute_sources);
     const branding = rootOverlays.find((overlay) => overlay.type === OVERLAY_TYPES.branding)!;
     expect(branding).toMatchObject({ language: 'en', theme: 'light', primary_field: '{{firstname}} {{lastname}}' });
   });
@@ -170,5 +179,49 @@ describe('buildBundle with conflicting groups', () => {
     };
     project.root.children.push(newGroupLink('home', { group: make('home') }), newGroupLink('work', { group: make('work') }));
     await expect(buildBundle(project)).rejects.toThrow(/"home" and "work" have the same keys and types/);
+  });
+});
+
+describe('buildBundle data sources on each wallet', () => {
+  const wallets: Wallet[] = ['ios-1.18', 'ios-1.19', 'android-1.19'];
+  const formats: CredentialFormat[] = ['vc+sd-jwt', 'dc+sd-jwt'];
+
+  for (const wallet of wallets) {
+    for (const format of formats) {
+      it(`${wallet} finds every source of a "${format}" credential`, async () => {
+        const { project } = petPermit();
+        const { bundle, digests } = await buildBundle(project);
+        let checked = 0;
+        for (const group of walkGroups(project.root)) {
+          const sources = walletDataSources(bundle, digests.get(group.id)!);
+          for (const child of group.children) {
+            if (!child.source?.length) continue;
+            expect(walletPath(sources.get(child.key), wallet, format)).toEqual(child.source);
+            checked++;
+          }
+        }
+        expect(checked).toBe(8);
+      });
+    }
+  }
+
+  it('reproduces the bug of a "dc+sd-jwt"-only bundle', async () => {
+    const { project } = petPermit();
+    const { bundle, digests } = await buildBundle(project);
+    const dcOnly = { overlays: bundle.overlays.filter((overlay) => overlay.format !== 'vc+sd-jwt') };
+    const firstname = walletDataSources(dcOnly, digests.get(project.root.id)!).get('firstname');
+    expect(walletPath(firstname, 'ios-1.18', 'dc+sd-jwt')).toBeUndefined();
+    expect(walletPath(firstname, 'android-1.19', 'vc+sd-jwt')).toBeUndefined();
+    expect(walletPath(firstname, 'ios-1.19', 'vc+sd-jwt')).toEqual(['firstname']);
+  });
+
+  it('keeps the capture base digests and the #integrity of the text', async () => {
+    const { project } = petPermit();
+    const { bundle } = await buildBundle(project);
+    for (const captureBase of bundle.capture_bases) expect(await walletAcceptsDigest({ ...captureBase })).toBe(true);
+    const outputs = await buildOutputs(project, bundle);
+    expect(outputs.json).toContain('"format": "vc+sd-jwt"');
+    expect(outputs.json).toContain('"format": "dc+sd-jwt"');
+    expect(outputs.integrity).toBe(await sriSha256(utf8(outputs.json)));
   });
 });

@@ -9,6 +9,10 @@ or a blank project. Edit names, labels, branding, order, clustering and value tr
 every language, then download the bundle with its `uri#integrity` value and the
 `display` snippet for your SD-JWT VC Type Metadata.
 
+Each capture base gets a Data Source overlay for both `vc+sd-jwt` and `dc+sd-jwt`, with the
+same paths. The swiyu wallets look the paths up by format: iOS up to 1.18 only reads
+`vc+sd-jwt`, and Android only reads the format named in the issuer metadata.
+
 ## Development
 
 ```bash

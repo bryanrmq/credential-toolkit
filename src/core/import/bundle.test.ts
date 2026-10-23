@@ -6,9 +6,10 @@ import simple from '../../test/fixtures/oca-bundle-simple-sample.json';
 import petPermit from '../../test/fixtures/spec-pet-permit.json';
 import issuerExample from '../../test/fixtures/example_oca.json';
 import { walletAcceptsDigest } from '../../test/walletCesr';
+import { walletDataSources, walletPath } from '../../test/walletDataSource';
 import { cesrDigest } from '../cesr';
 import { OVERLAY_TYPES, buildBundle, serializeBundle } from '../export/bundle';
-import { type AttributeNode, type GroupLink, walkNodes } from '../model';
+import { type AttributeNode, type GroupLink, walkGroups, walkNodes } from '../model';
 import { importBundle, jsonPathToClaimsPath } from './bundle';
 import { ImportError } from './report';
 
@@ -52,7 +53,8 @@ describe('importBundle details', () => {
     expect(adult.entries?.labels['de-CH']).toEqual({ true: 'true de-CH', false: 'false de-CH' });
     expect((node(project, 'dateOfBirth') as AttributeNode).standard).toBe('urn:iso:std:iso:8601');
     expect(project.meta['en-US'].name).toBe('credential en-US');
-    expect(bundle.overlays).toHaveLength(simple.overlays.length);
+    // The sample only has a "vc+sd-jwt" Data Source overlay; the export adds the "dc+sd-jwt" one.
+    expect(bundle.overlays).toHaveLength(simple.overlays.length + 1);
   });
 
   it('keeps sensitive group links, Binary attributes and unknown overlays of chasseral', async () => {
@@ -135,6 +137,7 @@ describe('importBundle with a shared capture base', () => {
       capture_bases: [root, city],
       overlays: [
         { type: 'spec/overlays/label/1.1', capture_base: city.digest, language: 'de-CH', attribute_labels: { city: 'Ort' } },
+        { type: 'extend/overlays/data_source/2.0', capture_base: city.digest, format: 'vc+sd-jwt', attribute_sources: { city: ['city'] } },
         { type: 'extend/overlays/data_source/2.0', capture_base: city.digest, format: 'dc+sd-jwt', attribute_sources: { city: ['city'] } },
       ],
     };
@@ -144,7 +147,94 @@ describe('importBundle with a shared capture base', () => {
     expect(home.group.children[0].labels).toEqual({ 'de-CH': 'Ort' });
     expect(work.group.children[0].labels).toEqual({ 'de-CH': 'Ort' });
     expect(bundle.capture_bases.map((captureBase) => captureBase.digest)).toEqual([root.digest, city.digest]);
-    expect(bundle.overlays.filter((overlay) => overlay.capture_base === city.digest)).toHaveLength(3);
+    expect(bundle.overlays.filter((overlay) => overlay.capture_base === city.digest)).toHaveLength(4);
     expect(report.filter((note) => note.level === 'warning')).toEqual([]);
   });
+});
+
+describe('importBundle data source formats', () => {
+  async function bundleWith(dataSources: { format?: string; attribute_sources: Record<string, unknown>; type?: string }[]) {
+    const captureBase = { type: 'spec/capture_base/1.0', digest: '', attributes: { name: 'Text', city: 'Text' } };
+    captureBase.digest = await cesrDigest(captureBase);
+    return {
+      capture_bases: [captureBase],
+      overlays: dataSources.map(({ type = 'extend/overlays/data_source/2.0', ...rest }) => ({ type, capture_base: captureBase.digest, ...rest })),
+    };
+  }
+  const warnings = (report: { level: string; message: string }[]) => report.filter((note) => note.level === 'warning').map((note) => note.message);
+  const sources = { name: ['name'], city: ['address', 'city'] };
+  const dataSourceFormats = (bundle: { overlays: { type: string; format?: unknown }[] }) =>
+    bundle.overlays.filter((overlay) => overlay.type === OVERLAY_TYPES.dataSource).map((overlay) => overlay.format);
+
+  it('reads both formats without a note when their paths match', async () => {
+    const input = await bundleWith([
+      { format: 'vc+sd-jwt', attribute_sources: sources },
+      { format: 'dc+sd-jwt', attribute_sources: sources },
+    ]);
+    const { project, report, bundle } = await roundTrip(input);
+    expect((node(project, 'city') as AttributeNode).source).toEqual(['address', 'city']);
+    expect(report).toEqual([]);
+    expect(bundle.overlays.filter((overlay) => overlay.type === OVERLAY_TYPES.dataSource)).toEqual(input.overlays);
+  });
+
+  it('warns about the wallets that miss "vc+sd-jwt" and exports both', async () => {
+    const { report, bundle } = await roundTrip(await bundleWith([{ format: 'dc+sd-jwt', attribute_sources: sources }]));
+    expect(warnings(report)).toEqual([expect.stringMatching(/no "vc\+sd-jwt" Data Source overlay.*iOS wallet up to 1\.18.*Android/)]);
+    expect(dataSourceFormats(bundle)).toEqual(['vc+sd-jwt', 'dc+sd-jwt']);
+  });
+
+  it('warns about the wallets that miss "dc+sd-jwt" and exports both', async () => {
+    const { report, bundle } = await roundTrip(await bundleWith([{ format: 'vc+sd-jwt', attribute_sources: sources }]));
+    expect(warnings(report)).toEqual([expect.stringMatching(/no "dc\+sd-jwt" Data Source overlay.*Android/)]);
+    expect(dataSourceFormats(bundle)).toEqual(['vc+sd-jwt', 'dc+sd-jwt']);
+  });
+
+  it('keeps the "dc+sd-jwt" path when the formats disagree, whatever their order', async () => {
+    for (const order of [
+      ['dc+sd-jwt', 'vc+sd-jwt'],
+      ['vc+sd-jwt', 'dc+sd-jwt'],
+    ]) {
+      const input = await bundleWith(
+        order.map((format) => ({ format, attribute_sources: format === 'dc+sd-jwt' ? sources : { ...sources, city: ['city'] } })),
+      );
+      const { project, report } = await roundTrip(input);
+      expect((node(project, 'city') as AttributeNode).source).toEqual(['address', 'city']);
+      expect(warnings(report)).toEqual([
+        'The data source of "city" differed between formats: city for "vc+sd-jwt", address.city for "dc+sd-jwt". The address.city path was kept for every format.',
+      ]);
+    }
+  });
+
+  it('reads other formats, warns, and exports their paths as both formats', async () => {
+    const { project, report, bundle } = await roundTrip(await bundleWith([{ format: 'jwt_vc_json', attribute_sources: sources }]));
+    expect((node(project, 'name') as AttributeNode).source).toEqual(['name']);
+    expect(warnings(report)).toContain(
+      'Data Source overlays with format "jwt_vc_json" are not read by the wallets. Their paths are exported as "vc+sd-jwt" and "dc+sd-jwt".',
+    );
+    expect(dataSourceFormats(bundle)).toEqual(['vc+sd-jwt', 'dc+sd-jwt']);
+  });
+
+  it('checks the formats of Data Source 1.0 when there is no 2.0', async () => {
+    const { project, report } = await roundTrip(
+      await bundleWith([{ type: 'extend/overlays/data_source/1.0', format: 'vc+sd-jwt', attribute_sources: { name: '$.name', city: '$.address.city' } }]),
+    );
+    expect((node(project, 'city') as AttributeNode).source).toEqual(['address', 'city']);
+    expect(warnings(report)).toEqual([expect.stringMatching(/no "dc\+sd-jwt" Data Source overlay/)]);
+  });
+
+  for (const [name, fixture] of Object.entries(VALID_FIXTURES)) {
+    it(`${name}: labels every source on each wallet after a round trip`, async () => {
+      const { project, bundle } = await roundTrip(fixture);
+      const { digests } = await buildBundle(project);
+      for (const group of walkGroups(project.root)) {
+        const found = walletDataSources(bundle, digests.get(group.id)!);
+        for (const child of group.children) {
+          if (!child.source?.length) continue;
+          for (const wallet of ['ios-1.18', 'ios-1.19', 'android-1.19'] as const) {
+            for (const format of ['vc+sd-jwt', 'dc+sd-jwt'] as const) expect(walletPath(found.get(child.key), wallet, format)).toEqual(child.source);
+          }
+        }
+      }
+    });
+  }
 });

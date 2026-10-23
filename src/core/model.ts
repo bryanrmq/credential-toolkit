@@ -14,7 +14,13 @@ export const KNOWN_STANDARDS = {
   dataUrl: 'urn:ietf:rfc:2397',
 } as const;
 
-export const DATA_SOURCE_FORMAT = 'dc+sd-jwt';
+/**
+ * The export writes one Data Source overlay per format, with the same paths. Wallets look the paths up by
+ * format: iOS 1.18 only by `vc+sd-jwt`, Android 1.19 by the exact `format` of the issuer metadata, and
+ * iOS 1.19 by the credential's `typ` with the other one as fallback.
+ */
+export const DATA_SOURCE_FORMATS = ['vc+sd-jwt', 'dc+sd-jwt'] as const;
+export type DataSourceFormat = (typeof DATA_SOURCE_FORMATS)[number];
 
 export interface Branding {
   logo?: string;
