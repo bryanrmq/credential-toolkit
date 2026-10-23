@@ -178,35 +178,38 @@ describe('Workspace', () => {
     expect(useStore.getState().project?.root.children.map((child) => child.key)).toEqual(['attribute']);
   });
 
-  it('shows the selected item in every language next to the form', async () => {
+  it('shows the selected item in every language inside the form, with no Translations column', async () => {
     const user = userEvent.setup();
     const nameNode = useStore.getState().project!.root.children[0];
     useStore.getState().select({ kind: 'node', id: nameNode.id });
     render(<Workspace />);
-    const aside = screen.getByRole('complementary', { name: 'Translations' });
-    expect(within(aside).getByLabelText('Label (de-CH)')).toHaveValue('Name');
-    const english = within(aside).getByLabelText('Label (en-GB)');
+    expect(screen.queryByRole('complementary', { name: 'Translations' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Label')).toHaveValue('Name');
+    const english = screen.getByLabelText('Label (en-GB)');
     expect(english).toHaveAttribute('data-empty', 'true');
 
     await user.type(english, 'Name');
     expect(useStore.getState().project?.root.children[0].labels).toEqual({ 'de-CH': 'Name', 'en-GB': 'Name' });
 
-    await user.click(within(aside).getAllByRole('button', { name: 'en-GB' })[0]);
-    expect(useStore.getState().editLang).toBe('en-GB');
+    await user.click(within(topBar().getByRole('group', { name: 'Editing language' })).getByRole('button', { name: 'en-GB' }));
+    expect(screen.getByLabelText('Label')).toHaveValue('Name');
+    expect(screen.getByLabelText('Label (de-CH)')).toHaveValue('Name');
   });
 
   it('shows the credential texts in every language when the credential is selected', () => {
     render(<Workspace />);
-    const aside = screen.getByRole('complementary', { name: 'Translations' });
-    expect(within(aside).getByLabelText('Credential name (de-CH)')).toHaveValue('Hundebewilligung');
-    expect(within(aside).getByLabelText('Credential name (en-GB)')).toHaveValue('');
-    expect(within(aside).getByLabelText('Primary field (en-GB)')).toHaveValue('');
+    expect(screen.getByLabelText('Name')).toHaveValue('Hundebewilligung');
+    expect(screen.getByLabelText('Name (en-GB)')).toHaveValue('');
+    expect(screen.getByLabelText('Description (en-GB)')).toHaveValue('');
+    expect(screen.getByLabelText('Primary field (en-GB)')).toHaveValue('');
   });
 
-  it('hides the translations column for a single-language project', () => {
+  it('shows a single input per text for a single-language project', () => {
     useStore.getState().load(emptyProject(['de-CH']));
     render(<Workspace />);
     expect(screen.queryByRole('complementary', { name: 'Translations' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toBeInTheDocument();
+    expect(screen.queryByText('de-CH', { selector: '.lang-row__code' })).not.toBeInTheDocument();
   });
 
   it('heads the inspector with the label, the technical key and the editing language', () => {

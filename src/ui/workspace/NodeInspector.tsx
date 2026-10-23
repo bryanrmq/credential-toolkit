@@ -7,6 +7,7 @@ import {
   type Group,
   type GroupLink,
   KNOWN_STANDARDS,
+  type LangTag,
   type Node,
   type PrimitiveType,
   findNode,
@@ -24,7 +25,9 @@ import { deleteNodes } from '../lib/treeActions';
 import { EntriesEditor } from './EntriesEditor';
 import { I14yLabelHint, I14yLinkLine, I14yMatchLine } from './I14yLink';
 import { InspectorHeader } from './InspectorHeader';
+import { LanguageRows } from './LanguageRows';
 import { moveTargets } from './moveTargets';
+import { labelRow } from './translationRows';
 
 function standardOptions(type: PrimitiveType): Array<{ value: string; label: string }> {
   if (type === 'DateTime') {
@@ -76,23 +79,24 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
   const label = node.labels[lang] ?? '';
   const linkedLabel = node.kind === 'attribute' ? i14yLabel(node, lang) : undefined;
   const labelStatus = compareWithI14y(label, linkedLabel);
+  const labelName = node.kind === 'group' ? t.inspector.headline : t.inspector.label;
   const unlinked = node.kind === 'attribute' && !node.i14y;
   // An unlinked attribute loads the catalogue to show the concepts it looks like.
   const { catalogue, request } = useI14yCatalogue(unlinked);
   const matches = unlinked && catalogue ? suggestLinks(node, catalogue, project.languages) : [];
-  // Labels match names in the editing language; keys also match I14Y identifiers.
-  const i14y = (field: 'key' | 'label'): SuggestionSource | undefined =>
+  // Labels match names in their own language (the editing one for the key); keys also match I14Y identifiers.
+  const i14y = (field: 'key' | 'label', textLang: LangTag = lang): SuggestionSource | undefined =>
     node.kind === 'attribute'
       ? {
           heading: t.i14y.suggestHeading,
           prepare: request,
           find: (text) =>
-            (catalogue ? matchConcepts(catalogue, text, { language: i14yLanguage(lang), identifier: field === 'key' }) : []).map((hit) => ({
+            (catalogue ? matchConcepts(catalogue, text, { language: i14yLanguage(textLang), identifier: field === 'key' }) : []).map((hit) => ({
               id: hit.id,
-              label: textIn(hit.name, lang) || hit.identifier,
+              label: textIn(hit.name, textLang) || hit.identifier,
               detail: hit.identifier,
             })),
-          pick: (suggestion) => void fillFromI14y(node.id, suggestion.id, field === 'key' ? { replaceKey: true } : { replaceLabelIn: lang }),
+          pick: (suggestion) => void fillFromI14y(node.id, suggestion.id, field === 'key' ? { replaceKey: true } : { replaceLabelIn: textLang }),
         }
       : undefined;
 
@@ -122,7 +126,7 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
 
       <Field
         id={id('label')}
-        label={node.kind === 'group' ? t.inspector.headline : t.inspector.label}
+        label={labelName}
         hint={
           node.kind === 'group'
             ? t.inspector.headlineHint
@@ -131,18 +135,13 @@ export function NodeInspector({ node, parent }: { node: Node; parent: Group }) {
               : undefined
         }
       >
-        <TemplateInput
+        <LanguageRows
           id={id('label')}
-          value={node.labels[lang] ?? ''}
-          paths={paths}
-          placeholder={node.key}
-          suggestions={i14y('label')}
-          onChange={(value) =>
-            edit((draft) => {
-              if (value) draft.labels[lang] = value;
-              else delete draft.labels[lang];
-            })
-          }
+          label={labelName}
+          row={labelRow(node)}
+          input={(props) => (
+            <TemplateInput {...props} paths={paths} placeholder={node.key} suggestions={i14y('label', props.lang)} />
+          )}
         />
       </Field>
 

@@ -1,14 +1,13 @@
 import { PlusIcon, XIcon } from '@phosphor-icons/react';
-import { i14yValueLabel } from '../../core/import/i14y';
 import type { AttributeNode, Node } from '../../core/model';
-import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Button, Field, Toggle } from '../components/controls';
-import { I14yReset } from './I14yLink';
+import { TextInput } from '../components/inputs';
+import { LanguageRows } from './LanguageRows';
+import { entryRow } from './translationRows';
 
-/** Codes and their labels in the current language (Entry Code + Entry overlays). */
+/** Codes and their labels in every language, the editing one first (Entry Code + Entry overlays). */
 export function EntriesEditor({ node, edit, id }: { node: AttributeNode; edit: (recipe: (draft: Node) => void) => void; id: string }) {
-  const lang = useStore((state) => state.editLang);
   const entries = node.entries;
   const change = (recipe: (draft: AttributeNode) => void) => edit((draft) => draft.kind === 'attribute' && recipe(draft));
 
@@ -51,22 +50,11 @@ export function EntriesEditor({ node, edit, id }: { node: AttributeNode; edit: (
                   />
                 </td>
                 <td>
-                  <input
-                    className="input"
-                    aria-label={`${code} (${lang})`}
-                    value={entries.labels[lang]?.[code] ?? ''}
-                    onChange={(event) =>
-                      change((draft) => {
-                        draft.entries!.labels[lang] = { ...(draft.entries!.labels[lang] ?? {}), [code]: event.target.value };
-                      })
-                    }
-                  />
-                </td>
-                <td style={{ width: 32 }}>
-                  <I14yReset
-                    current={entries.labels[lang]?.[code] ?? ''}
-                    i14yText={i14yValueLabel(node, lang, code)}
-                    onReset={(text) => change((draft) => void (draft.entries!.labels[lang] = { ...(draft.entries!.labels[lang] ?? {}), [code]: text }))}
+                  <LanguageRows
+                    id={`${id}-${index}-label`}
+                    label={code}
+                    row={entryRow(node.id, code)}
+                    input={(props) => <TextInput {...props} ariaLabel={`${code} (${props.lang})`} />}
                   />
                 </td>
                 <td style={{ width: 32 }}>

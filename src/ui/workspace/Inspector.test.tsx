@@ -41,7 +41,7 @@ describe('Inspector with several nodes selected', () => {
     expect(within(screen.getByRole('list', { name: 'Selected keys' })).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['b', 'inner']);
     expect(screen.queryByText(/more$/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Key')).not.toBeInTheDocument();
-    expect(screen.queryByText('Translations')).not.toBeInTheDocument();
+    expect(screen.queryByText('en-GB', { selector: '.lang-row__code' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Group' })).toHaveAttribute('aria-keyshortcuts');
     expect(screen.getByRole('button', { name: 'Delete' })).toHaveAttribute('aria-keyshortcuts', 'Backspace');
   });
@@ -120,7 +120,7 @@ describe('Inspector with several nodes selected', () => {
     expect(screen.queryByText(/items selected/)).not.toBeInTheDocument();
     expect(screen.getByLabelText('Key')).toHaveValue('a');
     expect(screen.getByRole('combobox', { name: 'Group' })).toBeInTheDocument();
-    expect(screen.getByText('Translations')).toBeInTheDocument();
+    expect(screen.getByLabelText('Label (en-GB)')).toBeInTheDocument();
   });
 });
 

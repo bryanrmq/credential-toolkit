@@ -7,6 +7,8 @@ import { TemplateInput, TextInput } from '../components/inputs';
 import { ColorInput, LogoInput } from '../components/media';
 import { fieldId } from '../issues';
 import { InspectorHeader } from './InspectorHeader';
+import { LanguageRows } from './LanguageRows';
+import { metaRow, primaryFieldRow } from './translationRows';
 
 export function CredentialInspector() {
   const project = useStore((state) => state.project)!;
@@ -20,10 +22,8 @@ export function CredentialInspector() {
   const id = (field: 'name' | 'description' | 'logo' | 'primaryBackgroundColor' | 'primaryField' | 'secondaryField') =>
     fieldId({ kind: 'credential', field, lang, theme: field === 'name' || field === 'description' ? undefined : theme });
 
-  const setMeta = (field: 'name' | 'description', value: string) =>
-    update((draft) => {
-      draft.meta[lang] = { ...(draft.meta[lang] ?? { name: '', description: '' }), [field]: value };
-    });
+  // The dark primary field is only listed for the languages that have a dark branding.
+  const primaryLangs = theme === 'dark' ? project.languages.filter((other) => project.branding[other]?.dark) : undefined;
   const setBranding = (field: keyof Branding, value: string | undefined) =>
     update((draft) => {
       const current = draft.branding[lang] ?? { light: {} };
@@ -38,10 +38,15 @@ export function CredentialInspector() {
     <>
       <InspectorHeader kind={t.inspector.credentialEyebrow} lang={lang} title={meta.name || t.workspace.untitled} />
       <Field id={id('name')} label={t.inspector.name} hint={t.inspector.nameHint}>
-        <TextInput id={id('name')} value={meta.name} onChange={(value) => setMeta('name', value)} />
+        <LanguageRows id={id('name')} label={t.inspector.name} row={metaRow('name', t.translations.name)} input={(props) => <TextInput {...props} />} />
       </Field>
       <Field id={id('description')} label={t.inspector.description} hint={t.inspector.descriptionHint}>
-        <TextInput id={id('description')} value={meta.description} onChange={(value) => setMeta('description', value)} />
+        <LanguageRows
+          id={id('description')}
+          label={t.inspector.description}
+          row={metaRow('description', t.translations.description)}
+          input={(props) => <TextInput {...props} />}
+        />
       </Field>
 
       <div className="section">
@@ -77,11 +82,12 @@ export function CredentialInspector() {
                 />
               </Field>
               <Field id={id('primaryField')} label={t.inspector.primaryField} hint={t.inspector.primaryFieldHint}>
-                <TemplateInput
+                <LanguageRows
                   id={id('primaryField')}
-                  value={branding.primaryField ?? ''}
-                  paths={paths}
-                  onChange={(value) => setBranding('primaryField', value)}
+                  label={t.inspector.primaryField}
+                  row={primaryFieldRow(theme)}
+                  langs={primaryLangs}
+                  input={(props) => <TemplateInput {...props} paths={paths} />}
                 />
               </Field>
               <Field id={id('secondaryField')} label={t.inspector.secondaryField} hint={t.inspector.secondaryFieldHint}>
