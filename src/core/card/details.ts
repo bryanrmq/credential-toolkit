@@ -37,6 +37,7 @@ import {
   isArrayType,
   walkNodes,
 } from '../model.ts';
+import { isIssuerLogo, issuerOf } from '../issuer.ts';
 import type { CardPlatform } from './profiles.ts';
 import { MAX_JOIN_SEPARATOR, joinSeparator, parseExpression, resolveEditorPath } from '../templates.ts';
 import { type ValueOptions, formatClaimValue, iosEntryText, walletText } from './values.ts';
@@ -287,6 +288,41 @@ function androidOrder(order: number): number {
 
 export function credentialDetails(project: Project, options: DetailsOptions): CredentialDetails {
   return new DetailsBuilder(project, options).build();
+}
+
+/** The "Issued by" row: the issuer display the wallet picks from the Issuer Metadata's top-level `display`. */
+export interface IssuedBy {
+  /** The project language of the display picked; undefined when Android picks its own nameless fallback display. */
+  lang?: LangTag;
+  /** Its issuer name; undefined when it has none, where the wallets show "Unknown issuer". */
+  name?: string;
+  /** Its logo, a PNG or JPEG data URL; undefined draws the wallet's default icon. */
+  logo?: string;
+}
+
+/**
+ * The issuer name and logo on the details screen, from the issuer settings. The Issuer Metadata has one `display` per
+ * project language (`locale` the language tag, no `name` when it is empty, the one logo in each), and the wallets pick
+ * one as they pick labels, so they fall back to another language only when there is no display for the device's:
+ *
+ * - iOS v1.19.0 (42e746c): `VerifiableCredentialViewModel` takes `issuerDisplays.findDisplayWithFallback()` (device
+ *   languages, then `en`, then the first display's), built in `CredentialGenerator.createIssuerDisplays`.
+ * - Android v1.19.0 (c29a6f3): `GetCredentialIssuerDisplaysFlowImpl` uses `GetLocalizedDisplayImpl` on the displays
+ *   `GenerateAnyDisplaysImpl.generateIssuerDisplays` stored with a nameless `fallback` display added, so a phone in a
+ *   language with no display shows `de`, `en`, then "Unknown issuer".
+ *
+ * Both take the name from the trust registry instead when the issuer is registered there, which the preview cannot know.
+ */
+export function issuedBy(project: Project, options: Pick<DetailsOptions, 'languages' | 'platform'>): IssuedBy {
+  const issuer = issuerOf(project);
+  const logo = issuer.logo && isIssuerLogo(issuer.logo) ? issuer.logo : undefined;
+  const displays: Display[] = project.languages.map((locale) => ({ locale, name: issuer.name[locale].trim() || undefined }));
+  const picked =
+    options.platform === 'ios'
+      ? pickPrefix(displays, options.languages)
+      : pickAndroid([...displays, { locale: FALLBACK_LOCALE }], options.languages[0]);
+  if (!picked || picked.locale === FALLBACK_LOCALE) return {};
+  return { lang: picked.locale, name: picked.name, logo };
 }
 
 /** Stands in for a sample value when the project has no sample. */

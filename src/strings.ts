@@ -369,7 +369,7 @@ export const t = {
     screen: 'details screen',
     status: 'Card status',
     statuses: { valid: 'Valid', invalid: 'Expired', revoked: 'Revoked', suspended: 'Suspended', notYetValid: 'Not yet valid', unknown: 'Unknown' },
-    /** Stands in for the issuer's name, which the wallet reads from the issuer metadata. */
+    /** Stands in for the issuer's name, which the wallet reads from the Issuer Metadata. */
     issuerPlaceholder: 'Issuer name',
     /** What a screen reader says for an image value. */
     image: 'Image',
@@ -377,7 +377,13 @@ export const t = {
     orderUndefined: 'Some rows share an order value, usually because there is no Order overlay, so the wallet may list them in another order.',
     invalidImageNote: 'An image does not match its format, so the wallet refuses the whole credential.',
     undecodableImageNote: "Android accepts an image here that it cannot decode, so it leaves out the other rows of that image's group too.",
-    issuer: "The wallet takes the issuer's name and logo from the issuer metadata, not the OCA bundle. The preview shows the card logo.",
+    /** Under the preview: where the "Issued by" row comes from. */
+    issuer: {
+      named: 'The wallet takes the issuer name and logo from the Issuer Metadata, which the issuer settings fill in. A registered issuer shows its name from the trust registry instead.',
+      /** `language`: the language of the issuer display the wallet picks; undefined when Android finds none to pick. */
+      missing: (language?: string) =>
+        `${language ? `No issuer name in ${language}.` : 'No issuer name in the Android app language, German or English.'} The wallet takes it from the Issuer Metadata, so the preview shows a placeholder.`,
+    },
     caption: (platform: string) => `Approximation of the ${platform} wallet's details screen. Uses this app's font and leaves out Latest Activities.`,
     differencesLabel: (platform: string) => `Where ${platform} differs`,
     /** How the other platform's details screen differs; `platform` is that platform's name. */

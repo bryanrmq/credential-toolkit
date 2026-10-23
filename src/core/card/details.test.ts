@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { jpegDataUrl } from '../../test/images';
 import { type Group, type Node, type Project, emptyGroup, emptyProject, newAttribute, newGroupLink } from '../model';
 import {
   type CredentialDetails,
@@ -9,6 +10,7 @@ import {
   androidAppLocale,
   credentialDetails,
   iosLanguageCodes,
+  issuedBy,
 } from './details';
 
 const DE = 'de-CH';
@@ -456,5 +458,53 @@ describe('Android rules', () => {
     const colour = newAttribute('colour', { labels: { [DE]: 'Farbe' }, entries: { codes: ['br'], labels: { [FR]: { br: 'Brun' } } } });
     const [claim] = claims(android(project([colour], { colour: 'br' }), { languages: ['fr-CH'] }).sections[0].rows);
     expect(claim).toMatchObject({ label: '["colour"]', value: { kind: 'entry', label: 'Brun' } });
+  });
+});
+
+describe('issued by', () => {
+  const LOGO = jpegDataUrl(4, 4);
+  /** A project in `languages` with these issuer names and the logo. */
+  function issuer(names: Record<string, string>, languages = [DE, FR]): Project {
+    const result = project([], undefined, languages);
+    result.issuer = { name: names, logo: LOGO };
+    return result;
+  }
+  const ios = (p: Project, deviceLanguages: string[]) => issuedBy(p, { languages: iosLanguageCodes(deviceLanguages), platform: 'ios' });
+  const android = (p: Project, deviceLanguages: string[]) => issuedBy(p, { languages: [androidAppLocale(deviceLanguages)], platform: 'android' });
+
+  it('takes the name in the device language and the logo', () => {
+    const p = issuer({ [DE]: 'Kanton Bern', [FR]: 'Canton de Berne' });
+    expect(ios(p, [FR])).toEqual({ lang: FR, name: 'Canton de Berne', logo: LOGO });
+    expect(android(p, [DE])).toEqual({ lang: DE, name: 'Kanton Bern', logo: LOGO });
+  });
+
+  it('has no name when that language has none, as both wallets show "Unknown issuer" rather than another language', () => {
+    const p = issuer({ [DE]: 'Kanton Bern', [FR]: '  ' });
+    expect(ios(p, [FR])).toEqual({ lang: FR, name: undefined, logo: LOGO });
+    expect(android(p, [FR])).toEqual({ lang: FR, name: undefined, logo: LOGO });
+  });
+
+  it('falls back as each wallet does for a language with no display', () => {
+    const p = issuer({ fr: 'Canton de Berne', de: 'Kanton Bern', en: 'Canton of Bern' }, ['fr', 'de', 'en']);
+    // iOS: the device languages, then English.
+    expect(ios(p, ['it-CH']).name).toBe('Canton of Bern');
+    // Android: an app language without a display goes to `de`, then `en`.
+    expect(android(p, ['it-CH']).name).toBe('Kanton Bern');
+    // iOS without an English display: the first display's language.
+    expect(ios(issuer({ fr: 'Canton de Berne', it: 'Cantone di Berna' }, ['fr', 'it']), ['rm']).name).toBe('Canton de Berne');
+  });
+
+  it("gives Android's nameless fallback display, without a logo, when neither the app language, de nor en has one", () => {
+    const p = issuer({ fr: 'Canton de Berne', it: 'Cantone di Berna' }, ['fr', 'it']);
+    expect(android(p, ['rm'])).toEqual({});
+  });
+
+  it('leaves out a logo the wallets do not draw, and projects saved before the issuer settings have no name', () => {
+    const p = issuer({ [DE]: 'Kanton Bern' });
+    p.issuer!.logo = 'https://issuer.example.ch/logo.png';
+    expect(ios(p, [DE])).toEqual({ lang: DE, name: 'Kanton Bern', logo: undefined });
+    const old = project([]);
+    delete old.issuer;
+    expect(ios(old, [DE])).toEqual({ lang: DE, name: undefined, logo: undefined });
   });
 });
