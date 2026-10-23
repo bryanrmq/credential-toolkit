@@ -1,7 +1,7 @@
 {
   "name": "@bryanrmq/oca-generator",
   "version": "0.1.0",
-  "description": "Build and check swiyu OCA bundles for SD-JWT credentials: project files, validation, bundle, #integrity and VCT snippet.",
+  "description": "Build and check swiyu OCA bundles for SD-JWT credentials: project files, validation, bundle, #integrity and VCT snippet, as a library and the oca command.",
   "license": "MIT",
   "author": "Bryan Reymonenq",
   "homepage": "https://github.com/bryanrmq/oca-generator/tree/main/packages/oca-generator#readme",
@@ -21,13 +21,16 @@
     "./package.json": "./package.json"
   },
   "types": "./dist/index.d.ts",
+  "bin": {
+    "oca": "./dist/cli.js"
+  },
   "files": ["dist"],
   "sideEffects": false,
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "build": "rm -rf dist && tsc -p tsconfig.json && tsc -p tsconfig.cli.json",
     "prepack": "npm run build"
   },
   "dependencies": {
