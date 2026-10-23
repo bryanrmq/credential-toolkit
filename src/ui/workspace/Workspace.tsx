@@ -1,6 +1,6 @@
 import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { validate } from '../../core/validate';
-import { storageAvailable } from '../../state/persistence';
+import { useDrafts } from '../../state/persistence';
 import { useStore } from '../../state/store';
 import { useExport } from '../../state/useExport';
 import { t } from '../../strings';
@@ -27,6 +27,7 @@ import { useWideWindow } from '../lib/wideWindow';
 import { Inspector } from './Inspector';
 import { IssuesPanel } from './IssuesPanel';
 import { LanguagesDialog } from './LanguagesDialog';
+import { OutOfSpaceBanner } from './OutOfSpaceBanner';
 import { OutputPanel } from './OutputPanel';
 import { I14yMatchBanner } from './I14yMatchBanner';
 import { ReportBanner } from './ReportBanner';
@@ -112,7 +113,7 @@ export function Workspace() {
     setIssuesFocus((count) => count + 1);
   };
   const issuesPane = !wide && view === 'editor' && pane === 'issues';
-  const [canSave] = useState(storageAvailable);
+  const canSave = useDrafts((state) => state.available);
   useCommandShortcuts();
   // The tour starts by itself until this browser has finished or skipped it once.
   useEffect(() => {
@@ -124,11 +125,12 @@ export function Workspace() {
     <IssuesContext.Provider value={issues}>
       <div className="workspace">
         <TopBar ref={topBarRef} exportState={exportState} onShowIssues={showIssues} />
-        {(!canSave || saveFailed) && (
+        {!canSave && (
           <p className="note" role="status" style={{ margin: '12px 20px 0' }}>
-            {canSave ? t.workspace.saveFailed : t.workspace.storageUnavailable}
+            {t.workspace.storageUnavailable}
           </p>
         )}
+        {canSave && saveFailed && <OutOfSpaceBanner exportState={exportState} />}
         <ReportBanner />
         <I14yMatchBanner onReview={() => setPane('inspector')} />
         {view === 'translations' ? (

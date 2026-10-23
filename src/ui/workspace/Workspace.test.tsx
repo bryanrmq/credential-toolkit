@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProject, newAttribute } from '../../core/model';
+import { useDrafts } from '../../state/persistence';
 import { useStore } from '../../state/store';
 import { TOUR_SEEN_KEY } from '../lib/tour';
 import { Workspace } from './Workspace';
@@ -68,11 +69,21 @@ describe('Workspace', () => {
     expect(within(screen.getByRole('group', { name: 'Editing language' })).getByRole('button', { name: 'fr-CH' })).toBeInTheDocument();
   });
 
-  it('says so when the draft could not be saved', () => {
+  it('shows the out-of-space banner while the draft cannot be saved', () => {
     useStore.getState().setDraftSaveFailed(true);
     render(<Workspace />);
-    expect(screen.getByText(/too large to save/)).toHaveAttribute('role', 'status');
-    useStore.getState().setDraftSaveFailed(false);
+    const banner = screen.getByText(/This browser is out of space/).closest('[role="status"]')!;
+    expect(banner).toHaveClass('space-banner');
+    expect(within(banner as HTMLElement).getByRole('button', { name: 'Save project file' })).toBeDisabled();
+    act(() => useStore.getState().setDraftSaveFailed(false));
+    expect(screen.queryByText(/This browser is out of space/)).not.toBeInTheDocument();
+  });
+
+  it('says so when the browser has no storage', () => {
+    useDrafts.setState({ available: false });
+    render(<Workspace />);
+    expect(screen.getByText(/does not allow local storage/)).toHaveAttribute('role', 'status');
+    useDrafts.setState({ available: true });
   });
 
   it('attaches a sample credential and checks source paths against it', async () => {

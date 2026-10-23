@@ -1,7 +1,6 @@
 import { ArrowRightIcon, BracketsCurlyIcon, FilePlusIcon, IdentificationCardIcon, ShieldCheckIcon, StackIcon } from '@phosphor-icons/react';
 import { type ReactNode, Suspense, lazy, useRef, useState } from 'react';
-import { loadDraft } from '../../state/persistence';
-import { useStore } from '../../state/store';
+import { draftDisplayName, openDraft, selectResumeDraft, useDrafts } from '../../state/persistence';
 import { t } from '../../strings';
 import { useReveal } from '../lib/reveal';
 import { Wordmark } from '../Wordmark';
@@ -18,10 +17,8 @@ const ENTRIES: Array<{ kind: ImportKind; icon: ReactNode; tone: string; wide?: b
 ];
 
 export function StartScreen() {
-  const load = useStore((state) => state.load);
   const [dialog, setDialog] = useState<ImportKind | null>(null);
-  const [draft] = useState(loadDraft);
-  const draftName = draft ? (draft.meta[draft.languages[0]]?.name ?? '') : '';
+  const draft = useDrafts(selectResumeDraft);
   const innerRef = useRef<HTMLDivElement>(null);
   useReveal(innerRef);
 
@@ -45,10 +42,10 @@ export function StartScreen() {
         </section>
         <div className="bento">
           {draft && (
-            <button type="button" className="bento__card bento__card--resume reveal" onClick={() => load(draft)}>
+            <button type="button" className="bento__card bento__card--resume reveal" onClick={() => void openDraft(draft.id)}>
               <div className="grow">
                 <div className="bento__title">{t.start.resumeTitle}</div>
-                <p className="bento__body">{t.start.resumeBody(draftName)}</p>
+                <p className="bento__body">{t.start.resumeBody(draftDisplayName(draft))}</p>
               </div>
               <span className="btn btn--primary">
                 {t.start.resumeAction} <ArrowRightIcon />

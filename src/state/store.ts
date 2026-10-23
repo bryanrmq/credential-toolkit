@@ -1,7 +1,7 @@
 import { type StateCreator, create } from 'zustand';
 import type { CardPlatform, CardVariant } from '../core/card/profiles';
 import type { ReportNote } from '../core/import/report';
-import type { LangTag, Project } from '../core/model';
+import { type LangTag, type Project, newId } from '../core/model';
 import type { Fix } from '../core/validate/fixes';
 import { CREDENTIAL, type Selection, type SelectionRequest, normalizeSelection, selectionIn } from './selection';
 import { loadCollapsed, revealSelection, saveCollapsed, selectionOnCollapse } from './treeView';
@@ -27,6 +27,8 @@ export const TYPING_PAUSE_MS = 1000;
 
 export interface AppState {
   project: Project | null;
+  /** The stored draft (`persistence.ts`) the open project belongs to; null on the start screen. */
+  draftId: string | null;
   selection: Selection;
   /**
    * The Structure tree's collapsed groups, by node id, remembered per project. A selected node is never
@@ -58,7 +60,8 @@ export interface AppState {
   future: HistoryStep[];
   fixNotice: FixNotice | null;
   fixing: boolean;
-  load: (project: Project, report?: ReportNote[], options?: { reviewI14y?: boolean }) => void;
+  /** Opens `project` in the workspace: as stored draft `options.draftId`, or else as a new draft. */
+  load: (project: Project, report?: ReportNote[], options?: { reviewI14y?: boolean; draftId?: string }) => void;
   close: () => void;
   /**
    * Applies `recipe` to a copy of the project, so every change produces a new object, and records the
@@ -157,6 +160,7 @@ function revealingSelection(config: StateCreator<AppState>): StateCreator<AppSta
 
 export const useStore = create<AppState>()(revealingSelection((set, get) => ({
   project: null,
+  draftId: null,
   selection: CREDENTIAL,
   collapsed: [],
   treeFilter: '',
@@ -180,6 +184,7 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
     typing = null;
     set({
       project,
+      draftId: options?.draftId ?? newId(),
       report: report && report.length ? report : null,
       i14yReview: options?.reviewI14y ?? false,
       selection: CREDENTIAL,
@@ -197,6 +202,7 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
     typing = null;
     set({
       project: null,
+      draftId: null,
       report: null,
       i14yReview: false,
       selection: CREDENTIAL,

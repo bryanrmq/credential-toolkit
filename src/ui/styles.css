@@ -991,6 +991,26 @@ input[type='checkbox'] {
     white-space: nowrap;
   }
 }
+/* Autosave ran out of browser storage: a warning under the top bar while the project stays open. */
+.space-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 12px 20px 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--yellow-bg);
+  color: var(--yellow-text);
+  font-size: 13px;
+}
+.space-banner > svg {
+  flex: none;
+}
+.space-banner__text {
+  flex: 1 1 240px;
+  margin: 0;
+}
 .report {
   margin: 12px 20px 0;
   border: 1px solid var(--border);

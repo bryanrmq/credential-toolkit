@@ -1,18 +1,29 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor, within } from '@testing-library/react';
+import 'fake-indexeddb/auto';
+import { IDBFactory } from 'fake-indexeddb';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProject } from '../core/model';
-import { loadDraft, saveDraft } from '../state/persistence';
+import { getDraft, initDrafts, restoreDraft, useDrafts } from '../state/persistence';
 import { useStore } from '../state/store';
 import { App } from './App';
 import { TOUR_SEEN_KEY, loadTourSeen } from './lib/tour';
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
   localStorage.setItem(TOUR_SEEN_KEY, '1');
+  vi.stubGlobal('indexedDB', new IDBFactory());
+  await initDrafts();
   useStore.getState().close();
 });
+
+/** Stores a draft named Hundebewilligung, as an earlier visit would have. */
+async function storeDraft() {
+  const draft = emptyProject(['de-CH']);
+  draft.meta['de-CH'].name = 'Hundebewilligung';
+  await restoreDraft({ id: 'saved', updatedAt: 1, project: draft });
+}
 
 describe('App', () => {
   it('starts a blank project and adds an attribute', async () => {
@@ -55,10 +66,42 @@ describe('App', () => {
     expect(within(dialog).getByRole('alert')).toHaveTextContent(/Invalid JSON at line 1/);
   });
 
+  it('continues the saved draft from the start screen', async () => {
+    await storeDraft();
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /Continue your draft.*Hundebewilligung/ }));
+    expect(await screen.findByRole('heading', { name: 'Hundebewilligung' })).toBeInTheDocument();
+    expect(useStore.getState().draftId).toBe('saved');
+  });
+
+  it('keeps the open draft stored and offers it again after going back', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /Start blank/ }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Open in editor' }));
+    const id = useStore.getState().draftId!;
+    await waitFor(() => expect(useDrafts.getState().drafts.map((draft) => draft.id)).toEqual([id]));
+    act(() => useStore.getState().close());
+    expect(screen.getByRole('button', { name: /Continue your draft.*Untitled credential/ })).toBeInTheDocument();
+  });
+
+  it('discards the open draft on New project, after asking', async () => {
+    await storeDraft();
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /Continue your draft/ }));
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await user.click(await screen.findByRole('button', { name: 'More actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'New project' }));
+    expect(confirm).toHaveBeenCalledOnce();
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Continue your draft/ })).not.toBeInTheDocument());
+    expect(await getDraft('saved')).toBeNull();
+    confirm.mockRestore();
+  });
+
   it('asks before a new project replaces the saved draft', async () => {
-    const draft = emptyProject(['de-CH']);
-    draft.meta['de-CH'].name = 'Hundebewilligung';
-    saveDraft(draft);
+    await storeDraft();
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const user = userEvent.setup();
     render(<App />);
@@ -67,11 +110,12 @@ describe('App', () => {
 
     expect(confirm).toHaveBeenCalledOnce();
     expect(useStore.getState().project).toBeNull();
-    expect(loadDraft()?.meta['de-CH'].name).toBe('Hundebewilligung');
+    expect((await getDraft('saved'))?.project.meta['de-CH'].name).toBe('Hundebewilligung');
 
     confirm.mockReturnValue(true);
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Open in editor' }));
     expect(screen.getByRole('heading', { name: 'Untitled credential' })).toBeInTheDocument();
+    await waitFor(async () => expect(await getDraft('saved')).toBeNull());
     confirm.mockRestore();
   });
 
@@ -87,9 +131,7 @@ describe('App', () => {
   });
 
   it('asks before the example replaces the saved draft', async () => {
-    const draft = emptyProject(['de-CH']);
-    draft.meta['de-CH'].name = 'Hundebewilligung';
-    saveDraft(draft);
+    await storeDraft();
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const user = userEvent.setup();
     render(<App />);
@@ -97,7 +139,7 @@ describe('App', () => {
 
     await waitFor(() => expect(confirm).toHaveBeenCalledOnce());
     expect(useStore.getState().project).toBeNull();
-    expect(loadDraft()?.meta['de-CH'].name).toBe('Hundebewilligung');
+    expect((await getDraft('saved'))?.project.meta['de-CH'].name).toBe('Hundebewilligung');
     confirm.mockRestore();
   });
 
