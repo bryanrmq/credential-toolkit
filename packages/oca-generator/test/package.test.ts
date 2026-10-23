@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -148,6 +149,24 @@ describe('@bryanrmq/oca-generator', () => {
       expect(built.status).toBe(0);
       expect(built.stderr).toContain('Hosting: The bundle URL should start with https://.');
       expect(readFileSync(join(work, 'warnings.json'), 'utf8')).toBe((await appExport(path)).outputs.json);
+    });
+
+    it('prints the data URL #integrity the wallets compute when embedding', async () => {
+      const path = projectFile('embedded.oca-project.json', (project) => {
+        project.hosting = { mode: 'dataUrl' };
+        project.meta['de-CH'] = { name: 'Führerausweis', description: 'Ausgestellt in Zürich' };
+      });
+      const { outputs } = await appExport(path);
+
+      const built = oca('build', path, '-o', 'embedded.json', '--vct', 'embedded.vct.json');
+      expect(built.status).toBe(0);
+      const [entry] = (JSON.parse(readFileSync(join(work, 'embedded.vct.json'), 'utf8')) as ReturnType<typeof buildVctSnippet>).display;
+      // As both wallets check it: SHA-256 over the UTF-8 bytes of the whole data URL, standard base64.
+      const walletIntegrity = `sha256-${createHash('sha256').update(entry.rendering.oca.uri, 'utf8').digest('base64')}`;
+      expect(entry.rendering.oca.uri).toBe(outputs.dataUrl);
+      expect(entry.rendering.oca['uri#integrity']).toBe(walletIntegrity);
+      expect(built.stdout).toContain('uri            embedded as a data URL');
+      expect(built.stdout).toContain(`uri#integrity  ${walletIntegrity}`);
     });
 
     it('lists errors with their location and languages, exits with 1 and writes nothing', () => {
