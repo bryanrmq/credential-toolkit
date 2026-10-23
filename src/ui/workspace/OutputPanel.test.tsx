@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProject, newAttribute } from '../../core/model';
 import { useStore } from '../../state/store';
-import { OUTPUT_HALVES_KEY, PREVIEW_HEIGHT_KEY } from '../lib/paneLayout';
 import { TOUR_SEEN_KEY } from '../lib/tour';
 import { Workspace } from './Workspace';
 
@@ -17,9 +16,10 @@ function loadProject(hosting: 'dataUrl' | 'emptyUrl' = 'dataUrl') {
 }
 
 const output = () => within(screen.getByRole('region', { name: 'Output' }));
-/** The JSON the Bundle half shows: the bundle or the VCT snippet. */
+/** The JSON the pane shows: the bundle or the VCT snippet. */
 const shownJson = () => screen.getByRole('region', { name: 'Output' }).querySelector('pre')!;
-const divider = () => screen.getByRole('separator', { name: 'Resize the preview' });
+/** The hosting choice, shown above the JSON under the Bundle tab. */
+const hosting = () => output().queryByRole('group', { name: 'Where will the bundle live?' });
 /** Waits for the bundle to be built, which happens shortly after the project changes. */
 const built = () => screen.findByText('uri#integrity');
 
@@ -30,195 +30,93 @@ beforeEach(() => {
   loadProject();
 });
 
-describe('Output pane halves', () => {
-  it('shows the Preview half above the Bundle half, split by a divider', () => {
+describe('Output pane', () => {
+  it('shows only the bundle, with no preview, divider or collapse control', async () => {
     render(<Workspace />);
-    const preview = output().getByText('Preview');
-    const tabs = output().getByRole('tablist', { name: 'Output' });
-    expect(preview.compareDocumentPosition(divider()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(divider().compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(divider()).toHaveAttribute('aria-orientation', 'horizontal');
-    expect(divider()).toHaveAttribute('aria-valuenow', '320');
-    expect(divider()).toHaveAttribute('aria-valuemin', '120');
-    expect(divider()).toHaveAttribute('aria-valuemax', '800');
-    expect(output().getByRole('figure', { name: 'iOS card' })).toHaveTextContent('Hundebewilligung');
-  });
-
-  it('switches the preview platform and view from its header', async () => {
-    const user = userEvent.setup();
-    render(<Workspace />);
-    await user.click(within(output().getByRole('group', { name: 'Preview platform' })).getByRole('button', { name: 'Android' }));
-    await user.click(within(output().getByRole('group', { name: 'Preview view' })).getByRole('button', { name: 'Details' }));
-    expect(useStore.getState()).toMatchObject({ cardPlatform: 'android', cardVariant: 'details' });
-    expect(within(output().getByRole('group', { name: 'Preview view' })).getByRole('button', { name: 'Details' })).toHaveAttribute('aria-pressed', 'true');
-    expect(output().getByRole('region', { name: 'Android details screen' })).toBeInTheDocument();
-  });
-
-  it('resizes the preview with the keyboard and remembers the height', async () => {
-    const user = userEvent.setup();
-    const { unmount } = render(<Workspace />);
-    divider().focus();
-    await user.keyboard('{ArrowDown}{ArrowDown}');
-    expect(divider()).toHaveAttribute('aria-valuenow', '352');
-    await user.keyboard('{Shift>}{ArrowUp}{/Shift}');
-    expect(divider()).toHaveAttribute('aria-valuenow', '288');
-    await user.keyboard('{Home}');
-    expect(divider()).toHaveAttribute('aria-valuenow', '120');
-    await user.keyboard('{End}');
-    expect(divider()).toHaveAttribute('aria-valuenow', '800');
-    await user.keyboard('{Shift>}{ArrowUp}{ArrowUp}{/Shift}');
-    expect(divider()).toHaveAttribute('aria-valuenow', '672');
-    expect(localStorage.getItem(PREVIEW_HEIGHT_KEY)).toBe('672');
-    expect(screen.getByRole('region', { name: 'Output' }).querySelector('.output')).toHaveStyle({ '--preview-height': '672px' });
-
-    unmount();
-    render(<Workspace />);
-    expect(divider()).toHaveAttribute('aria-valuenow', '672');
-    divider().focus();
-    await user.keyboard('{Enter}');
-    expect(divider()).toHaveAttribute('aria-valuenow', '320');
-    expect(localStorage.getItem(PREVIEW_HEIGHT_KEY)).toBe('320');
-  });
-
-  it('resizes the preview by dragging the divider and resets it with a double-click', async () => {
-    const user = userEvent.setup();
-    render(<Workspace />);
-    fireEvent.pointerDown(divider(), { clientY: 400, pointerId: 1 });
-    fireEvent.pointerMove(divider(), { clientY: 460, pointerId: 1 });
-    fireEvent.pointerUp(divider(), { clientY: 460, pointerId: 1 });
-    expect(divider()).toHaveAttribute('aria-valuenow', '380');
-    expect(localStorage.getItem(PREVIEW_HEIGHT_KEY)).toBe('380');
-
-    await user.dblClick(divider());
-    expect(divider()).toHaveAttribute('aria-valuenow', '320');
-    expect(localStorage.getItem(PREVIEW_HEIGHT_KEY)).toBe('320');
-  });
-
-  it('keeps the preview out of the Bundle half’s room in a short pane', async () => {
-    const user = userEvent.setup();
-    render(<Workspace />);
-    const root = screen.getByRole('region', { name: 'Output' }).querySelector<HTMLElement>('.output')!;
-    vi.spyOn(root, 'clientHeight', 'get').mockReturnValue(500);
-    divider().focus();
-    await user.keyboard('{End}');
-    // The Bundle half keeps 160 px of the 500 px pane.
-    expect(divider()).toHaveAttribute('aria-valuenow', '340');
-  });
-
-  it('collapses each half to its header and expands it again', async () => {
-    const user = userEvent.setup();
-    render(<Workspace />);
-    const collapsePreview = output().getByRole('button', { name: 'Collapse preview' });
-    expect(collapsePreview).toHaveAttribute('aria-expanded', 'true');
-    await user.click(collapsePreview);
-    expect(collapsePreview).toHaveAccessibleName('Expand preview');
-    expect(collapsePreview).toHaveAttribute('aria-expanded', 'false');
-    expect(output().queryByRole('figure')).not.toBeInTheDocument();
-    expect(output().queryByRole('group', { name: 'Preview view' })).not.toBeInTheDocument();
-    // The Bundle half takes the room: no divider is left to drag.
-    expect(screen.queryByRole('separator', { name: 'Resize the preview' })).not.toBeInTheDocument();
-    expect(await built()).toBeInTheDocument();
-
-    // Both halves can be collapsed at once.
-    const collapseBundle = output().getByRole('button', { name: 'Collapse bundle' });
-    await user.click(collapseBundle);
-    expect(collapseBundle).toHaveAttribute('aria-expanded', 'false');
-    expect(output().queryByText('uri#integrity')).not.toBeInTheDocument();
-    expect(output().getByText('Preview')).toBeInTheDocument();
     expect(output().getByRole('tablist', { name: 'Output' })).toBeInTheDocument();
-
-    await user.click(output().getByRole('button', { name: 'Expand preview' }));
-    expect(output().getByRole('figure', { name: 'iOS card' })).toBeInTheDocument();
+    expect(output().queryByRole('figure')).not.toBeInTheDocument();
+    expect(output().queryByRole('group', { name: 'Preview platform' })).not.toBeInTheDocument();
+    expect(output().queryByRole('group', { name: 'Preview view' })).not.toBeInTheDocument();
+    expect(output().queryByText('Preview')).not.toBeInTheDocument();
     expect(screen.queryByRole('separator', { name: 'Resize the preview' })).not.toBeInTheDocument();
-    await user.click(output().getByRole('button', { name: 'Expand bundle' }));
-    expect(output().getByText('uri#integrity')).toBeInTheDocument();
-    expect(divider()).toBeInTheDocument();
+    expect(output().queryByRole('button', { name: /^(Collapse|Expand)/ })).not.toBeInTheDocument();
+    expect(output().queryByRole('button', { name: 'Bundle settings' })).not.toBeInTheDocument();
+    expect(await built()).toBeInTheDocument();
+    // The wallet preview is in the Edit pane.
+    expect(within(screen.getByRole('region', { name: 'Edit' })).getByRole('region', { name: 'Preview' })).toBeInTheDocument();
   });
 
-  it('remembers the collapsed halves', async () => {
+  it('neither reads nor writes the stored preview height or halves', async () => {
+    localStorage.setItem('oca-generator:preview-height', '500');
+    localStorage.setItem('oca-generator:output-halves', JSON.stringify({ preview: true, bundle: false }));
     const user = userEvent.setup();
-    const { unmount } = render(<Workspace />);
-    await user.click(output().getByRole('button', { name: 'Collapse bundle' }));
-    expect(JSON.parse(localStorage.getItem(OUTPUT_HALVES_KEY)!)).toEqual({ preview: true, bundle: false });
-
-    unmount();
     render(<Workspace />);
-    expect(output().getByRole('button', { name: 'Expand bundle' })).toHaveAttribute('aria-expanded', 'false');
-    expect(output().getByRole('button', { name: 'Collapse preview' })).toHaveAttribute('aria-expanded', 'true');
+    // A bundle saved as collapsed shows all the same.
+    expect(await built()).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Output' }).querySelector('.output')).not.toHaveAttribute('style');
+    await user.click(output().getByRole('tab', { name: 'VCT snippet' }));
+    await user.click(output().getByRole('tab', { name: 'Bundle' }));
+    expect(localStorage.getItem('oca-generator:preview-height')).toBe('500');
+    expect(localStorage.getItem('oca-generator:output-halves')).toBe(JSON.stringify({ preview: true, bundle: false }));
   });
 
-  it('starts from the defaults when the stored layout is broken', () => {
-    localStorage.setItem(OUTPUT_HALVES_KEY, '{not json');
-    localStorage.setItem(PREVIEW_HEIGHT_KEY, '99999');
+  it('hides the pane with the button in its header on a wide window', async () => {
+    const user = userEvent.setup();
     render(<Workspace />);
-    expect(output().getByRole('button', { name: 'Collapse preview' })).toHaveAttribute('aria-expanded', 'true');
-    expect(output().getByRole('button', { name: 'Collapse bundle' })).toHaveAttribute('aria-expanded', 'true');
-    expect(divider()).toHaveAttribute('aria-valuenow', '800');
-  });
+    const header = screen.getByRole('region', { name: 'Output' }).querySelector<HTMLElement>('.output__header')!;
+    expect(within(header).getByRole('tablist', { name: 'Output' })).toBeInTheDocument();
+    const hide = within(header).getByRole('button', { name: 'Hide output' });
+    expect(hide).toHaveAttribute('title', 'Hide output (⌥⌘B)');
 
-  it('starts from the defaults when storage is unavailable', () => {
-    useStore.getState().setOutputHalves({ preview: false, bundle: false });
-    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new DOMException('denied', 'SecurityError');
-    });
-    try {
-      render(<Workspace />);
-      expect(output().getByRole('button', { name: 'Collapse preview' })).toHaveAttribute('aria-expanded', 'true');
-      expect(output().getByRole('button', { name: 'Collapse bundle' })).toHaveAttribute('aria-expanded', 'true');
-      expect(divider()).toHaveAttribute('aria-valuenow', '320');
-    } finally {
-      getItem.mockRestore();
-    }
+    await user.click(hide);
+    expect(screen.queryByRole('region', { name: 'Output' })).not.toBeInTheDocument();
+    expect(useStore.getState().outputOpen).toBe(false);
+    expect(document.querySelector('.topbar [data-output-toggle]')).toHaveFocus();
   });
 });
 
-describe('Bundle half', () => {
-  it('opens the hosting and sample settings from the gear button', async () => {
+describe('Hosting and the sample credential', () => {
+  it('shows them above the JSON under the Bundle tab, without opening a menu', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
-    const gear = output().getByRole('button', { name: 'Bundle settings' });
-    expect(gear).toHaveAttribute('aria-expanded', 'false');
-    expect(output().queryByRole('radio', { name: /Embedded as a data URL/ })).not.toBeInTheDocument();
-    expect(output().queryByRole('button', { name: 'Attach sample' })).not.toBeInTheDocument();
+    await built();
+    const choice = within(hosting()!);
+    expect(choice.getByRole('radio', { name: /Embedded as a data URL/ })).toBeChecked();
+    expect(output().getByRole('button', { name: 'Attach sample' })).toBeInTheDocument();
+    expect(hosting()!.compareDocumentPosition(shownJson()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    await user.click(gear);
-    expect(gear).toHaveAttribute('aria-expanded', 'true');
-    const settings = within(output().getByRole('region', { name: 'Bundle settings' }));
-    expect(settings.getByRole('radio', { name: /Embedded as a data URL/ })).toBeChecked();
-    await user.click(settings.getByRole('radio', { name: /At a URL I host/ }));
-    await user.type(settings.getByRole('textbox', { name: 'At a URL I host' }), 'https://issuer.example.ch/oca.json');
+    await user.click(choice.getByRole('radio', { name: /At a URL I host/ }));
+    await user.type(choice.getByRole('textbox', { name: 'At a URL I host' }), 'https://issuer.example.ch/oca.json');
     expect(useStore.getState().project!.hosting).toEqual({ mode: 'url', url: 'https://issuer.example.ch/oca.json' });
-    expect(settings.getByRole('button', { name: 'Attach sample' })).toBeInTheDocument();
-
-    await user.click(gear);
-    expect(gear).toHaveAttribute('aria-expanded', 'false');
-    expect(output().queryByRole('region', { name: 'Bundle settings' })).not.toBeInTheDocument();
   });
 
-  it('expands a collapsed Bundle half to show its settings', async () => {
+  it('leaves them out of the VCT and Changes tabs', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
-    await user.click(output().getByRole('button', { name: 'Collapse bundle' }));
-    await user.click(output().getByRole('button', { name: 'Bundle settings' }));
-    expect(output().getByRole('button', { name: 'Collapse bundle' })).toHaveAttribute('aria-expanded', 'true');
-    expect(output().getByRole('region', { name: 'Bundle settings' })).toBeInTheDocument();
+    await user.click(output().getByRole('tab', { name: 'VCT snippet' }));
+    expect(hosting()).not.toBeInTheDocument();
+    expect(output().queryByRole('button', { name: 'Attach sample' })).not.toBeInTheDocument();
+    await user.click(output().getByRole('tab', { name: /^Changes/ }));
+    expect(hosting()).not.toBeInTheDocument();
+    await user.click(output().getByRole('tab', { name: 'Bundle' }));
+    expect(hosting()).toBeInTheDocument();
   });
 
-  it('opens the settings in a collapsed Bundle half to go to a hosting issue', async () => {
+  it('switches to the Bundle tab to go to a hosting issue', async () => {
     loadProject('emptyUrl');
-    useStore.getState().setOutputHalves({ preview: true, bundle: false });
-    localStorage.setItem(OUTPUT_HALVES_KEY, JSON.stringify({ preview: true, bundle: false }));
+    useStore.setState({ outputTab: 'changes' });
     const user = userEvent.setup();
     render(<Workspace />);
     expect(output().queryByRole('textbox', { name: 'At a URL I host' })).not.toBeInTheDocument();
 
     const issues = screen.getByRole('region', { name: 'Issues' });
     await user.click(within(issues).getByRole('button', { name: /Enter the URL where you will publish the bundle/ }));
-    expect(output().getByRole('button', { name: 'Collapse bundle' })).toHaveAttribute('aria-expanded', 'true');
-    expect(output().getByRole('button', { name: 'Bundle settings' })).toHaveAttribute('aria-expanded', 'true');
+    expect(output().getByRole('tab', { name: 'Bundle' })).toHaveAttribute('aria-selected', 'true');
     expect(output().getByRole('textbox', { name: 'At a URL I host' })).toBeInTheDocument();
   });
+});
 
+describe('Bundle tab', () => {
   it('shows the size, copies what the tab shows and puts the integrity line under the JSON', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
@@ -245,15 +143,15 @@ describe('Bundle half', () => {
 describe('Output pane on a narrow window', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('stacks both halves with no divider', async () => {
+  it('shows the bundle with its hosting and no preview or hide button', async () => {
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
     const user = userEvent.setup();
     render(<Workspace />);
     await user.click(within(screen.getByRole('tablist', { name: 'Panes' })).getByRole('tab', { name: 'Output' }));
-    expect(screen.getByRole('region', { name: 'Output' }).querySelector('.output')).toHaveClass('output--stacked');
-    expect(output().getByRole('figure', { name: 'iOS card' })).toBeInTheDocument();
     expect(output().getByRole('tablist', { name: 'Output' })).toBeInTheDocument();
-    expect(screen.queryByRole('separator', { name: 'Resize the preview' })).not.toBeInTheDocument();
+    expect(hosting()).toBeInTheDocument();
+    expect(output().queryByRole('figure')).not.toBeInTheDocument();
+    expect(output().queryByRole('button', { name: 'Hide output' })).not.toBeInTheDocument();
     expect(await built()).toBeInTheDocument();
   });
 });

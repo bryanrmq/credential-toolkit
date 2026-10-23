@@ -15,11 +15,9 @@ import {
   type WorkspacePane,
   clampPaneWidth,
   loadIssuesOpen,
-  loadOutputHalves,
   loadOutputOpen,
   loadPaneWidths,
   saveIssuesOpen,
-  saveOutputHalves,
   saveOutputOpen,
   savePaneWidths,
 } from '../lib/paneLayout';
@@ -52,14 +50,12 @@ export function Workspace() {
   const [widths, setWidths] = useState(loadPaneWidths);
   const widthsRef = useRef(widths);
   const wide = useWideWindow();
-  // The store holds whether Output and its halves show, so that going to a hosting issue or the tour can show them again.
+  // The store holds whether Output shows, so that going to a hosting issue or the tour can show it again.
   const outputOpen = useStore((state) => state.outputOpen);
   useLayoutEffect(() => {
     useStore.getState().setOutputOpen(loadOutputOpen());
-    useStore.getState().setOutputHalves(loadOutputHalves());
     return useStore.subscribe((state, previous) => {
       if (state.outputOpen !== previous.outputOpen) saveOutputOpen(state.outputOpen);
-      if (state.outputHalves !== previous.outputHalves) saveOutputHalves(state.outputHalves);
     });
   }, []);
   // A narrow window shows one pane at a time, Output among the tabs, so there it is never hidden.
@@ -188,7 +184,6 @@ export function Workspace() {
                       onHide={wide ? hideOutput : undefined}
                       // On narrow windows only one pane shows: a change's field is in Edit (languages open a dialog).
                       onJump={(change) => change.section !== 'languages' && setPane('inspector')}
-                      stacked={!wide}
                     />
                   </section>
                 </>

@@ -12,7 +12,7 @@ import type { Gradient } from './gradients.ts';
 export type CardPlatform = 'ios' | 'android';
 /** Detail and offer cards, the details screen, and the row in the home list. */
 export type CardVariant = 'detail' | 'offer' | 'details' | 'home';
-/** What the Output preview offers to show: a card (detail or offer), the details screen, or the home row. */
+/** What the wallet preview offers to show: a card (detail or offer), the details screen, or the home row. */
 export type PreviewView = 'card' | 'details' | 'home';
 export type Ink = 'black' | 'white';
 

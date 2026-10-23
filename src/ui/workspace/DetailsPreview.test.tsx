@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { type Group, type Node, type Project, emptyGroup, emptyProject, newAttribute, newGroupLink } from '../../core/model';
 import { useStore } from '../../state/store';
 import { pngDataUrl } from '../../test/images';
-import { OutputPanel } from './OutputPanel';
+import { EditPreview } from './EditPreview';
 
 const DE = 'de-CH';
 const group = (...children: Node[]): Group => ({ ...emptyGroup(), children });
@@ -37,7 +37,7 @@ function load(configure?: (project: Project) => void) {
   useStore.setState({ cardPlatform: 'ios', cardVariant: 'details', editLang: DE, brandingTheme: 'light' });
 }
 
-const renderPreview = () => render(<OutputPanel exportState={{ status: 'working' }} />);
+const renderPreview = () => render(<EditPreview beside />);
 const phone = () => within(screen.getByRole('region', { name: 'iOS details screen' }));
 /** A claim row by its accessible name: label, value and, when sensitive, "Sensitive information". */
 const row = (name: string) => phone().getByRole('group', { name });
