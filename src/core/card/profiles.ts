@@ -3,10 +3,12 @@
  * fallback, black or white content, the missing-name text, the card geometry and gradients, and the home list
  * row. Ported from the wallet source (iOS `CredentialCard.swift`, `VerifiableCredentialCellV1.swift`,
  * `Color+Hex.swift`, `Color+Luminance.swift`; Android `CredentialCardCreditFormat.kt`, `MediumCredentialCard.kt`,
- * `CredentialCardListItem.kt`, `Gradients.kt`, `GetCredentialCardStateImpl.kt`, `GetContrastedColorImpl.kt`).
+ * `CredentialCardListItem.kt`, `Gradients.kt`, `GetCredentialCardStateImpl.kt`, `GetContrastedColorImpl.kt`,
+ * `CredentialCardState.kt`).
  */
 
 import type { ClaimsPath } from '../model.ts';
+import type { FallbackPattern } from './fallbackPattern.ts';
 import type { Gradient } from './gradients.ts';
 
 export type CardPlatform = 'ios' | 'android';
@@ -43,6 +45,8 @@ export interface CardLayout {
   textPosition: 'top' | 'bottom';
   /** Shading drawn over the card colour, bottom to top. */
   gradients: Gradient[];
+  /** Lines tiled under the shading when the colour is the default (Android only). */
+  fallbackPattern?: FallbackPattern;
 }
 
 export interface HomeRowColours {
@@ -57,7 +61,15 @@ export interface HomeRowColours {
 export interface HomeRowLayout {
   /** The row's width in px on a typical phone; the preview scales it down to fit. */
   referenceWidth: number;
-  thumbnail: { width: number; height: number; radius: number; logo: { width: number; height: number }; gradients: Gradient[] };
+  thumbnail: {
+    width: number;
+    height: number;
+    radius: number;
+    logo: { width: number; height: number };
+    gradients: Gradient[];
+    /** Lines tiled under the shading when the colour is the default (Android only). */
+    fallbackPattern?: FallbackPattern;
+  };
   /** Space between the thumbnail and the text. */
   gap: number;
   padding: { vertical: number; horizontal: number };
@@ -282,6 +294,7 @@ export const CARD_PROFILES: Record<CardPlatform, CardProfile> = {
         lineHeight: 22,
         textPosition: 'top',
         gradients: [ANDROID_DIAGONAL, ANDROID_LEFT_BOTTOM_LARGE, ANDROID_BOTTOM_CENTER],
+        fallbackPattern: 'large',
       },
       // MediumCredentialCard, credential offer screen
       offer: {
@@ -296,12 +309,14 @@ export const CARD_PROFILES: Record<CardPlatform, CardProfile> = {
         lineHeight: 22,
         textPosition: 'bottom',
         gradients: [ANDROID_DIAGONAL, ANDROID_LEFT_BOTTOM],
+        fallbackPattern: 'large',
       },
     },
     // CredentialCardListItem (Material3 ListItem) with CredentialCardVerySmall as thumbnail
     home: {
       referenceWidth: 380,
-      thumbnail: { width: 48, height: 64, radius: 8, logo: { width: 24, height: 24 }, gradients: [ANDROID_DIAGONAL] },
+      // CredentialCardVerySmall draws the small pattern
+      thumbnail: { width: 48, height: 64, radius: 8, logo: { width: 24, height: 24 }, gradients: [ANDROID_DIAGONAL], fallbackPattern: 'small' },
       gap: 16,
       padding: { vertical: 12, horizontal: 16 },
       radius: 16,
@@ -317,6 +332,15 @@ export const CARD_PROFILES: Record<CardPlatform, CardProfile> = {
     },
   },
 };
+
+/**
+ * Android `CredentialCardState.useDefaultBackground`: the card colour equals the fallback, whether the wallet fell
+ * back to it or the issuer picked that very colour.
+ */
+export function isDefaultBackground(profile: CardProfile, background: Rgba): boolean {
+  const fallback = profile.fallbackBackground;
+  return background.r === fallback.r && background.g === fallback.g && background.b === fallback.b && background.a === fallback.a;
+}
 
 export function formatHex({ r, g, b }: Rgba): string {
   return `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, '0')).join('')}`.toUpperCase();

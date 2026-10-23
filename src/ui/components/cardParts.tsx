@@ -1,3 +1,4 @@
+import { FALLBACK_PATTERN_TILE, type FallbackPattern, fallbackPatternImage } from '../../core/card/fallbackPattern';
 import { type Gradient, gradientLayer } from '../../core/card/gradients';
 import type { Ink } from '../../core/card/profiles';
 import type { SummarySegment } from '../../core/card/summary';
@@ -24,6 +25,15 @@ export function GradientLayers({ gradients, width, height }: { gradients: Gradie
       })}
     </>
   );
+}
+
+/**
+ * Android's fallback pattern, tiled from the centre of the card as `BackgroundCanvas` does; it goes before the
+ * gradient layers, which the wallet draws over it. The parent must be positioned.
+ */
+export function FallbackPatternLayer({ pattern }: { pattern: FallbackPattern }) {
+  const style = { backgroundImage: fallbackPatternImage(pattern), backgroundSize: `${FALLBACK_PATTERN_TILE}px` };
+  return <span className="card-pattern" aria-hidden="true" data-pattern={pattern} style={style} />;
 }
 
 /** The logo box, with the logo tinted black or white when it is a PNG or JPEG data URL. */

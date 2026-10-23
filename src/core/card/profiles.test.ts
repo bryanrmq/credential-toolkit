@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CARD_PROFILES, type CardPlatform, formatHex, formatRgba, previewViewOf, shownVariant } from './profiles';
+import { CARD_PROFILES, type CardPlatform, formatHex, formatRgba, isDefaultBackground, previewViewOf, shownVariant } from './profiles';
 
 const ink = (platform: CardPlatform, hex: string) => {
   const profile = CARD_PROFILES[platform];
@@ -129,7 +129,32 @@ describe('profiles', () => {
     expect(android.colours.light).toEqual({ page: '#FFFFFF', row: '#FFFFFF', name: '#092740', summary: '#41484D' });
   });
 
+  it("draws Android's fallback pattern on every card size, the small one on the home thumbnail, and none on iOS", () => {
+    expect(CARD_PROFILES.android.layout.detail.fallbackPattern).toBe('large');
+    expect(CARD_PROFILES.android.layout.offer?.fallbackPattern).toBe('large');
+    expect(CARD_PROFILES.android.home.thumbnail.fallbackPattern).toBe('small');
+    expect(CARD_PROFILES.ios.layout.detail.fallbackPattern).toBeUndefined();
+    expect(CARD_PROFILES.ios.home.thumbnail.fallbackPattern).toBeUndefined();
+  });
+
   it('writes a colour as CSS rgba', () => {
     expect(formatRgba({ r: 59, g: 130, b: 246, a: 0.5 })).toBe('rgba(59, 130, 246, 0.5)');
+  });
+});
+
+describe('isDefaultBackground', () => {
+  const android = CARD_PROFILES.android;
+  const isDefault = (hex: string) => isDefaultBackground(android, android.parseBackground(hex) ?? android.fallbackBackground);
+
+  it('holds for the fallback, and for the same colour picked by the issuer, in any case', () => {
+    expect(isDefaultBackground(android, android.fallbackBackground)).toBe(true);
+    expect(isDefault('#F0EDE5')).toBe(true);
+    expect(isDefault('#f0ede5')).toBe(true);
+    expect(isDefault('F0EDE5')).toBe(true);
+  });
+
+  it('fails for any other colour', () => {
+    expect(isDefault('#F0EDE6')).toBe(false);
+    expect(isDefault('#3B82F6')).toBe(false);
   });
 });

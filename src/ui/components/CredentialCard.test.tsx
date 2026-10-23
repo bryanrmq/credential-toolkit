@@ -64,6 +64,27 @@ describe('CredentialCard', () => {
     expect(content[1]).toHaveClass('credential-card__text');
   });
 
+  it("tiles Android's fallback pattern over the default colour, under the gradients", () => {
+    const card = draw({ layout: CARD_PROFILES.android.layout.detail, background: CARD_PROFILES.android.fallbackBackground, defaultBackground: true });
+    const pattern = card.querySelector<HTMLElement>('.card-pattern')!;
+    expect(pattern).toHaveAttribute('data-pattern', 'large');
+    expect(pattern).toHaveAttribute('aria-hidden', 'true');
+    expect(pattern.style.backgroundSize).toBe('180px');
+    expect(pattern.nextElementSibling).toHaveClass('card-gradient');
+  });
+
+  it('draws the pattern on the Android offer card too', () => {
+    expect(draw({ layout: CARD_PROFILES.android.layout.offer!, defaultBackground: true }).querySelector('.card-pattern')).toHaveAttribute('data-pattern', 'large');
+  });
+
+  it('draws no pattern on any other colour', () => {
+    expect(draw({ layout: CARD_PROFILES.android.layout.detail }).querySelector('.card-pattern')).toBeNull();
+  });
+
+  it('draws no pattern on iOS, whatever the colour', () => {
+    expect(draw({ defaultBackground: true }).querySelector('.card-pattern')).toBeNull();
+  });
+
   it('draws the wallet gradients over the colour, with their opacity and blur', () => {
     const layers = [...draw().querySelectorAll<HTMLElement>('.card-gradient')];
     expect(layers).toHaveLength(2);

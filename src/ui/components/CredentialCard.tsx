@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { type CardLayout, type Ink, type Rgba, formatRgba } from '../../core/card/profiles';
 import type { SummarySegment } from '../../core/card/summary';
-import { CardLogo, GradientLayers, SummaryText } from './cardParts';
+import { CardLogo, FallbackPatternLayer, GradientLayers, SummaryText } from './cardParts';
 
 const INK_COLOUR = { black: '#000000', white: '#FFFFFF' } as const;
 
@@ -10,6 +10,8 @@ export interface CredentialCardProps {
   label: string;
   layout: CardLayout;
   background: Rgba;
+  /** The background is the wallet's default colour, so a layout with a fallback pattern draws it. */
+  defaultBackground?: boolean;
   ink: Ink;
   /** Null draws no name line. */
   name: string | null;
@@ -21,8 +23,8 @@ export interface CredentialCardProps {
   badges?: ReactNode;
 }
 
-/** One wallet's credential card: colour and gradients, black or white content, logo silhouette, name and summary. */
-export function CredentialCard({ label, layout, background, ink, name, summary, logo, scale = 1, badges }: CredentialCardProps) {
+/** One wallet's credential card: colour, fallback pattern and gradients, black or white content, logo silhouette, name and summary. */
+export function CredentialCard({ label, layout, background, defaultBackground = false, ink, name, summary, logo, scale = 1, badges }: CredentialCardProps) {
   const { padding } = layout;
   const style = {
     '--card-width': `${layout.referenceWidth}px`,
@@ -56,6 +58,7 @@ export function CredentialCard({ label, layout, background, ink, name, summary, 
 
   return (
     <figure className={`credential-card credential-card--text-${layout.textPosition}`} style={style} aria-label={label} data-ink={ink}>
+      {defaultBackground && layout.fallbackPattern && <FallbackPatternLayer pattern={layout.fallbackPattern} />}
       <GradientLayers gradients={layout.gradients} width={layout.referenceWidth} height={layout.referenceWidth / layout.aspectRatio} />
       {layout.textPosition === 'top' ? (
         <>

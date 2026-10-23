@@ -354,7 +354,7 @@ export const t = {
     variants: { detail: 'Detail', offer: 'Offer' },
     /** Accessible names of what the preview draws, after the platform name. */
     drawn: { detail: 'detail card', offer: 'offer card', home: 'home row', card: 'card' },
-    caption: "Approximation of the swiyu wallets. Uses this app's font and leaves out patterns and badges.",
+    caption: "Approximation of the swiyu wallets. Uses this app's font and leaves out the demo issuer pattern and badges.",
     lightForDark: 'No dark branding: both wallets show the light card in dark mode.',
     noSample: "Attach a sample credential under the Output pane's Bundle tab to see real values.",
     ink: (platform: string, ink: string) => `${platform}: ${ink} text`,

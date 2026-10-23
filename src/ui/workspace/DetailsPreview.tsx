@@ -13,7 +13,7 @@ import {
 } from '../../core/card/detailsChrome';
 import { type DetailsDifference, detailsDevice, detailsDifferences } from '../../core/card/detailsDifferences';
 import { otherPlatform } from '../../core/card/differences';
-import { CARD_PROFILES } from '../../core/card/profiles';
+import { CARD_PROFILES, isDefaultBackground } from '../../core/card/profiles';
 import { cardSummary } from '../../core/card/summary';
 import { type FormattedValue, formatClaim } from '../../core/card/values';
 import { useStore } from '../../state/store';
@@ -123,6 +123,7 @@ export function DetailsPreview() {
     label: `${platformName} ${t.cardPreview.drawn.card}`,
     layout: profile.layout.detail,
     background,
+    defaultBackground: isDefaultBackground(profile, background),
     ink: profile.textInk(background),
     name: name || profile.missingName,
     summary: cardSummary(project, lang, branding, platform),

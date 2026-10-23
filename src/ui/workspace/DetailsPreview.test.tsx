@@ -192,6 +192,20 @@ describe('DetailsPreview on Android', () => {
     expect(screen.getByText(/Approximation of the Android wallet's details screen/)).toBeInTheDocument();
   });
 
+  it("draws Android's fallback pattern on the card when there is no colour", () => {
+    load((project) => {
+      delete project.branding[DE].light.primaryBackgroundColor;
+    });
+    useStore.setState({ cardPlatform: 'android' });
+    renderPreview();
+    expect(android().getByRole('figure', { name: 'Android card' }).querySelector('.card-pattern')).toHaveAttribute('data-pattern', 'large');
+  });
+
+  it('draws no pattern on a branded card', () => {
+    renderPreview();
+    expect(android().getByRole('figure', { name: 'Android card' }).querySelector('.card-pattern')).toBeNull();
+  });
+
   it('links each row and group to its node and claims path', () => {
     renderPreview();
     const project = useStore.getState().project!;

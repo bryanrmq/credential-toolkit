@@ -1,6 +1,6 @@
 import { selectBranding } from '../../core/card/branding';
 import { type CardDifference, cardDifferences, otherPlatform } from '../../core/card/differences';
-import { CARD_PROFILES, type CardPlatform, shownVariant } from '../../core/card/profiles';
+import { CARD_PROFILES, type CardPlatform, isDefaultBackground, shownVariant } from '../../core/card/profiles';
 import { cardSummary, summaryText } from '../../core/card/summary';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
@@ -46,6 +46,7 @@ export function CardPreview() {
   const summaries = { [platform]: summaryText(summary), [other]: summaryText(cardSummary(project, lang, branding, other)) } as Record<CardPlatform, string>;
   const background = profile.parseBackground(branding.primaryBackgroundColor) ?? profile.fallbackBackground;
   const ink = profile.textInk(background);
+  const defaultBackground = isDefaultBackground(profile, background);
   const differences = cardDifferences(platform, { variant: shown, name, background: branding.primaryBackgroundColor, summaries });
   // A wallet that shows its detail card on the offer screen calls it just "card".
   const drawn = shown === 'home' ? 'home' : shown === 'offer' ? 'offer' : profile.variants.includes('offer') ? 'detail' : 'card';
@@ -64,6 +65,7 @@ export function CardPreview() {
             layout={profile.home}
             theme={theme}
             background={background}
+            defaultBackground={defaultBackground}
             ink={ink}
             name={name || profile.home.missingName}
             summary={summary}
@@ -75,6 +77,7 @@ export function CardPreview() {
             label={label}
             layout={layout}
             background={background}
+            defaultBackground={defaultBackground}
             ink={ink}
             name={name || profile.missingName}
             summary={summary}

@@ -53,6 +53,22 @@ describe('CredentialHomeRow', () => {
     expect(draw({ layout: CARD_PROFILES.android.home }).querySelector('.home-row__chevron')).not.toBeNull();
   });
 
+  it("tiles Android's small fallback pattern in the thumbnail over the default colour", () => {
+    const android = CARD_PROFILES.android;
+    const row = draw({ layout: android.home, background: android.fallbackBackground, defaultBackground: true });
+    const pattern = row.querySelector('.home-row__thumbnail > .card-pattern');
+    expect(pattern).toHaveAttribute('data-pattern', 'small');
+    expect(pattern?.nextElementSibling).toHaveClass('card-gradient');
+  });
+
+  it('draws no thumbnail pattern on any other colour', () => {
+    expect(draw({ layout: CARD_PROFILES.android.home }).querySelector('.card-pattern')).toBeNull();
+  });
+
+  it('draws no thumbnail pattern on iOS, whatever the colour', () => {
+    expect(draw({ defaultBackground: true }).querySelector('.card-pattern')).toBeNull();
+  });
+
   it('draws no name line when the name is null', () => {
     expect(draw({ name: null }).querySelector('.home-row__name')).toBeNull();
   });
