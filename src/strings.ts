@@ -236,6 +236,14 @@ export const t = {
     add: (count: number) => (count === 0 ? 'Add' : `Add ${count} ${count === 1 ? 'attribute' : 'attributes'}`),
     suggestHeading: 'From I14Y — fills this attribute in every language',
   },
+  i14yFill: {
+    command: 'Fill missing languages from I14Y',
+    /** After a fill; `failed` names the concepts that could not be loaded. */
+    filled: (count: number, failed: string[]) =>
+      `Filled ${count} ${count === 1 ? 'text' : 'texts'} from I14Y, marked for review.${failed.length ? ` Could not load from I14Y: ${failed.join(', ')}.` : ''}`,
+    nothing: (failed: string[]) =>
+      failed.length ? `Nothing filled. Could not load from I14Y: ${failed.join(', ')}.` : 'Nothing filled: I14Y has no text for the missing languages.',
+  },
   i14yMatch: {
     region: 'Possible I14Y match',
     looksLike: 'Looks like',
