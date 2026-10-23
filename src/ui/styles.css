@@ -1668,20 +1668,6 @@ button.tree__toggle:hover {
   width: 16px;
   height: 16px;
 }
-.card-preview {
-  margin-bottom: 24px;
-}
-.card-preview__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-.card-preview__header .section__title {
-  margin-bottom: 0;
-}
 /* Stands in for the wallet app background: white in light mode, black in dark mode. */
 .card-preview__stage {
   display: flex;

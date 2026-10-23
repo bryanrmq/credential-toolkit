@@ -10,8 +10,10 @@ import type { ClaimsPath } from '../model';
 import type { Gradient } from './gradients';
 
 export type CardPlatform = 'ios' | 'android';
-/** Detail and offer cards, and the row in the home list. */
-export type CardVariant = 'detail' | 'offer' | 'home';
+/** Detail and offer cards, the details screen, and the row in the home list. */
+export type CardVariant = 'detail' | 'offer' | 'details' | 'home';
+/** What the Output preview offers to show: a card (detail or offer), the details screen, or the home row. */
+export type PreviewView = 'card' | 'details' | 'home';
 export type Ink = 'black' | 'white';
 
 /** Channels 0–255, alpha 0–1. */
@@ -90,6 +92,11 @@ export interface CardProfile {
 /** The variant to draw: one the platform has, otherwise its detail card. */
 export function shownVariant(profile: CardProfile, variant: CardVariant): CardVariant {
   return profile.variants.includes(variant) ? variant : 'detail';
+}
+
+/** The preview view a variant belongs to: both cards are the Card view. */
+export function previewViewOf(variant: CardVariant): PreviewView {
+  return variant === 'detail' || variant === 'offer' ? 'card' : variant;
 }
 
 const HEX6 = /^[0-9A-Fa-f]{6}$/;
@@ -218,7 +225,7 @@ export const CARD_PROFILES: Record<CardPlatform, CardProfile> = {
     textInk: iosTextInk,
     missingName: 'n/a',
     indexPath: iosIndexPath,
-    variants: ['detail', 'home'],
+    variants: ['detail', 'details', 'home'],
     layout: {
       // CredentialCard .large: credential detail screen, and the offer screen of the current app
       detail: {
@@ -260,7 +267,7 @@ export const CARD_PROFILES: Record<CardPlatform, CardProfile> = {
     textInk: androidTextInk,
     missingName: null,
     indexPath: androidIndexPath,
-    variants: ['detail', 'offer', 'home'],
+    variants: ['detail', 'offer', 'details', 'home'],
     layout: {
       // CredentialCardCreditFormat, credential detail screen
       detail: {

@@ -26,7 +26,7 @@ const built = () => screen.findByText('uri#integrity');
 beforeEach(() => {
   localStorage.clear();
   localStorage.setItem(TOUR_SEEN_KEY, '1');
-  useStore.setState({ outputTab: 'bundle', cardPlatform: 'ios', previewView: 'card' });
+  useStore.setState({ outputTab: 'bundle', cardPlatform: 'ios', cardVariant: 'detail' });
   loadProject();
 });
 
@@ -41,8 +41,7 @@ describe('Output pane halves', () => {
     expect(divider()).toHaveAttribute('aria-valuenow', '320');
     expect(divider()).toHaveAttribute('aria-valuemin', '120');
     expect(divider()).toHaveAttribute('aria-valuemax', '800');
-    // Until the wallet views move in, the preview holds an empty state.
-    expect(output().getByText('No card preview for iOS here yet.')).toBeInTheDocument();
+    expect(output().getByRole('figure', { name: 'iOS card' })).toHaveTextContent('Hundebewilligung');
   });
 
   it('switches the preview platform and view from its header', async () => {
@@ -50,7 +49,7 @@ describe('Output pane halves', () => {
     render(<Workspace />);
     await user.click(within(output().getByRole('group', { name: 'Preview platform' })).getByRole('button', { name: 'Android' }));
     await user.click(within(output().getByRole('group', { name: 'Preview view' })).getByRole('button', { name: 'Details' }));
-    expect(useStore.getState()).toMatchObject({ cardPlatform: 'android', previewView: 'details' });
+    expect(useStore.getState()).toMatchObject({ cardPlatform: 'android', cardVariant: 'details' });
     expect(within(output().getByRole('group', { name: 'Preview view' })).getByRole('button', { name: 'Details' })).toHaveAttribute('aria-pressed', 'true');
     expect(output().getByText('No details preview for Android here yet.')).toBeInTheDocument();
   });
@@ -114,7 +113,7 @@ describe('Output pane halves', () => {
     await user.click(collapsePreview);
     expect(collapsePreview).toHaveAccessibleName('Expand preview');
     expect(collapsePreview).toHaveAttribute('aria-expanded', 'false');
-    expect(output().queryByText(/No card preview/)).not.toBeInTheDocument();
+    expect(output().queryByRole('figure')).not.toBeInTheDocument();
     expect(output().queryByRole('group', { name: 'Preview view' })).not.toBeInTheDocument();
     // The Bundle half takes the room: no divider is left to drag.
     expect(screen.queryByRole('separator', { name: 'Resize the preview' })).not.toBeInTheDocument();
@@ -129,7 +128,7 @@ describe('Output pane halves', () => {
     expect(output().getByRole('tablist', { name: 'Output' })).toBeInTheDocument();
 
     await user.click(output().getByRole('button', { name: 'Expand preview' }));
-    expect(output().getByText('No card preview for iOS here yet.')).toBeInTheDocument();
+    expect(output().getByRole('figure', { name: 'iOS card' })).toBeInTheDocument();
     expect(screen.queryByRole('separator', { name: 'Resize the preview' })).not.toBeInTheDocument();
     await user.click(output().getByRole('button', { name: 'Expand bundle' }));
     expect(output().getByText('uri#integrity')).toBeInTheDocument();
@@ -252,7 +251,7 @@ describe('Output pane on a narrow window', () => {
     render(<Workspace />);
     await user.click(within(screen.getByRole('tablist', { name: 'Panes' })).getByRole('tab', { name: 'Output' }));
     expect(screen.getByRole('region', { name: 'Output' }).querySelector('.output')).toHaveClass('output--stacked');
-    expect(output().getByText('No card preview for iOS here yet.')).toBeInTheDocument();
+    expect(output().getByRole('figure', { name: 'iOS card' })).toBeInTheDocument();
     expect(output().getByRole('tablist', { name: 'Output' })).toBeInTheDocument();
     expect(screen.queryByRole('separator', { name: 'Resize the preview' })).not.toBeInTheDocument();
     expect(await built()).toBeInTheDocument();
