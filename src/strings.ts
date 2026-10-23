@@ -338,6 +338,22 @@ export const t = {
     passthrough: (types: string) => `Kept unchanged from the imported bundle: ${types}. These are not updated when keys change.`,
     editing: 'editing',
   },
+  /** The Issuer section of the credential's Edit pane: settings for the Issuer Metadata, never the bundle. */
+  issuerSection: {
+    title: 'Issuer',
+    intro: 'Goes into the Issuer Metadata, not the bundle. The wallet shows it as "Issued by".',
+    name: 'Issuer name',
+    logo: 'Issuer logo',
+    logoHint: 'PNG or JPEG, one logo for all languages. The wallets only draw issuer logos embedded in the Issuer Metadata as PNG or JPEG data URLs, so the file is stored as one.',
+    url: 'Issuer URL',
+    optional: 'optional',
+    urlHint:
+      'The value the generic issuer puts in place of ${external-url}. With it, the tool can compute the vct_metadata_uri#integrity value.',
+    identifiers: 'Identifiers',
+    configurationId: 'Configuration id',
+    configurationIdHint: 'Key under credential_configurations_supported. Empty: derived from the credential name.',
+    typeKey: 'Type key',
+  },
   /** The Edit pane when several nodes are selected. */
   selection: {
     count: (count: number) => `${count} items selected`,

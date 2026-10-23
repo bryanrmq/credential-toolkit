@@ -1992,6 +1992,46 @@ button.tree__toggle:hover {
   align-items: center;
   justify-content: space-between;
 }
+.section__intro {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: -8px 0 16px;
+}
+.field__optional {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+/* A row that shows or hides the fields below it, between 1px dividers. */
+.disclosure {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.disclosure__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-strong);
+  cursor: pointer;
+}
+.disclosure__body {
+  padding-top: 6px;
+}
+/* Side by side when the Edit pane has room, stacked when it is narrow. */
+.issuer-identifiers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  column-gap: 16px;
+}
+.issuer-identifiers .field {
+  min-width: 0;
+}
 .note {
   background: var(--surface-muted);
   border-radius: var(--radius);

@@ -1,10 +1,11 @@
 import { createContext, useContext } from 'react';
 import type { Group, LangTag, Project, ReviewMark } from '../core/model';
 import { confirmReview, placeOrder, reviewMarks } from '../core/review';
-import { type Issue, type IssueTarget, type Severity, validate } from '../core/validate';
+import { ISSUER_ISSUE_CODES, type Issue, type IssueTarget, type Severity, validate, validateIssuer } from '../core/validate';
 import { type Fix, type FixTools, LANGUAGE_RENAME_CODES, fixesFor } from '../core/validate/fixes';
 import { useStore } from '../state/store';
 import { t } from '../strings';
+import { setIdentifiersOpen } from './lib/identifiersDisclosure';
 import { downscaleLogo } from './lib/logo';
 
 export const IssuesContext = createContext<Issue[]>([]);
@@ -43,9 +44,14 @@ export function reviewIssues(project: Project): Issue[] {
   return [...issues.values()];
 }
 
-/** Every issue of the project: the checks of the bundle, then the suggested texts that need review. */
+/** Every issue of the project: the checks of the bundle, then of the issuer settings, then the suggested texts that need review. */
 export function projectIssues(project: Project): Issue[] {
-  return [...validate(project), ...reviewIssues(project)];
+  return [...validate(project), ...validateIssuer(project), ...reviewIssues(project)];
+}
+
+/** Whether an issue blocks the bundle download: an error of the bundle checks, not of the issuer settings, which the bundle never has. */
+export function blocksBundle(issue: Pick<Issue, 'severity' | 'code'>): boolean {
+  return issue.severity === 'error' && !ISSUER_ISSUE_CODES.includes(issue.code);
 }
 
 /** The DOM id of the input an issue points to. Inputs use the same function for their `id`. */
@@ -184,8 +190,10 @@ export function goToIssue(issue: Issue): void {
     state.setOutputTab('bundle');
   } else if (target.kind === 'credential') {
     state.select({ kind: 'credential' });
-    state.setEditLang(target.lang);
+    if (target.lang) state.setEditLang(target.lang);
     state.setBrandingTheme(target.theme ?? 'light');
+    // The identifier inputs are inside the Issuer section's disclosure.
+    if (target.field === 'issuerConfigurationId' || target.field === 'issuerTypeKey') setIdentifiersOpen(true);
   } else {
     state.select({ kind: 'node', id: target.nodeId });
     if (target.lang) state.setEditLang(target.lang);

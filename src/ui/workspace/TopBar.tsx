@@ -7,7 +7,7 @@ import { useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
 import { Badge, Button, Menu, type MenuItem, Segmented } from '../components/controls';
-import { groupIssues, useIssues } from '../issues';
+import { blocksBundle, groupIssues, useIssues } from '../issues';
 import { setDownloadedBaseline } from '../lib/baseline';
 import { type CommandId, applies, ariaKeyShortcuts, commandLabel, runCommand, shortcutLabel } from '../lib/commands';
 import { downloadText } from '../lib/download';
@@ -40,7 +40,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
   const errors = groups.filter((group) => group.severity === 'error').length;
   const warnings = groups.length - errors;
   const name = project.meta[editLang]?.name || t.workspace.untitled;
-  const canDownload = errors === 0 && exportState.status === 'ready';
+  const blocking = groups.filter(blocksBundle).length;
+  const canDownload = blocking === 0 && exportState.status === 'ready';
 
   return (
     <header className="topbar" ref={ref}>
@@ -129,7 +130,7 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
         <Button
           variant="primary"
           disabled={!canDownload}
-          title={errors > 0 ? t.workspace.downloadBlocked(errors) : undefined}
+          title={blocking > 0 ? t.workspace.downloadBlocked(blocking) : undefined}
           onClick={() => {
             if (exportState.status !== 'ready') return;
             downloadText(BUNDLE_FILE_NAME, exportState.outputs.json);

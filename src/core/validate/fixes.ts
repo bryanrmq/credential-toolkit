@@ -79,7 +79,7 @@ function secureUrl(url: string): string | undefined {
 /** The light or dark branding a credential issue points to. */
 function brandingAt(project: Project, issue: Issue): Branding | undefined {
   const target = issue.target;
-  if (target.kind !== 'credential') return undefined;
+  if (target.kind !== 'credential' || !target.lang) return undefined;
   const pair = project.branding[target.lang];
   return target.theme === 'dark' ? pair?.dark : pair?.light;
 }
@@ -395,7 +395,7 @@ export const LANGUAGE_RENAME_CODES: readonly string[] = ['language-invalid', 'la
 /** Codes with a fix rule. */
 export const FIXABLE_CODES: readonly string[] = Object.keys(FIXES);
 
-/** Codes `validate()` raises that deliberately have no fix: they need the issuer's own content or judgement. */
+/** Codes `validate()` and `validateIssuer()` raise that deliberately have no fix: they need the issuer's own content or judgement. */
 export const NO_FIX_CODES: readonly string[] = [
   'languages-empty',
   'name-missing',
@@ -409,6 +409,10 @@ export const NO_FIX_CODES: readonly string[] = [
   'cluster-too-deep',
   'logo-not-square',
   'digest-collision',
+  'issuer-name-missing',
+  'issuer-logo-format',
+  'issuer-url-invalid',
+  'issuer-identifier-invalid',
 ];
 
 /** The fixes for one issue: none (no button), one (a Fix button, used by Fix all) or several (one button each). */
