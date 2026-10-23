@@ -1,25 +1,17 @@
-import { CaretDownIcon, CaretRightIcon, CheckIcon, CopyIcon, DownloadSimpleIcon, GearSixIcon, SidebarSimpleIcon } from '@phosphor-icons/react';
-import { type CSSProperties, Fragment, useRef, useState } from 'react';
+import { CheckIcon, CopyIcon, DownloadSimpleIcon, SidebarSimpleIcon } from '@phosphor-icons/react';
+import { Fragment, useState } from 'react';
 import type { ProjectChange } from '../../core/compare';
 import { BUNDLE_FILE_NAME, buildVctSnippet } from '../../core/export/outputs';
-import { type OutputHalf, useStore } from '../../state/store';
+import { useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
 import { Button, InlineIssueFixes, Tabs } from '../components/controls';
-import { PaneResizer } from '../components/PaneResizer';
 import { useFieldIssues, useIssues } from '../issues';
 import { useBaseline } from '../lib/baseline';
 import { useChanges } from '../lib/changes';
 import { copyText, downloadText } from '../lib/download';
-import { DEFAULT_PREVIEW_HEIGHT, PREVIEW_HEIGHT_LIMITS, clampPreviewHeight, loadPreviewHeight, savePreviewHeight } from '../lib/paneLayout';
 import { ChangesView } from './ChangesView';
-import { OutputPreview } from './OutputPreview';
-import { PreviewControls } from './PreviewControls';
 import { SampleControl } from './SampleControl';
-
-const PREVIEW_BODY_ID = 'output-preview-body';
-const BUNDLE_BODY_ID = 'output-bundle-body';
-const SETTINGS_ID = 'output-bundle-settings';
 
 function CopyButton({ text, label, iconOnly = false }: { text: string; label: string; iconOnly?: boolean }) {
   const [copied, setCopied] = useState(false);
@@ -56,133 +48,29 @@ function CopyButton({ text, label, iconOnly = false }: { text: string; label: st
   );
 }
 
-/** The chevron that collapses a half to its header and expands it again. */
-function CollapseButton({ half, controls, collapseLabel, expandLabel }: { half: OutputHalf; controls: string; collapseLabel: string; expandLabel: string }) {
-  const open = useStore((state) => state.outputHalves[half]);
-  const setHalfOpen = useStore((state) => state.setOutputHalfOpen);
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="output-half__toggle"
-      aria-label={open ? collapseLabel : expandLabel}
-      title={open ? collapseLabel : expandLabel}
-      aria-expanded={open}
-      aria-controls={controls}
-      onClick={() => setHalfOpen(half, !open)}
-    >
-      {open ? <CaretDownIcon size={14} /> : <CaretRightIcon size={14} />}
-    </Button>
-  );
-}
-
 /**
- * The Output pane: the wallet preview on top and the bundle below. On a wide window a divider between them sets the
- * preview's height, remembered like the pane widths; each half collapses to its header and the other takes the room.
- * `stacked` (a narrow window) puts both halves in one scrolling column with no divider.
- * `onHide`, given on a wide window only, adds a button to the preview's header that hides the pane.
+ * The Output pane: the bundle, its VCT snippet and what changed since the published bundle, under one set of tabs.
+ * Under Bundle, where the bundle will be hosted and the sample credential sit above the JSON.
+ * `onHide`, given on a wide window only, adds a button to the header that hides the pane.
  * `onJump` runs after a click in the Changes tab took the user to a field.
  */
-export function OutputPanel({
-  exportState,
-  onHide,
-  onJump,
-  stacked = false,
-}: {
-  exportState: ExportState;
-  onHide?: () => void;
-  onJump?: (change: ProjectChange) => void;
-  stacked?: boolean;
-}) {
-  const halves = useStore((state) => state.outputHalves);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState(loadPreviewHeight);
-  const heightRef = useRef(height);
-  const resize = (value: number) => {
-    heightRef.current = clampPreviewHeight(value, rootRef.current?.clientHeight);
-    setHeight(heightRef.current);
-  };
-  const commit = () => savePreviewHeight(heightRef.current);
-  const split = !stacked && halves.preview && halves.bundle;
-
-  return (
-    <div
-      ref={rootRef}
-      className={split ? 'output output--split' : stacked ? 'output output--stacked' : 'output'}
-      style={split ? ({ '--preview-height': `${height}px` } as CSSProperties) : undefined}
-    >
-      <PreviewHalf onHide={onHide} />
-      {split && (
-        <PaneResizer
-          label={t.output.resizePreview}
-          value={height}
-          min={PREVIEW_HEIGHT_LIMITS[0]}
-          max={PREVIEW_HEIGHT_LIMITS[1]}
-          direction={1}
-          orientation="horizontal"
-          onResize={resize}
-          onCommit={commit}
-          onReset={() => {
-            resize(DEFAULT_PREVIEW_HEIGHT);
-            commit();
-          }}
-        />
-      )}
-      <BundleHalf exportState={exportState} onJump={onJump} />
-    </div>
-  );
-}
-
-function PreviewHalf({ onHide }: { onHide?: () => void }) {
-  const open = useStore((state) => state.outputHalves.preview);
-
-  return (
-    <div className={open ? 'output-half output-half--preview' : 'output-half output-half--preview output-half--collapsed'}>
-      <div className="output-half__header">
-        <span className="pane__title">{t.output.preview}</span>
-        <span className="output-half__actions">
-          {onHide && (
-            <Button size="icon" variant="ghost" aria-label={t.workspace.hideOutput} title={t.workspace.hideOutputTitle} onClick={onHide}>
-              <SidebarSimpleIcon mirrored />
-            </Button>
-          )}
-          <CollapseButton half="preview" controls={PREVIEW_BODY_ID} collapseLabel={t.output.collapsePreview} expandLabel={t.output.expandPreview} />
-        </span>
-        {open && <PreviewControls className="output-half__controls" />}
-      </div>
-      {open && (
-        <div className="output-half__body" id={PREVIEW_BODY_ID}>
-          <OutputPreview />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function BundleHalf({ exportState, onJump }: { exportState: ExportState; onJump?: (change: ProjectChange) => void }) {
+export function OutputPanel({ exportState, onHide, onJump }: { exportState: ExportState; onHide?: () => void; onJump?: (change: ProjectChange) => void }) {
   const project = useStore((state) => state.project)!;
-  const open = useStore((state) => state.outputHalves.bundle);
-  const settingsOpen = useStore((state) => state.outputSettingsOpen);
   const tab = useStore((state) => state.outputTab);
-  const { setOutputTab, setOutputHalfOpen, setOutputSettingsOpen } = useStore.getState();
+  const setOutputTab = useStore((state) => state.setOutputTab);
   const ready = exportState.status === 'ready' ? exportState : null;
   const snippet = ready ? JSON.stringify(buildVctSnippet(project, ready.outputs), null, 2) : '';
   const baseline = useBaseline();
   const changes = useChanges(project, baseline);
   const changeCount = changes.status === 'ready' ? changes.changes.length : 0;
-  // A tab or the gear also expands a collapsed half, since what they pick shows in its body.
-  const show = (change: () => void) => {
-    change();
-    setOutputHalfOpen('bundle', true);
-  };
 
   return (
-    <div className={open ? 'output-half output-half--bundle' : 'output-half output-half--bundle output-half--collapsed'}>
-      <div className="output-half__header output-half__header--tabs">
+    <div className="output">
+      <div className="output__header">
         <Tabs
           label={t.output.title}
           value={tab}
-          onChange={(value) => show(() => setOutputTab(value))}
+          onChange={setOutputTab}
           options={[
             { value: 'bundle', label: t.output.bundle },
             { value: 'vct', label: t.output.vct },
@@ -202,7 +90,7 @@ function BundleHalf({ exportState, onJump }: { exportState: ExportState; onJump?
             },
           ]}
         />
-        <span className="output-half__actions">
+        <span className="output__actions">
           {ready && <span className="field__hint">{t.output.size((ready.outputs.json.length / 1024).toFixed(1))}</span>}
           {ready && tab !== 'changes' && (
             <CopyButton
@@ -213,39 +101,29 @@ function BundleHalf({ exportState, onJump }: { exportState: ExportState; onJump?
               iconOnly
             />
           )}
-          <Button
-            size="icon"
-            variant="ghost"
-            className={settingsOpen && open ? 'output-half__settings is-active' : 'output-half__settings'}
-            aria-label={t.output.settings}
-            title={t.output.settings}
-            aria-expanded={settingsOpen && open}
-            aria-controls={SETTINGS_ID}
-            onClick={() => (settingsOpen && open ? setOutputSettingsOpen(false) : show(() => setOutputSettingsOpen(true)))}
-          >
-            <GearSixIcon />
-          </Button>
-          <CollapseButton half="bundle" controls={BUNDLE_BODY_ID} collapseLabel={t.output.collapseBundle} expandLabel={t.output.expandBundle} />
+          {onHide && (
+            <Button size="icon" variant="ghost" aria-label={t.workspace.hideOutput} title={t.workspace.hideOutputTitle} onClick={onHide}>
+              <SidebarSimpleIcon mirrored />
+            </Button>
+          )}
         </span>
       </div>
-      {open && (
-        <div className="output-half__body" id={BUNDLE_BODY_ID}>
-          {settingsOpen && <BundleSettings />}
-          <div className="output-bundle">
-            {tab === 'changes' ? (
-              <ChangesView
-                baseline={baseline}
-                state={changes}
-                current={ready?.outputs.integrity ?? null}
-                copy={ready && <CopyButton text={ready.outputs.integrity} label={t.output.copyIntegrity} iconOnly />}
-                onJump={onJump}
-              />
-            ) : (
-              <BundleOutput exportState={exportState} tab={tab} snippet={snippet} />
-            )}
-          </div>
+      <div className="output__body">
+        {tab === 'bundle' && <BundleSettings />}
+        <div className="output-bundle">
+          {tab === 'changes' ? (
+            <ChangesView
+              baseline={baseline}
+              state={changes}
+              current={ready?.outputs.integrity ?? null}
+              copy={ready && <CopyButton text={ready.outputs.integrity} label={t.output.copyIntegrity} iconOnly />}
+              onJump={onJump}
+            />
+          ) : (
+            <BundleOutput exportState={exportState} tab={tab} snippet={snippet} />
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -289,14 +167,14 @@ function BundleOutput({ exportState, tab, snippet }: { exportState: ExportState;
   );
 }
 
-/** Where the bundle will be hosted and the sample credential, behind the gear in the Bundle half's header. */
+/** Where the bundle will be hosted and the sample credential, above the JSON under the Bundle tab. */
 function BundleSettings() {
   const hosting = useStore((state) => state.project!.hosting);
   const update = useStore((state) => state.update);
   const hostingIssues = useFieldIssues('field-hosting-url');
 
   return (
-    <div className="output-settings" id={SETTINGS_ID} role="region" aria-label={t.output.settings}>
+    <div className="output-settings">
       <fieldset className="output-settings__hosting">
         <legend className="field__label" style={{ marginBottom: 8 }}>
           {t.output.hosting}
