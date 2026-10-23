@@ -84,6 +84,27 @@ export interface Group {
   passthrough: Record<string, unknown>[];
 }
 
+/** Where one translatable text lives; with a language, it names one text of the project. */
+export type TextPlace =
+  | { kind: 'label'; nodeId: string }
+  | { kind: 'entry'; nodeId: string; code: string }
+  | { kind: 'meta'; field: 'name' | 'description' }
+  | { kind: 'primaryField'; theme: 'light' | 'dark' };
+
+/** Who suggested a text: I14Y's texts for a concept, or the browser's on-device translation. */
+export type SuggestionSource = 'i14y' | 'translation';
+
+/**
+ * A text the app filled in that the user has not confirmed yet ("needs review"). `text` is the suggested text: the
+ * mark only holds while the text is still that, so editing it clears the mark (`core/review.ts`).
+ */
+export interface ReviewMark {
+  place: TextPlace;
+  lang: LangTag;
+  source: SuggestionSource;
+  text: string;
+}
+
 export type Hosting = { mode: 'url'; url: string } | { mode: 'dataUrl' };
 
 export interface Project {
@@ -95,6 +116,8 @@ export interface Project {
   sample?: unknown;
   hosting: Hosting;
   bundleExtras: Record<string, unknown>;
+  /** Suggested texts waiting for review. Editor-only, like `i14y` links: kept in drafts and project files, never in the bundle. */
+  review?: ReviewMark[];
 }
 
 export function newId(): string {

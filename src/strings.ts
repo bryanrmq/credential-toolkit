@@ -437,6 +437,20 @@ export const t = {
     failed: (label?: string) => (label ? `Couldn't fix: ${label}` : "Couldn't apply the fixes"),
     stale: 'The project changed while fixing. Try again.',
   },
+  review: {
+    /** The tag after a suggested text, by who suggested it. */
+    tag: { i14y: 'I14Y · review', translation: 'Translated · review' },
+    tagTitle: {
+      i14y: 'Filled in from I14Y. Check the text, then confirm it or edit it.',
+      translation: 'Translated by the browser. Check the text, then confirm it or edit it.',
+    },
+    confirm: 'Confirm',
+    /** The Confirm button's accessible name on a language row. */
+    confirmText: (label: string, lang: string) => `Confirm the suggested ${label} (${lang})`,
+    issue: 'Suggested text needs review.',
+    issueIn: (lang: string) => `Suggested text needs review in ${lang}.`,
+    confirmAll: 'Confirm all suggested texts',
+  },
   sample: {
     none: 'No sample credential attached. Attach one to check that every source path exists.',
     attached: 'Sample credential attached: source paths are checked against it. It is never exported.',

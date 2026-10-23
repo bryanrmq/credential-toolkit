@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { type Project, emptyProject, newAttribute } from '../core/model';
-import { type Issue, validate } from '../core/validate';
+import { reviewMarks, suggestText } from '../core/review';
+import { type Issue, hasErrors, validate } from '../core/validate';
 import type { FixTools } from '../core/validate/fixes';
 import { pngDataUrl } from '../test/images';
-import { fixAllGroups, groupFixes, groupIssues } from './issues';
+import { REVIEW_CODE, fixAllGroups, groupFixes, groupIssues, issueLocation, projectIssues } from './issues';
 
 const issue = (severity: Issue['severity'], code: string, summary: string, lang?: string): Issue => ({
   severity,
@@ -110,5 +111,52 @@ describe('fixAllGroups', () => {
     expect(draft.branding['de-CH'].light.logo).toBe(pngDataUrl(512, 512));
     expect(draft.branding['fr-CH'].light.logo).toBe(pngDataUrl(512, 512));
     expect(validate(draft)).toEqual([]);
+  });
+});
+
+describe('suggested texts in the issues', () => {
+  /** De and fr; `sex` with a value list, its French label and values suggested, and the French name translated. */
+  function suggested(): Project {
+    const project = twoLanguages();
+    const sex = newAttribute('sex', {
+      source: ['sex'],
+      labels: { 'de-CH': 'Geschlecht' },
+      entries: { codes: ['f'], labels: { 'de-CH': { f: 'weiblich' } } },
+    });
+    project.root.children.push(sex);
+    suggestText(project, { kind: 'label', nodeId: sex.id }, 'fr-CH', 'Sexe', 'i14y');
+    suggestText(project, { kind: 'entry', nodeId: sex.id, code: 'f' }, 'fr-CH', 'féminin', 'i14y');
+    suggestText(project, { kind: 'label', nodeId: sex.id }, 'de-CH', 'Geschlecht', 'i14y');
+    suggestText(project, { kind: 'meta', field: 'name' }, 'fr-CH', 'Autorisation', 'translation');
+    return project;
+  }
+  const reviewGroups = (project: Project) => groupIssues(projectIssues(project)).filter((group) => group.code === REVIEW_CODE);
+
+  it('lists one warning per attribute and per credential field, with the languages and the location', () => {
+    const project = suggested();
+    const groups = reviewGroups(project);
+    expect(groups.map((group) => [group.severity, group.summary, group.langs, issueLocation(group.issues[0], project)])).toEqual([
+      ['warning', 'Suggested text needs review.', ['fr-CH'], 'Credential'],
+      ['warning', 'Suggested text needs review.', ['de-CH', 'fr-CH'], 'sex'],
+    ]);
+    expect(hasErrors(projectIssues(project))).toBe(false);
+  });
+
+  it('confirms the texts of that attribute or field in each listed language with Confirm', async () => {
+    const project = suggested();
+    const [, sex] = reviewGroups(project);
+    const options = groupFixes(sex, project, tools);
+    expect(options.map((option) => option.label)).toEqual(['Confirm']);
+    const draft = structuredClone(project);
+    for (const fix of options[0].fixes) await fix.apply(draft);
+    expect(reviewMarks(draft).map((mark) => mark.place.kind)).toEqual(['meta']);
+    expect(reviewGroups(draft)).toHaveLength(1);
+  });
+
+  it('is left alone by Fix all', () => {
+    const project = suggested();
+    project.branding['de-CH'].light.primaryBackgroundColor = '#abc';
+    const groups = fixAllGroups(groupIssues(projectIssues(project)), project, tools);
+    expect(groups.map((fixes) => fixes.map((fix) => fix.label))).toEqual([['Use "#AABBCC"']]);
   });
 });

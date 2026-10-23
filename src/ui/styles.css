@@ -1694,10 +1694,11 @@ button.tree__toggle:hover {
 }
 
 /* A translatable text in every language: the editing language first, marked by a dark left edge. The rows share
-   one grid so the inputs line up whether or not a row has an I14Y reset. */
+   one grid (code, input, I14Y reset, review marker) so the inputs line up whether or not a row has a reset or a
+   review marker. */
 .lang-rows {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) auto;
+  grid-template-columns: max-content minmax(0, 1fr) auto auto;
   gap: 4px 8px;
 }
 .lang-row {
@@ -1730,10 +1731,41 @@ button.tree__toggle:hover {
   background: var(--yellow-bg);
 }
 .lang-row--single {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 8px;
   padding-left: 0;
   border-left: none;
+}
+/* A suggested text that needs review: a dashed frame like the I14Y "looks like" line, which takes no room, then
+   who suggested it and Confirm in the last column. */
+.lang-row[data-review] {
+  outline: 1px dashed color-mix(in srgb, var(--blue-text) 50%, transparent);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+.lang-row .i14y-reset {
+  grid-column: -3;
+}
+.lang-row__review {
+  grid-column: -2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 2px;
+}
+.review-tag {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 16px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--blue-bg);
+  color: var(--blue-text);
+  white-space: nowrap;
+}
+.review-confirm svg {
+  flex: none;
 }
 .inspector__header {
   margin: 16px 0 28px;

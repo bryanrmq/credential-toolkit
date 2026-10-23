@@ -324,6 +324,7 @@ export function renameLanguage(project: Project, from: LangTag, to: LangTag): vo
     move(node.labels);
     if (node.kind === 'attribute' && node.entries) move(node.entries.labels);
   }
+  for (const mark of project.review ?? []) if (mark.lang === from) mark.lang = to;
 }
 
 /** Keys the editor gives new items (made unique with `_2`, `_3`…). */

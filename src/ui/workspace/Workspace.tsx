@@ -1,5 +1,4 @@
 import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { validate } from '../../core/validate';
 import { useDrafts } from '../../state/persistence';
 import { useStore } from '../../state/store';
 import { useExport } from '../../state/useExport';
@@ -7,7 +6,7 @@ import { t } from '../../strings';
 import { Tabs } from '../components/controls';
 import { FixToast } from '../components/FixToast';
 import { PaneResizer } from '../components/PaneResizer';
-import { IssuesContext } from '../issues';
+import { IssuesContext, projectIssues } from '../issues';
 import { focusTreeSelection, useCommandHost, useCommandShortcuts } from '../lib/commands';
 import {
   DEFAULT_PANE_WIDTHS,
@@ -46,7 +45,7 @@ export function Workspace() {
   const languagesOpen = useStore((state) => state.languagesOpen);
   const tourOpen = useStore((state) => state.tourOpen);
   const saveFailed = useStore((state) => state.draftSaveFailed);
-  const issues = useMemo(() => (project ? validate(project) : []), [project]);
+  const issues = useMemo(() => (project ? projectIssues(project) : []), [project]);
   const exportState = useExport(project);
   const [pane, setPane] = useState<WorkspacePane>('inspector');
   const panesRef = useRef<HTMLDivElement>(null);
