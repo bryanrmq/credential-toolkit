@@ -21,6 +21,7 @@ function reviewTarget(mark: ReviewMark): IssueTarget {
   const { place, lang } = mark;
   if (place.kind === 'label' || place.kind === 'entry') return { kind: 'node', nodeId: place.nodeId, field: 'label', lang };
   if (place.kind === 'meta') return { kind: 'credential', field: place.field, lang };
+  if (place.kind === 'issuerName') return { kind: 'credential', field: 'issuerName', lang };
   return { kind: 'credential', field: 'primaryField', lang, theme: place.theme };
 }
 

@@ -4,7 +4,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Baseline } from '../core/baseline';
 import { type Project, emptyProject } from '../core/model';
-import { reviewMarks, suggestText } from '../core/review';
+import { reviewMarks, setTextAt, suggestText } from '../core/review';
 import {
   DRAFT_KEY,
   OPEN_DRAFT_KEY,
@@ -179,6 +179,29 @@ describe('autosave', () => {
     ]);
   });
 
+  it('keeps the issuer settings across a reload', async () => {
+    stop = startAutosave();
+    const id = createDraft(project('Card'));
+    useStore.getState().update((draft) => {
+      draft.issuer = { name: { 'de-CH': 'Kanton Bern' }, url: 'https://issuer.example.ch', typeKey: 'card-v02' };
+    });
+    expect(await saveOpenDraft()).toBe(true);
+    useStore.getState().close();
+
+    await initDrafts();
+    expect(await openDraft(id)).toBe(true);
+    expect(useStore.getState().project?.issuer).toEqual({ name: { 'de-CH': 'Kanton Bern' }, url: 'https://issuer.example.ch', typeKey: 'card-v02' });
+  });
+
+  it('opens a draft stored before the issuer settings, and edits it', async () => {
+    const { issuer: _issuer, ...before } = project('Ausweis');
+    await restoreDraft({ id: 'old', updatedAt: 1, project: before });
+    expect(await openDraft('old')).toBe(true);
+    expect(useStore.getState().project).toEqual(before);
+    useStore.getState().update((draft) => void setTextAt(draft, { kind: 'issuerName' }, 'de-CH', 'Kanton Bern'));
+    expect(useStore.getState().project?.issuer).toEqual({ name: { 'de-CH': 'Kanton Bern' } });
+  });
+
   it('saves the open draft on request', async () => {
     stop = startAutosave();
     const id = createDraft(project('Card'));
@@ -305,6 +328,14 @@ describe('migration from the single draft', () => {
     expect(localStorage.getItem(DRAFT_KEY)).toBe(old);
     expect(selectResumeDraft(useDrafts.getState())?.credentialName).toBe('Hundebewilligung');
     expect(useDrafts.getState().available).toBe(false);
+  });
+
+  it('moves an old draft saved before the issuer settings', async () => {
+    const { issuer: _issuer, ...old } = project('Hundebewilligung');
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(old));
+    await initDrafts();
+    const resume = selectResumeDraft(useDrafts.getState());
+    expect((await getDraft(resume!.id))?.project).toEqual(old);
   });
 
   it('ignores an old draft that is not a project', async () => {

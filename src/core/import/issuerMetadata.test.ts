@@ -80,3 +80,77 @@ describe('importIssuerMetadata', () => {
     expect(() => importIssuerMetadata(metadata, 'nope')).toThrow(/No credential configuration/);
   });
 });
+
+/** Shaped like the swiyu generic issuer's example_issuer_metadata.json (issuer `display`, `${stage}`, `${external-url}`). */
+const genericIssuer = {
+  credential_issuer: '${external-url}',
+  credential_endpoint: '${external-url}/oid4vci/api/credential',
+  display: [
+    { name: 'Mein Test Aussteller', locale: 'de-CH', logo: { uri: LOGO } },
+    { name: 'My test issuer', locale: 'en-US', logo: { uri: LOGO } },
+    { name: 'Mon émetteur', locale: 'fr-CH' },
+  ],
+  credential_configurations_supported: {
+    '${stage}university_example_sd_jwt': {
+      format: 'dc+sd-jwt',
+      vct: 'urn:vct:com.example.credential',
+      vct_metadata_uri: '${external-url}/oid4vci/vct/my-vct-v01',
+      credential_metadata: {
+        display: [
+          { name: 'Beispiel Credential', locale: 'de-CH' },
+          { name: 'Example Credential', locale: 'en-US' },
+        ],
+        claims: [{ path: ['degree'], display: [{ name: 'Abschluss', locale: 'de-CH' }] }],
+      },
+    },
+  },
+};
+
+describe('importIssuerMetadata issuer settings', () => {
+  it('fills the issuer name per language, the logo, the configuration id and the type key', () => {
+    const { project, report } = importIssuerMetadata(genericIssuer, '${stage}university_example_sd_jwt');
+    expect(project.languages).toEqual(['de-CH', 'en-US']);
+    expect(project.issuer).toEqual({
+      name: { 'de-CH': 'Mein Test Aussteller', 'en-US': 'My test issuer' },
+      logo: LOGO,
+      configurationId: 'university_example_sd_jwt',
+      typeKey: 'my-vct-v01',
+    });
+    const messages = report.map((note) => note.message);
+    expect(messages).toContain('Skipped the issuer name in fr-CH: the credential has no such language.');
+    expect(messages.some((message) => message.includes('placeholder from the configuration id'))).toBe(true);
+  });
+
+  it('takes a real https credential_issuer as the Issuer URL, and the type key from vct when vct_metadata_uri has none', () => {
+    const { project, report } = importIssuerMetadata(metadata, 'pet-permit');
+    expect(project.issuer).toEqual({ name: { 'de-CH': 'Canton of Bern', 'en-GB': '' }, url: 'https://issuer.example.ch', configurationId: 'pet-permit' });
+    expect(report.every((note) => !note.message.includes('issuer logo'))).toBe(true);
+
+    const fromVct = structuredClone(metadata);
+    fromVct.credential_issuer = 'https://issuer.example.ch/';
+    fromVct.credential_configurations_supported['pet-permit'].vct = 'https://issuer.example.ch/oid4vci/vct/pet-permit-v02';
+    expect(importIssuerMetadata(fromVct, 'pet-permit').project.issuer).toMatchObject({ url: 'https://issuer.example.ch', typeKey: 'pet-permit-v02' });
+  });
+
+  it('notes issuer logos the wallets cannot draw, and keeps one logo for all languages', () => {
+    const input = structuredClone(genericIssuer);
+    input.display[0].logo = { uri: 'https://issuer.example.ch/logo.png' };
+    input.display[1].logo = { uri: 'data:image/svg+xml;base64,PHN2Zz4=' };
+    const { project, report } = importIssuerMetadata(input, '${stage}university_example_sd_jwt');
+    expect(project.issuer?.logo).toBeUndefined();
+    const warnings = report.filter((note) => note.level === 'warning').map((note) => note.message);
+    expect(warnings).toContain('The de-CH issuer logo is not a PNG or JPEG data URL, which is all swiyu wallets draw; upload the image instead.');
+    expect(warnings).toContain('The en-US issuer logo is not a PNG or JPEG data URL, which is all swiyu wallets draw; upload the image instead.');
+
+    input.display[0].logo = { uri: LOGO };
+    input.display[1].logo = { uri: 'data:image/jpeg;base64,/9j/4AAQ' };
+    const mixed = importIssuerMetadata(input, '${stage}university_example_sd_jwt');
+    expect(mixed.project.issuer?.logo).toBe(LOGO);
+    expect(mixed.report.some((note) => note.message.startsWith('The issuer logos differ by language'))).toBe(true);
+  });
+
+  it('leaves the issuer name empty and the identifiers unset when the file has none', () => {
+    const { project } = importIssuerMetadata(metadata, 'legacy');
+    expect(project.issuer).toEqual({ name: { en: '' }, url: 'https://issuer.example.ch', configurationId: 'legacy' });
+  });
+});

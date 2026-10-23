@@ -5,10 +5,12 @@ import {
   type LangTag,
   type Project,
   emptyProject,
+  ensureIssuer,
   ensureLanguageSlots,
   newAttribute,
   newGroupLink,
 } from '../model.ts';
+import { isIssuerLogo, isIssuerUrl } from '../issuer.ts';
 import { ImportError, type ImportResult, type ReportNote, isPlainObject } from './report.ts';
 
 export interface CredentialConfigurationChoice {
@@ -122,6 +124,62 @@ function ensureGroups(root: Group, segments: ClaimsPath): { group: Group; link?:
   return { group, link, path };
 }
 
+/** A generic issuer template placeholder such as `${stage}` or `${external-url}`. */
+const PLACEHOLDER = /\$\{[^}]*\}/g;
+
+/** The type key at the end of a generic issuer `…/oid4vci/vct/<type key>` URL. */
+const TYPE_KEY = /\/oid4vci\/vct\/([^/?#]+)$/;
+
+/**
+ * Fills `project.issuer` from the document: the issuer name per language and the logo from the top-level
+ * `display`, the Issuer URL from `credential_issuer` when it is a real https URL, the configuration id, and the
+ * type key from the configuration's `vct_metadata_uri` (or `vct`).
+ */
+function readIssuer(
+  project: Project,
+  input: Record<string, unknown>,
+  configurationId: string,
+  configuration: Record<string, unknown>,
+  note: (message: string, level?: ReportNote['level']) => void,
+): void {
+  const issuer = ensureIssuer(project);
+  const displays = Array.isArray(input.display) ? input.display.filter(isPlainObject) : [];
+  const skipped: string[] = [];
+  for (const display of displays) {
+    if (typeof display.locale !== 'string') {
+      note('Skipped an issuer display entry without "locale".', 'warning');
+      continue;
+    }
+    const lang = display.locale;
+    if (!project.languages.includes(lang)) {
+      skipped.push(lang);
+      continue;
+    }
+    if (typeof display.name === 'string') issuer.name[lang] = display.name;
+    const logo = isPlainObject(display.logo) && typeof display.logo.uri === 'string' ? display.logo.uri : undefined;
+    if (!logo || issuer.logo === logo) continue;
+    if (!isIssuerLogo(logo)) note(`The ${lang} issuer logo is not a PNG or JPEG data URL, which is all swiyu wallets draw; upload the image instead.`, 'warning');
+    else if (issuer.logo) note('The issuer logos differ by language; kept the first, as the tool uses one logo for all languages.', 'warning');
+    else issuer.logo = logo;
+  }
+  if (skipped.length) note(`Skipped the issuer name in ${skipped.join(', ')}: the credential has no such language.`);
+
+  const url = typeof input.credential_issuer === 'string' ? input.credential_issuer : '';
+  if (isIssuerUrl(url)) issuer.url = url.replace(/\/+$/, '');
+
+  const id = configurationId.replace(PLACEHOLDER, '');
+  if (id !== configurationId) note(`Dropped the generic issuer placeholder from the configuration id "${configurationId}".`);
+  if (id) issuer.configurationId = id;
+
+  for (const uri of [configuration.vct_metadata_uri, configuration.vct]) {
+    const typeKey = typeof uri === 'string' ? TYPE_KEY.exec(uri)?.[1] : undefined;
+    if (typeKey) {
+      issuer.typeKey = typeKey;
+      break;
+    }
+  }
+}
+
 export function importIssuerMetadata(input: unknown, configurationId: string): ImportResult {
   const configuration = configurations(input)[configurationId];
   if (!configuration) throw new ImportError(`No credential configuration named "${configurationId}".`);
@@ -190,6 +248,7 @@ export function importIssuerMetadata(input: unknown, configurationId: string): I
     );
   }
 
+  readIssuer(project, input as Record<string, unknown>, configurationId, configuration, note);
   if (claims.length) note('Issuer Metadata has no attribute types, so every attribute was set to Text. Adjust dates, numbers and booleans.');
   return { project, report };
 }
