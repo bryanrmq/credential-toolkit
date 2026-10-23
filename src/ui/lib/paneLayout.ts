@@ -1,3 +1,5 @@
+import type { OutputHalves } from '../../state/store';
+
 /** The pane a narrow window shows (below 1000 px only one fits); there the Issues panel is a pane too. */
 export type WorkspacePane = 'structure' | 'inspector' | 'output' | 'issues';
 export type ResizablePane = 'structure' | 'output';
@@ -94,4 +96,44 @@ export function loadOutputOpen(): boolean {
 
 export function saveOutputOpen(open: boolean): void {
   saveStored(OUTPUT_OPEN_KEY, open);
+}
+
+export const PREVIEW_HEIGHT_KEY = 'oca-generator:preview-height';
+export const DEFAULT_PREVIEW_HEIGHT = 320;
+export const PREVIEW_HEIGHT_LIMITS: [min: number, max: number] = [120, 800];
+/** Height the Bundle half always keeps under the divider, its header included. */
+const BUNDLE_MIN_HEIGHT = 160;
+
+/**
+ * Clamps the Preview half's height (its header included) to its limits and, when the room is known (the Output
+ * pane's height), to what is left once the Bundle half keeps its minimum (never below the preview's own minimum).
+ */
+export function clampPreviewHeight(height: number, room?: number): number {
+  const [min, max] = PREVIEW_HEIGHT_LIMITS;
+  const roomMax = room && room > 0 ? room - BUNDLE_MIN_HEIGHT : max;
+  return Math.round(Math.max(min, Math.min(height, max, roomMax)));
+}
+
+export function loadPreviewHeight(): number {
+  const stored = loadStored(PREVIEW_HEIGHT_KEY);
+  return typeof stored === 'number' && Number.isFinite(stored) ? clampPreviewHeight(stored) : DEFAULT_PREVIEW_HEIGHT;
+}
+
+export function savePreviewHeight(height: number): void {
+  saveStored(PREVIEW_HEIGHT_KEY, height);
+}
+
+export const OUTPUT_HALVES_KEY = 'oca-generator:output-halves';
+export const DEFAULT_OUTPUT_HALVES: OutputHalves = { preview: true, bundle: true };
+
+/** Which Output halves are open (not collapsed to their header); each is open unless the user collapsed it. */
+export function loadOutputHalves(): OutputHalves {
+  const stored = loadStored(OUTPUT_HALVES_KEY);
+  if (typeof stored !== 'object' || stored === null) return { ...DEFAULT_OUTPUT_HALVES };
+  const { preview, bundle } = stored as Record<string, unknown>;
+  return { preview: preview !== false, bundle: bundle !== false };
+}
+
+export function saveOutputHalves(halves: OutputHalves): void {
+  saveStored(OUTPUT_HALVES_KEY, halves);
 }

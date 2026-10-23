@@ -82,6 +82,9 @@ describe('Tour', () => {
     // Output gives what to publish; the issues have a step of their own.
     await next(user);
     expect(features().join(' ')).not.toMatch(/issue/i);
+    expect(features()).toEqual(
+      expect.arrayContaining([expect.stringMatching(/^Preview on top, for iOS and Android/), expect.stringMatching(/The gear holds where the bundle will be hosted/)]),
+    );
     expect(keys()).toEqual(['Ctrl+Alt+B']);
     await next(user);
     expect(heading()).toBe('Issues');

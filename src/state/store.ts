@@ -10,6 +10,12 @@ export type { Selection, SelectionRequest } from './selection';
 export type View = 'editor' | 'translations';
 export type Theme = 'light' | 'dark';
 export type OutputTab = 'bundle' | 'vct';
+/** The two halves of the Output pane: the wallet preview on top, the bundle below. */
+export type OutputHalf = 'preview' | 'bundle';
+/** Which Output halves are open; a closed one shows only its header. */
+export type OutputHalves = Record<OutputHalf, boolean>;
+/** What the Output pane's Preview half shows. */
+export type PreviewView = 'card' | 'details' | 'home';
 
 /** What the fix toast reports: how many issues a fix fixed, that it failed, or that the project changed meanwhile. */
 export type FixNotice = { kind: 'fixed'; fixed: number; total: number } | { kind: 'failed'; label?: string } | { kind: 'stale' };
@@ -48,6 +54,11 @@ export interface AppState {
   outputTab: OutputTab;
   /** Whether a wide window shows the Output pane. The workspace remembers it with the pane layout. */
   outputOpen: boolean;
+  /** The workspace remembers these with the pane layout too. */
+  outputHalves: OutputHalves;
+  /** Whether the Bundle half shows its settings (hosting and the sample credential) above the bundle. */
+  outputSettingsOpen: boolean;
+  previewView: PreviewView;
   cardPlatform: CardPlatform;
   cardVariant: CardVariant;
   draftSaveFailed: boolean;
@@ -83,6 +94,10 @@ export interface AppState {
   setTourOpen: (open: boolean) => void;
   setOutputTab: (tab: OutputTab) => void;
   setOutputOpen: (open: boolean) => void;
+  setOutputHalves: (halves: OutputHalves) => void;
+  setOutputHalfOpen: (half: OutputHalf, open: boolean) => void;
+  setOutputSettingsOpen: (open: boolean) => void;
+  setPreviewView: (view: PreviewView) => void;
   setCardPlatform: (platform: CardPlatform) => void;
   setCardVariant: (variant: CardVariant) => void;
   setDraftSaveFailed: (failed: boolean) => void;
@@ -171,6 +186,9 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
   tourOpen: false,
   outputTab: 'bundle',
   outputOpen: true,
+  outputHalves: { preview: true, bundle: true },
+  outputSettingsOpen: false,
+  previewView: 'card',
   cardPlatform: 'ios',
   cardVariant: 'detail',
   draftSaveFailed: false,
@@ -193,6 +211,7 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
       editLang: project.languages[0] ?? '',
       view: 'editor',
       brandingTheme: 'light',
+      outputSettingsOpen: false,
       past: [],
       future: [],
       fixNotice: null,
@@ -255,6 +274,10 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
   setTourOpen: (tourOpen) => set({ tourOpen }),
   setOutputTab: (outputTab) => set({ outputTab }),
   setOutputOpen: (outputOpen) => set({ outputOpen }),
+  setOutputHalves: (outputHalves) => set({ outputHalves }),
+  setOutputHalfOpen: (half, open) => set({ outputHalves: { ...get().outputHalves, [half]: open } }),
+  setOutputSettingsOpen: (outputSettingsOpen) => set({ outputSettingsOpen }),
+  setPreviewView: (previewView) => set({ previewView }),
   setCardPlatform: (cardPlatform) => set({ cardPlatform }),
   setCardVariant: (cardVariant) => set({ cardVariant }),
   setDraftSaveFailed: (draftSaveFailed) => set({ draftSaveFailed }),
