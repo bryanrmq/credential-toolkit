@@ -6,7 +6,7 @@
  * compiles to ES modules Node can load.
  *
  * Typical use: `parseProjectFile` → `exportProject` (or `validate`, `buildBundle`, `buildOutputs` and
- * `buildVctSnippet` one by one), and `buildIssuerMetadata` for the generic issuer's `issuer_metadata.json`.
+ * `buildTypeMetadata` one by one), and `buildIssuerMetadata` for the generic issuer's `issuer_metadata.json`.
  * `importBundle` goes the other way, from a bundle to a project.
  */
 
@@ -52,13 +52,15 @@ export type { Baseline, BaselineSource } from './baseline.ts';
 export { hasErrors, validate } from './validate/index.ts';
 export type { CredentialField, Issue, IssueTarget, NodeField, Severity } from './validate/index.ts';
 
-// Export: the bundle, its text, `#integrity` and the VCT `display` snippet.
+// Export: the bundle, its text and `#integrity`, and the Type Metadata (`vct.json`).
 export { exportProject } from './export/project.ts';
 export type { ProjectExport } from './export/project.ts';
 export { buildBundle, serializeBundle } from './export/bundle.ts';
 export type { BuiltBundle, BundleJson, CaptureBaseJson, OverlayJson } from './export/bundle.ts';
-export { BUNDLE_FILE_NAME, buildOutputs, buildVctSnippet, bundleDataUrl, bundleIntegrity } from './export/outputs.ts';
-export type { ExportOutputs, VctDisplayEntry } from './export/outputs.ts';
+export { BUNDLE_FILE_NAME, VCT_FILE_NAME, buildOutputs, bundleDataUrl, bundleIntegrity } from './export/outputs.ts';
+export type { ExportOutputs } from './export/outputs.ts';
+export { buildTypeMetadata, serializeTypeMetadata, typeMetadataUri } from './export/typeMetadata.ts';
+export type { BuiltTypeMetadata, TypeMetadata, TypeMetadataDisplay, TypeMetadataOca } from './export/typeMetadata.ts';
 
 // The swiyu generic issuer's `issuer_metadata.json` (Credential Issuer Metadata), with its placeholders.
 export {

@@ -3,6 +3,8 @@ import type { Hosting, Project } from '../model.ts';
 import { type BundleJson, serializeBundle } from './bundle.ts';
 
 export const BUNDLE_FILE_NAME = 'oca-bundle.json';
+/** The file name of the Type Metadata (`buildTypeMetadata`). */
+export const VCT_FILE_NAME = 'vct.json';
 export const PROFILE_VERSION = 'swiss-profile-vc:1.0.0';
 
 export interface ExportOutputs {
@@ -32,29 +34,4 @@ export async function buildOutputs(project: Project, bundle: BundleJson): Promis
   const dataUrl = bundleDataUrl(json);
   const uri = project.hosting.mode === 'dataUrl' ? dataUrl : project.hosting.url;
   return { json, dataUrl, uri, integrity: await bundleIntegrity(json, project.hosting) };
-}
-
-export interface VctDisplayEntry {
-  lang: string;
-  locale: string;
-  name: string;
-  description?: string;
-  rendering: { oca: { uri: string; 'uri#integrity': string } };
-}
-
-/** The `display` array for the SD-JWT VC Type Metadata. Both `lang` (wallets) and `locale` (draft 15) are set. */
-export function buildVctSnippet(project: Project, outputs: ExportOutputs): { display: VctDisplayEntry[] } {
-  return {
-    display: project.languages.map((lang) => {
-      const meta = project.meta[lang] ?? { name: '', description: '' };
-      const entry: VctDisplayEntry = {
-        lang,
-        locale: lang,
-        name: meta.name,
-        rendering: { oca: { uri: outputs.uri, 'uri#integrity': outputs.integrity } },
-      };
-      if (meta.description) entry.description = meta.description;
-      return entry;
-    }),
-  };
 }

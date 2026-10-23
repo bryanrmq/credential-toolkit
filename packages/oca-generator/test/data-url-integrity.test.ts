@@ -1,12 +1,13 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { buildBundle } from '../../../src/core/export/bundle.ts';
-import { buildOutputs, buildVctSnippet, bundleDataUrl, bundleIntegrity } from '../../../src/core/export/outputs.ts';
+import { buildOutputs, bundleDataUrl, bundleIntegrity } from '../../../src/core/export/outputs.ts';
+import { buildTypeMetadata } from '../../../src/core/export/typeMetadata.ts';
 import { emptyProject, newAttribute } from '../../../src/core/model.ts';
 
 // How the swiyu wallets check an embedded bundle, rebuilt with Node's own crypto and Buffer rather than the tool's
 // helpers:
-// - iOS v1.18.0 OCABundleService.fetchDataRawOcaBundle: accepts a uri starting `data:application/json;base64`,
+// - iOS v1.19.0 (42e746c) OCABundleService.fetchDataRawOcaBundle: accepts a uri starting `data:application/json;base64`,
 //   base64-decodes what follows the last comma, and validates the SRI over `url.absoluteString.data(using: .utf8)`.
 //   SRIValidator compares `base64EncodedString()` of the digest (standard base64, padded).
 // - Android v1.19.0 FetchOcaBundleImpl: accepts a uri starting `data:application/json;base64,`, decodes the rest with
@@ -58,7 +59,7 @@ describe('#integrity for embedded (data URL) hosting', () => {
     expect(outputs.integrity).toBe(walletIntegrity(outputs.uri));
     expect(outputs.integrity).not.toBe(`sha256-${createHash('sha256').update(outputs.json, 'utf8').digest('base64')}`);
 
-    for (const entry of buildVctSnippet(project, outputs).display) {
+    for (const entry of buildTypeMetadata(project, outputs).metadata.display) {
       expect(entry.rendering.oca['uri#integrity']).toBe(walletIntegrity(entry.rendering.oca.uri));
     }
   });

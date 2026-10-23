@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { type Project, emptyProject, newAttribute } from '../model';
 import { buildBundle } from './bundle';
-import { buildOutputs, buildVctSnippet } from './outputs';
+import { buildOutputs } from './outputs';
 import { exportProject } from './project';
+import { buildTypeMetadata } from './typeMetadata';
 
 function clean(): Project {
   const project = emptyProject(['de-CH']);
@@ -18,7 +19,7 @@ describe('exportProject', () => {
     const result = await exportProject(project);
     const { bundle } = await buildBundle(project);
     const outputs = await buildOutputs(project, bundle);
-    expect(result).toEqual({ ok: true, issues: [], bundle, outputs, vct: buildVctSnippet(project, outputs) });
+    expect(result).toEqual({ ok: true, issues: [], bundle, outputs, vct: buildTypeMetadata(project, outputs) });
   });
 
   it('builds despite warnings and returns them', async () => {

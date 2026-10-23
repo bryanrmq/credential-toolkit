@@ -134,6 +134,9 @@ describe('Bundle tab', () => {
     expect(useStore.getState().outputTab).toBe('vct');
     const snippet = shownJson();
     expect(snippet.textContent).not.toBe(bundleText);
+    const [entry] = JSON.parse(snippet.textContent!).display;
+    expect(entry).toMatchObject({ lang: 'de-CH', name: 'Hundebewilligung', description: 'Für Hundehalter' });
+    expect(entry).not.toHaveProperty('locale');
     await user.click(output().getByRole('button', { name: 'Copy snippet' }));
     expect(await navigator.clipboard.readText()).toBe(snippet.textContent);
     expect(output().getByText(/Add these entries to the "display" array/)).toBeInTheDocument();
