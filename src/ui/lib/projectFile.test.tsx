@@ -4,6 +4,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Baseline } from '../../core/baseline';
 import { type Project, emptyProject, newAttribute } from '../../core/model';
 import { PROJECT_FILE_FORMAT, serializeProjectFile } from '../../core/projectFile';
 import { createDraft, getDraft, initDrafts, restoreDraft, startAutosave, useDrafts } from '../../state/persistence';
@@ -27,6 +28,7 @@ function project(name: string): Project {
   return result;
 }
 
+const baseline: Baseline = { json: '{"capture_bases":[]}', integrity: 'sha256-abc=', source: 'download', setAt: 5 };
 const projectFile = (content: string) => new File([content], 'project.oca-project.json', { type: 'application/json' });
 const ids = () => useDrafts.getState().drafts.map((draft) => draft.id);
 const toast = () => document.querySelector('.toast--error');
@@ -67,6 +69,13 @@ describe('saving a project file', () => {
     expect(downloadText).toHaveBeenCalledWith('hundebewilligung.oca-project.json', serializeProjectFile(open));
   });
 
+  it('saves the open draft\'s baseline with it', () => {
+    const open = project('Hundebewilligung');
+    createDraft(open, undefined, { baseline });
+    saveProjectFile();
+    expect(downloadText).toHaveBeenCalledWith('hundebewilligung.oca-project.json', serializeProjectFile(open, baseline));
+  });
+
   it('does nothing without an open project', () => {
     saveProjectFile();
     expect(downloadText).not.toHaveBeenCalled();
@@ -79,6 +88,10 @@ describe('saving a project file', () => {
     expect(downloadText).toHaveBeenCalledWith('lernfahrausweis.oca-project.json', serializeProjectFile(stored));
     expect(await downloadDraftProjectFile('missing')).toBe(false);
     expect(downloadText).toHaveBeenCalledTimes(1);
+
+    await restoreDraft({ id: 'published', updatedAt: 2, project: stored, baseline });
+    await downloadDraftProjectFile('published');
+    expect(downloadText).toHaveBeenLastCalledWith('lernfahrausweis.oca-project.json', serializeProjectFile(stored, baseline));
   });
 });
 
@@ -108,6 +121,24 @@ describe('opening a project file', () => {
     expect(useStore.getState().project).toEqual(saved);
     expect(useStore.getState().project?.sample).toEqual({ canton: 'BE' });
     expect(useStore.getState().project?.root.children[0]).toMatchObject({ i14y: { identifier: 'CH_CANTON' } });
+  });
+
+  it('round-trips the baseline and stores it with the new draft', async () => {
+    createDraft(project('Hundebewilligung'), undefined, { baseline });
+    saveProjectFile();
+    const [, text] = vi.mocked(downloadText).mock.calls[0];
+    useStore.getState().close();
+    await openProjectFileFrom(projectFile(text));
+    expect(useStore.getState().baseline).toEqual(baseline);
+    const { draftId } = useStore.getState();
+    await waitFor(async () => expect((await getDraft(draftId!))?.baseline).toEqual(baseline));
+  });
+
+  it('opens a file saved without a baseline', async () => {
+    const older = JSON.stringify({ format: PROJECT_FILE_FORMAT, version: 1, project: project('Alt') });
+    expect(await openProjectFileFrom(projectFile(older))).toBe(true);
+    expect(useStore.getState().project?.meta['de-CH'].name).toBe('Alt');
+    expect(useStore.getState().baseline).toBeNull();
   });
 
   it('shows an error for a file that is not a project, and keeps the open one', async () => {

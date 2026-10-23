@@ -2,6 +2,7 @@
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Baseline } from '../core/baseline';
 import { type Project, emptyProject } from '../core/model';
 import {
   DRAFT_KEY,
@@ -200,6 +201,65 @@ describe('autosave', () => {
     vi.advanceTimersByTime(500);
     await initDrafts();
     expect(ids()).toEqual([]);
+  });
+});
+
+describe('published baseline', () => {
+  const baseline = (json: string): Baseline => ({ json, integrity: `sha256-${json}`, source: 'file', setAt: 7 });
+
+  it('stores a new draft with its baseline and opens it again after a reload', async () => {
+    stop = startAutosave();
+    const id = createDraft(project('Card'), undefined, { baseline: baseline('first') });
+    expect(useStore.getState().baseline).toEqual(baseline('first'));
+    await vi.waitFor(async () => expect((await getDraft(id))?.baseline).toEqual(baseline('first')));
+
+    useStore.getState().close();
+    expect(useStore.getState().baseline).toBeNull();
+    await initDrafts();
+    expect(await openDraft(id)).toBe(true);
+    expect(useStore.getState().baseline).toEqual(baseline('first'));
+  });
+
+  it('saves a new baseline at once, with the edits still waiting, and leaves the project alone', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    stop = startAutosave();
+    const id = createDraft(project('Card'));
+    await vi.waitFor(() => expect(ids()).toEqual([id]));
+    const before = useStore.getState().project;
+    rename('Edited');
+    const edited = useStore.getState().project;
+
+    useStore.getState().setBaseline(baseline('second'));
+    expect(useStore.getState().project).toBe(edited);
+    expect(useStore.getState().past.at(-1)?.project).toBe(before);
+    await vi.waitFor(async () => expect((await getDraft(id))?.baseline).toEqual(baseline('second')));
+    expect((await getDraft(id))?.project.meta['de-CH'].name).toBe('Edited');
+
+    // Later edits keep it.
+    rename('Edited again');
+    vi.advanceTimersByTime(500);
+    await vi.waitFor(async () => expect((await getDraft(id))?.project.meta['de-CH'].name).toBe('Edited again'));
+    expect((await getDraft(id))?.baseline).toEqual(baseline('second'));
+  });
+
+  it('keeps the baseline through renaming, and opens drafts stored without one', async () => {
+    await restoreDraft({ ...record('a', 1), baseline: baseline('kept') });
+    await restoreDraft(record('b', 2));
+    await renameDraft('a', 'Staff card');
+    expect((await getDraft('a'))?.baseline).toEqual(baseline('kept'));
+    await openDraft('b');
+    expect(useStore.getState().baseline).toBeNull();
+  });
+
+  it('ignores a stored baseline that is not one', async () => {
+    await restoreDraft({ ...record('a', 1), baseline: { json: 1 } as unknown as Baseline });
+    await openDraft('a');
+    expect(useStore.getState().baseline).toBeNull();
+  });
+
+  it('only sets a baseline while a project is open', () => {
+    useStore.getState().setBaseline(baseline('none'));
+    expect(useStore.getState().baseline).toBeNull();
   });
 });
 

@@ -1,5 +1,5 @@
 import { sriSha256, toBase64, utf8 } from '../cesr';
-import type { Project } from '../model';
+import type { Hosting, Project } from '../model';
 import { type BundleJson, serializeBundle } from './bundle';
 
 export const BUNDLE_FILE_NAME = 'oca-bundle.json';
@@ -13,14 +13,24 @@ export interface ExportOutputs {
   integrity: string;
 }
 
+/** The data URL that embeds bundle text `json`. */
+export function bundleDataUrl(json: string): string {
+  return `data:application/json;base64,${toBase64(utf8(json))}`;
+}
+
+/**
+ * The `#integrity` of bundle text `json` as hosted with `hosting`: the hash of the file bytes for a hosting URL,
+ * of the whole data URL when embedding.
+ */
+export function bundleIntegrity(json: string, hosting: Hosting): Promise<string> {
+  return sriSha256(utf8(hosting.mode === 'dataUrl' ? bundleDataUrl(json) : json));
+}
+
 export async function buildOutputs(project: Project, bundle: BundleJson): Promise<ExportOutputs> {
   const json = serializeBundle(bundle);
-  const bytes = utf8(json);
-  const dataUrl = `data:application/json;base64,${toBase64(bytes)}`;
-  if (project.hosting.mode === 'dataUrl') {
-    return { json, dataUrl, uri: dataUrl, integrity: await sriSha256(utf8(dataUrl)) };
-  }
-  return { json, dataUrl, uri: project.hosting.url, integrity: await sriSha256(bytes) };
+  const dataUrl = bundleDataUrl(json);
+  const uri = project.hosting.mode === 'dataUrl' ? dataUrl : project.hosting.url;
+  return { json, dataUrl, uri, integrity: await bundleIntegrity(json, project.hosting) };
 }
 
 export interface VctDisplayEntry {

@@ -69,6 +69,13 @@ export const t = {
     invalid: "This file isn't an OCA generator project.",
     newer: 'This project was saved by a newer version of the OCA generator. Reload the page to update, then open it again.',
   },
+  baseline: {
+    load: 'Load published bundle',
+    fromUrl: 'From the hosting URL',
+    fromFile: 'From a file',
+    blocked: "The host doesn't allow this request. Download the bundle from your hosting and load it as a file.",
+    invalid: "This isn't a valid OCA bundle.",
+  },
   workspace: {
     untitled: 'Untitled credential',
     editor: 'Editor',

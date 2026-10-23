@@ -1,10 +1,12 @@
+import { type Baseline, isBaseline } from './baseline';
 import { isPlainObject } from './import/report';
 import type { Project } from './model';
 
 /**
  * Project files: a whole project, sample credential and I14Y links included, saved outside the browser as
  * `<credential-name>.oca-project.json`. The exported bundle drops those editor-only parts; a project file
- * keeps everything. The file is `{ format, version, project }`; `version` counts changes to that shape.
+ * keeps everything. The file is `{ format, version, project, baseline? }`; `version` counts changes to that shape.
+ * `baseline`, the draft's published bundle (`core/baseline.ts`), is optional: files saved before it still open.
  */
 
 export const PROJECT_FILE_FORMAT = 'oca-generator-project';
@@ -33,9 +35,10 @@ export function isProject(value: unknown): value is Project {
   );
 }
 
-/** The text of the project file for `project`. */
-export function serializeProjectFile(project: Project): string {
-  return `${JSON.stringify({ format: PROJECT_FILE_FORMAT, version: PROJECT_FILE_VERSION, project }, null, 2)}\n`;
+/** The text of the project file for `project`, with its published baseline when it has one. */
+export function serializeProjectFile(project: Project, baseline?: Baseline | null): string {
+  const content = { format: PROJECT_FILE_FORMAT, version: PROJECT_FILE_VERSION, project, ...(baseline && { baseline }) };
+  return `${JSON.stringify(content, null, 2)}\n`;
 }
 
 /**
@@ -58,9 +61,9 @@ export function projectFileName(project: Project): string {
 /** Why a file could not be opened: it is not a project file (`invalid`), or a newer app saved it (`newer`). */
 export type ProjectFileError = 'invalid' | 'newer';
 
-export type ParsedProjectFile = { ok: true; project: Project } | { ok: false; error: ProjectFileError };
+export type ParsedProjectFile = { ok: true; project: Project; baseline?: Baseline } | { ok: false; error: ProjectFileError };
 
-/** Reads the text of a project file. Never throws. */
+/** Reads the text of a project file. Never throws. A baseline that isn't one is left out; the project still opens. */
 export function parseProjectFile(text: string): ParsedProjectFile {
   let parsed: unknown;
   try {
@@ -74,5 +77,6 @@ export function parseProjectFile(text: string): ParsedProjectFile {
   if (version > PROJECT_FILE_VERSION) return { ok: false, error: 'newer' };
   let project = parsed.project;
   for (let from = version; from < PROJECT_FILE_VERSION; from++) project = MIGRATIONS[from](project);
-  return isProject(project) ? { ok: true, project } : { ok: false, error: 'invalid' };
+  if (!isProject(project)) return { ok: false, error: 'invalid' };
+  return isBaseline(parsed.baseline) ? { ok: true, project, baseline: parsed.baseline } : { ok: true, project };
 }
