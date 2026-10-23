@@ -47,7 +47,8 @@ export interface MetadataLogo {
 }
 
 export interface IssuerDisplayEntry {
-  name: string;
+  /** Left out when the issuer has no name in this language: the wallets then show "Unknown issuer", not a blank row. */
+  name?: string;
   locale: LangTag;
   logo?: MetadataLogo;
 }
@@ -140,7 +141,9 @@ export function serializeIssuerMetadata(metadata: IssuerMetadataJson): string {
 /**
  * The Credential Issuer Metadata for `project`, its file text and the placeholders left in it. The issuer
  * `display` (name per language, one logo) is always there: the wallets take the issuer's name and logo from it
- * even when they show the OCA bundle. `credential_metadata.display` is only the wallets' fallback when there is
+ * even when they show the OCA bundle. A language without an issuer name gets an entry without `name`: iOS v1.19.0
+ * (`CredentialDetailView.issuerSection`) and Android v1.19.0 (`CredentialElements.IssuerInfo`) show "Unknown
+ * issuer" for a missing name but a blank row for `""`, and swiyu-issuer does not validate the display entries. `credential_metadata.display` is only the wallets' fallback when there is
  * no OCA to show. Keys always come in the same order, so the same project gives the same bytes.
  */
 export function buildIssuerMetadata(project: Project): BuiltIssuerMetadata {
@@ -175,7 +178,7 @@ export function buildIssuerMetadata(project: Project): BuiltIssuerMetadata {
     nonce_endpoint: `${EXTERNAL_URL_PLACEHOLDER}/oid4vci/api/nonce`,
     deferred_credential_endpoint: `${EXTERNAL_URL_PLACEHOLDER}/oid4vci/api/deferred_credential`,
     batch_credential_issuance: { batch_size: BATCH_SIZE },
-    display: project.languages.map((lang) => ({ name: issuer.name[lang] ?? '', locale: lang, ...logo(issuer.logo) })),
+    display: project.languages.map((lang) => ({ ...(issuer.name[lang] ? { name: issuer.name[lang] } : {}), locale: lang, ...logo(issuer.logo) })),
     credential_configurations_supported: { [configurationId]: configuration },
   };
 

@@ -73,16 +73,22 @@ describe('buildIssuerMetadata', () => {
 
   it('writes the issuer display without a logo when there is none, or it is not PNG or JPEG', () => {
     const project = petPermit();
-    project.issuer = { name: { 'de-CH': 'Kanton Bern' }, logo: SVG };
+    project.issuer = { name: { 'de-CH': 'Kanton Bern', 'fr-CH': 'Canton de Berne' }, logo: SVG };
     expect(buildIssuerMetadata(project).metadata.display).toEqual([
       { name: 'Kanton Bern', locale: 'de-CH' },
-      { name: '', locale: 'fr-CH' },
+      { name: 'Canton de Berne', locale: 'fr-CH' },
+    ]);
+  });
+
+  it('leaves out the issuer name in a language without one, so the wallets show "Unknown issuer"', () => {
+    const project = petPermit();
+    project.issuer = { name: { 'de-CH': 'Kanton Bern', 'fr-CH': '' }, logo: JPEG };
+    expect(buildIssuerMetadata(project).metadata.display).toEqual([
+      { name: 'Kanton Bern', locale: 'de-CH', logo: { uri: JPEG } },
+      { locale: 'fr-CH', logo: { uri: JPEG } },
     ]);
     delete project.issuer;
-    expect(buildIssuerMetadata(project).metadata.display).toEqual([
-      { name: '', locale: 'de-CH' },
-      { name: '', locale: 'fr-CH' },
-    ]);
+    expect(buildIssuerMetadata(project).metadata.display).toEqual([{ locale: 'de-CH' }, { locale: 'fr-CH' }]);
   });
 
   it('writes the configuration under the configuration id with the Swiss profile values', () => {
