@@ -395,6 +395,10 @@ input[type='checkbox'] {
   padding: 32px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
 }
+.dialog--notice {
+  width: min(440px, 100%);
+  padding: 24px;
+}
 .dialog__title {
   font-size: 20px;
   font-weight: 600;
@@ -589,6 +593,78 @@ kbd.palette__meta {
   background: var(--red-bg);
   border-color: transparent;
   color: var(--red-text);
+}
+/* A long action in the toast: title, mono detail and percentage on one line, a 3px track under them. */
+.toast--progress {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 9px;
+  min-width: min(320px, calc(100vw - 32px));
+  padding: 10px 14px 12px;
+}
+.toast__progress {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.toast__title {
+  font-weight: 500;
+  white-space: nowrap;
+}
+.toast__detail {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.toast__percent {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-strong);
+}
+.toast__bar {
+  position: relative;
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--border);
+}
+.toast__bar-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--text-strong);
+  transform-origin: left;
+  transform: scaleX(0);
+}
+.toast__bar[data-indeterminate] .toast__bar-fill {
+  right: auto;
+  width: 30%;
+  transform: none;
+  opacity: 0.6;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .toast__bar-fill {
+    transition: transform 240ms var(--ease);
+  }
+  .toast__bar[data-indeterminate] .toast__bar-fill {
+    opacity: 1;
+    animation: toast-bar-run 1.4s var(--ease) infinite;
+  }
+}
+@keyframes toast-bar-run {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(340%);
+  }
 }
 .error-text {
   color: var(--red-text);
@@ -1787,6 +1863,7 @@ button.tree__toggle:hover {
   font-weight: 600;
 }
 .lang-row__input {
+  position: relative;
   min-width: 0;
 }
 .lang-row .input[data-empty='true'] {
@@ -1826,8 +1903,31 @@ button.tree__toggle:hover {
   color: var(--blue-text);
   white-space: nowrap;
 }
-.review-confirm svg {
+.review-confirm svg,
+.lang-row__suggest svg {
   flex: none;
+}
+/* Inside the empty input, at its end, so the row's columns keep their width. */
+.lang-row__suggest {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  max-width: calc(100% - 8px);
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+/* A narrow Edit pane keeps the icon; the title and the accessible name still say what it does. */
+@container (max-width: 360px) {
+  .lang-row__suggest-label {
+    display: none;
+  }
+}
+/* On a narrow Edit pane the review marker goes on its own line under the input, so it does not narrow every input. */
+@container (max-width: 480px) {
+  .lang-row__review {
+    grid-column: 2 / -1;
+    justify-self: start;
+  }
 }
 .inspector__header {
   margin: 16px 0 28px;

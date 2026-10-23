@@ -9,8 +9,9 @@ import { t } from '../../strings';
 import { Badge, Button, Menu, type MenuItem, Segmented } from '../components/controls';
 import { groupIssues, useIssues } from '../issues';
 import { setDownloadedBaseline } from '../lib/baseline';
-import { type CommandId, ariaKeyShortcuts, commandLabel, runCommand, shortcutLabel } from '../lib/commands';
+import { type CommandId, applies, ariaKeyShortcuts, commandLabel, runCommand, shortcutLabel } from '../lib/commands';
 import { downloadText } from '../lib/download';
+import { useTranslationState } from '../lib/translate';
 import { useWideWindow } from '../lib/wideWindow';
 import { Wordmark } from '../Wordmark';
 
@@ -33,6 +34,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
   const outputOpen = useStore((state) => state.outputOpen);
   const { setEditLang, setView, setLanguagesOpen, setTourOpen, setOutputOpen, close } = useStore.getState();
   const wide = useWideWindow();
+  // Re-renders the menu when a translation starts or ends, since "Translate missing languages" waits for it.
+  useTranslationState((state) => state.running);
   const groups = groupIssues(useIssues());
   const errors = groups.filter((group) => group.severity === 'error').length;
   const warnings = groups.length - errors;
@@ -142,6 +145,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
             { label: t.workspace.manageLanguages, onSelect: () => setLanguagesOpen(true) },
             // Only when a linked attribute lacks a text its I14Y concept may have.
             ...(canFillFromI14y(project) ? [commandItem('workspace.fillFromI14y')] : []),
+            // Only with the browser's on-device translator and some text to fill.
+            ...(applies('workspace.translateMissing') ? [commandItem('workspace.translateMissing')] : []),
             // Only while some suggested text waits for review.
             ...(hasUnreviewed(project) ? [commandItem('workspace.confirmSuggestions')] : []),
             { label: t.workspace.editorView, className: 'narrow-only', onSelect: () => setView('editor') },

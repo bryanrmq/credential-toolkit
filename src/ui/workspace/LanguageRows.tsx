@@ -1,10 +1,12 @@
-import { CheckIcon } from '@phosphor-icons/react';
+import { CheckIcon, TranslateIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import type { LangTag, ReviewMark } from '../../core/model';
 import { confirmReview, reviewMarkAt, samePlace } from '../../core/review';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
+import { translateMissing, useTranslationState } from '../lib/translate';
+import { hasTranslator } from '../lib/translator';
 import { I14yReset } from './I14yLink';
 import { type TranslationRow, editingFirst } from './translationRows';
 
@@ -39,10 +41,33 @@ function ReviewMarker({ mark, label }: { mark: ReviewMark; label: string }) {
 }
 
 /**
+ * On an empty row, at the end of its input: fills it with the browser's translation from the editing language,
+ * marked for review. Typing hides it, as the row is then no longer empty.
+ */
+function SuggestTranslation({ row, lang, label }: { row: TranslationRow; lang: LangTag; label: string }) {
+  const editLang = useStore((state) => state.editLang);
+  // One translation at a time.
+  const running = useTranslationState((state) => state.running);
+  return (
+    <Button
+      size="small"
+      className="lang-row__suggest"
+      disabled={running}
+      aria-label={t.translate.suggestText(label, lang, editLang)}
+      title={t.translate.suggestFrom(editLang)}
+      onClick={() => void translateMissing({ place: row.place, lang })}
+    >
+      <TranslateIcon size={12} /> <span className="lang-row__suggest-label">{t.translate.suggestFrom(editLang)}</span>
+    </Button>
+  );
+}
+
+/**
  * One translatable text in the form: a row per language, the editing language first and marked, each with its
  * language code and, for an I14Y-linked attribute, a reset to I14Y's text. A suggested text that needs review
- * has a dashed frame, a tag saying who suggested it and Confirm. With one language, only the input, unless it
- * has a reset or a review mark.
+ * has a dashed frame, a tag saying who suggested it and Confirm. Where the browser translates on the device, an
+ * empty row offers a translation from the editing language. With one language, only the input, unless it has a
+ * reset or a review mark.
  */
 export function LanguageRows({
   id,
@@ -77,6 +102,10 @@ export function LanguageRows({
 
   const markOf = (lang: LangTag) => reviewMarkAt(project, row.place, lang);
   const reviewMarker = (mark: ReviewMark | undefined) => mark && <ReviewMarker mark={mark} label={label} />;
+  // Only from a text in the editing language, into an empty one.
+  const canSuggest = hasTranslator() && row.get(project, editLang).trim() !== '';
+  const suggest = (lang: LangTag) =>
+    canSuggest && lang !== editLang && row.get(project, lang) === '' && <SuggestTranslation row={row} lang={lang} label={label} />;
 
   const reset = (lang: LangTag) => (
     <I14yReset current={row.get(project, lang)} i14yText={row.i14y?.(project, lang)} onReset={(text) => update((draft) => row.set(draft, lang, text))} />
@@ -100,7 +129,10 @@ export function LanguageRows({
         return (
           <div key={lang} className="lang-row" data-editing={lang === editLang || undefined} data-review={mark?.source}>
             <code className="lang-row__code">{lang}</code>
-            <div className="lang-row__input">{input(props(lang))}</div>
+            <div className="lang-row__input">
+              {input(props(lang))}
+              {suggest(lang)}
+            </div>
             {reset(lang)}
             {reviewMarker(mark)}
           </div>

@@ -206,10 +206,22 @@ export function Menu({ label, items }: { label: string; items: MenuItem[] }) {
   );
 }
 
-export function Dialog({ title, intro, children, onClose }: { title: string; intro?: ReactNode; children: ReactNode; onClose: () => void }) {
+export function Dialog({
+  title,
+  intro,
+  children,
+  onClose,
+  className = '',
+}: {
+  title: string;
+  intro?: ReactNode;
+  children: ReactNode;
+  onClose: () => void;
+  className?: string;
+}) {
   return (
     <div className="dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <div className="dialog" role="dialog" aria-modal="true" aria-label={title} onKeyDown={(event) => event.key === 'Escape' && onClose()}>
+      <div className={`dialog ${className}`.trim()} role="dialog" aria-modal="true" aria-label={title} onKeyDown={(event) => event.key === 'Escape' && onClose()}>
         <h2 className="dialog__title">{title}</h2>
         {intro && <p className="dialog__intro">{intro}</p>}
         {children}
