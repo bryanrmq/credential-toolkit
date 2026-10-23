@@ -636,6 +636,143 @@ input[type='checkbox'] {
     display: none;
   }
 }
+/* Section headings: Recent projects and "Start a new one". */
+.start__heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin: 0 0 12px;
+}
+.start__heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.start__heading-row .start__heading {
+  margin: 0;
+}
+
+/* Recent projects: one bordered list of drafts, rows divided by rules. */
+.recent {
+  margin-bottom: 48px;
+}
+.recent__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.recent__row {
+  display: flex;
+  align-items: center;
+  /* The row's 16px left padding sits inside the open button, so the whole row opens the draft. */
+  padding: 0 8px 0 0;
+  min-height: 44px;
+  background: var(--surface);
+}
+.recent__row + .recent__row {
+  border-top: 1px solid var(--border);
+}
+.recent__row:hover,
+.recent__row:focus-within {
+  background: var(--surface-muted);
+}
+.recent__open {
+  flex: 1 1 0;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px 0 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.recent__open:focus-visible {
+  outline-offset: -2px;
+}
+.recent__open--renaming {
+  cursor: default;
+}
+.recent__icon {
+  flex: none;
+  color: var(--text-muted);
+}
+.recent__name {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-strong);
+}
+.recent__name--untitled {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.recent__rename {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 3px 8px;
+  font-size: 14px;
+}
+.recent__languages {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.recent__time {
+  flex: none;
+  min-width: 72px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.recent__actions.btn--icon {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  justify-content: center;
+}
+/* On a row already tinted by hover, the button's own hover needs a step darker. */
+.recent__row .recent__actions:hover:not(:disabled),
+.recent__actions[aria-expanded='true'] {
+  background: var(--border);
+  color: var(--text-strong);
+}
+.recent__more {
+  margin-top: 8px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.recent__more:hover {
+  color: var(--text-strong);
+  text-decoration: underline;
+}
+@media (max-width: 600px) {
+  .recent__languages {
+    display: none;
+  }
+}
+
 .bento {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -659,13 +796,6 @@ input[type='checkbox'] {
 }
 .bento__card--wide {
   grid-column: span 2;
-}
-.bento__card--resume {
-  grid-column: 1 / -1;
-  min-height: 0;
-  flex-direction: row;
-  align-items: center;
-  background: var(--surface-muted);
 }
 .bento__icon {
   width: 36px;
