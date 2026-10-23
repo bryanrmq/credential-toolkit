@@ -86,17 +86,22 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /Continue your draft.*Untitled credential/ })).toBeInTheDocument();
   });
 
-  it('discards the open draft on New project, after asking', async () => {
+  it('keeps the open draft on New project, without asking, so it can be reopened', async () => {
     await storeDraft();
+    const confirm = vi.spyOn(window, 'confirm');
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole('button', { name: /Continue your draft/ }));
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
     await user.click(await screen.findByRole('button', { name: 'More actions' }));
     await user.click(screen.getByRole('menuitem', { name: 'New project' }));
-    expect(confirm).toHaveBeenCalledOnce();
-    await waitFor(() => expect(screen.queryByRole('button', { name: /Continue your draft/ })).not.toBeInTheDocument());
-    expect(await getDraft('saved')).toBeNull();
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(useStore.getState().project).toBeNull();
+    expect((await getDraft('saved'))?.project.meta['de-CH'].name).toBe('Hundebewilligung');
+
+    await user.click(await screen.findByRole('button', { name: /Continue your draft.*Hundebewilligung/ }));
+    expect(useStore.getState().draftId).toBe('saved');
+    expect(screen.getByRole('heading', { name: 'Hundebewilligung' })).toBeInTheDocument();
     confirm.mockRestore();
   });
 

@@ -1,7 +1,6 @@
 import { DownloadSimpleIcon, SidebarSimpleIcon } from '@phosphor-icons/react';
 import type { Ref } from 'react';
 import { BUNDLE_FILE_NAME } from '../../core/export/outputs';
-import { deleteDraft } from '../../state/persistence';
 import { useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
@@ -118,12 +117,7 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
             { label: t.tour.start, onSelect: () => setTourOpen(true) },
             {
               label: t.workspace.newProject,
-              onSelect: () => {
-                if (!window.confirm(t.workspace.confirmNew)) return;
-                const { draftId } = useStore.getState();
-                if (draftId) void deleteDraft(draftId);
-                close();
-              },
+              onSelect: close,
             },
           ]}
         />

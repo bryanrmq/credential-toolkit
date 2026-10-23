@@ -86,7 +86,6 @@ export const t = {
     errorCount: (count: number) => `${count} ${count === 1 ? 'error' : 'errors'}`,
     warningCount: (count: number) => `${count} ${count === 1 ? 'warning' : 'warnings'}`,
     newProject: 'New project',
-    confirmNew: 'Discard this draft and go back to the start screen? Download the bundle first if you want to keep it.',
     storageUnavailable: 'This browser does not allow local storage, so the draft will not be saved.',
     reportTitle: 'Import report',
     dismiss: 'Dismiss',
