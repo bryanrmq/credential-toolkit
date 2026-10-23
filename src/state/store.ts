@@ -1,4 +1,5 @@
 import { type StateCreator, create } from 'zustand';
+import type { Baseline } from '../core/baseline';
 import type { CardPlatform, CardVariant } from '../core/card/profiles';
 import type { ReportNote } from '../core/import/report';
 import { type LangTag, type Project, newId } from '../core/model';
@@ -42,6 +43,11 @@ export interface AppState {
   project: Project | null;
   /** The stored draft (`persistence.ts`) the open project belongs to; null on the start screen. */
   draftId: string | null;
+  /**
+   * The open draft's published baseline (`core/baseline.ts`): the bundle it was last published as, or null.
+   * Stored with the draft; it is not part of the project, so undo leaves it alone.
+   */
+  baseline: Baseline | null;
   selection: Selection;
   /**
    * The Structure tree's collapsed groups, by node id, remembered per project. A selected node is never
@@ -78,9 +84,11 @@ export interface AppState {
   future: HistoryStep[];
   fixNotice: FixNotice | null;
   fixing: boolean;
-  /** Opens `project` in the workspace: as stored draft `options.draftId`, or else as a new draft. */
-  load: (project: Project, report?: ReportNote[], options?: { reviewI14y?: boolean; draftId?: string }) => void;
+  /** Opens `project` in the workspace: as stored draft `options.draftId`, or else as a new draft; with `options.baseline`. */
+  load: (project: Project, report?: ReportNote[], options?: { reviewI14y?: boolean; draftId?: string; baseline?: Baseline }) => void;
   close: () => void;
+  /** Replaces the open draft's published baseline; the project stays as it is. */
+  setBaseline: (baseline: Baseline | null) => void;
   /**
    * Applies `recipe` to a copy of the project, so every change produces a new object, and records the
    * project before it as an undo step. Updates typed in the same `field` (by default the focused text
@@ -186,6 +194,7 @@ function revealingSelection(config: StateCreator<AppState>): StateCreator<AppSta
 export const useStore = create<AppState>()(revealingSelection((set, get) => ({
   project: null,
   draftId: null,
+  baseline: null,
   selection: CREDENTIAL,
   collapsed: [],
   treeFilter: '',
@@ -212,6 +221,7 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
     set({
       project,
       draftId: options?.draftId ?? newId(),
+      baseline: options?.baseline ?? null,
       report: report && report.length ? report : null,
       i14yReview: options?.reviewI14y ?? false,
       selection: CREDENTIAL,
@@ -231,6 +241,7 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
     set({
       project: null,
       draftId: null,
+      baseline: null,
       report: null,
       i14yReview: false,
       selection: CREDENTIAL,
@@ -242,6 +253,9 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
       future: [],
       fixNotice: null,
     });
+  },
+  setBaseline: (baseline) => {
+    if (get().project) set({ baseline });
   },
   update: (recipe, options) => {
     const { project: current, selection, past } = get();

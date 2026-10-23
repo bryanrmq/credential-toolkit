@@ -12,8 +12,11 @@
  * - `getDraft(id)`: a whole draft, project included.
  * - `renameDraft(id, name)`, `deleteDraft(id)` (returns the draft so that `restoreDraft` can undo it).
  * - `saveOpenDraft()`: saves the open draft now instead of after the autosave delay.
+ *
+ * A draft's published baseline (`AppState.baseline`) is stored with it and saved as soon as it changes.
  */
 import { create } from 'zustand';
+import { type Baseline, isBaseline } from '../core/baseline';
 import type { ReportNote } from '../core/import/report';
 import { type LangTag, type Project, newId } from '../core/model';
 import { isProject } from '../core/projectFile';
@@ -35,6 +38,8 @@ export interface DraftRecord {
   /** When the draft was last saved, in milliseconds since the epoch. */
   updatedAt: number;
   project: Project;
+  /** The bundle the draft was last published as (`core/baseline.ts`), when known. */
+  baseline?: Baseline;
 }
 
 /** What the drafts list needs to know about a draft, without its project. */
@@ -116,7 +121,7 @@ let database: IDBDatabase | null = null;
 /** The draft the crash screen downloads: the open one, else the one last open. */
 let latest: { id: string; project: Project } | null = null;
 /** The open draft's save that waits for edits to settle. */
-let pending: { id: string; project: Project; timer: ReturnType<typeof setTimeout> } | null = null;
+let pending: { id: string; project: Project; baseline: Baseline | null; timer: ReturnType<typeof setTimeout> } | null = null;
 
 function cancelPending() {
   if (pending) clearTimeout(pending.timer);
@@ -222,12 +227,13 @@ export async function getDraft(id: string): Promise<DraftRecord | null> {
 export async function openDraft(id: string): Promise<boolean> {
   const record = await getDraft(id);
   if (!record) return false;
-  useStore.getState().load(record.project, undefined, { draftId: id });
+  const baseline = isBaseline(record.baseline) ? record.baseline : undefined;
+  useStore.getState().load(record.project, undefined, { draftId: id, baseline });
   return true;
 }
 
-/** Opens `project` in the workspace as a new draft, stored right away, and returns its id. */
-export function createDraft(project: Project, report?: ReportNote[], options?: { reviewI14y?: boolean }): string {
+/** Opens `project` in the workspace as a new draft, with `options.baseline`, stored right away, and returns its id. */
+export function createDraft(project: Project, report?: ReportNote[], options?: { reviewI14y?: boolean; baseline?: Baseline }): string {
   useStore.getState().load(project, report, options);
   return useStore.getState().draftId!;
 }
@@ -236,10 +242,10 @@ export function createDraft(project: Project, report?: ReportNote[], options?: {
  * Writes the draft and reports in the store whether it worked, which shows or clears the out-of-space banner.
  * A failed write changes nothing that was stored.
  */
-async function writeDraft(id: string, project: Project): Promise<boolean> {
+async function writeDraft(id: string, project: Project, baseline: Baseline | null): Promise<boolean> {
   latest = { id, project };
   const customName = useDrafts.getState().drafts.find((draft) => draft.id === id)?.customName;
-  const record: DraftRecord = { id, ...(customName && { customName }), updatedAt: Date.now(), project };
+  const record: DraftRecord = { id, ...(customName && { customName }), updatedAt: Date.now(), project, ...(baseline && { baseline }) };
   let ok = true;
   try {
     await backend.put(record);
@@ -253,16 +259,16 @@ async function writeDraft(id: string, project: Project): Promise<boolean> {
 
 function flush(): Promise<boolean> {
   if (!pending) return Promise.resolve(true);
-  const { id, project } = pending;
+  const { id, project, baseline } = pending;
   cancelPending();
-  return writeDraft(id, project);
+  return writeDraft(id, project, baseline);
 }
 
 /** Saves the open draft now: its waiting autosave, or else the project as it is. */
 export function saveOpenDraft(): Promise<boolean> {
   if (pending) return flush();
-  const { draftId, project } = useStore.getState();
-  return draftId && project ? writeDraft(draftId, project) : Promise.resolve(true);
+  const { draftId, project, baseline } = useStore.getState();
+  return draftId && project ? writeDraft(draftId, project, baseline) : Promise.resolve(true);
 }
 
 /** Gives draft `id` a custom name, or names it after the credential again when `name` is blank. Keeps its place in the list. */
@@ -313,23 +319,31 @@ export function rawDraft(): string | null {
 }
 
 /**
- * Keeps the open draft stored: a new draft is written at once, edits shortly after they stop, and the draft
- * left by opening another one or closing the workspace keeps its last edits. Returns the unsubscribe function.
+ * Keeps the open draft stored: a new draft is written at once, edits shortly after they stop, a new baseline at
+ * once, and the draft left by opening another one or closing the workspace keeps its last edits. Returns the
+ * unsubscribe function.
  */
 export function startAutosave(): () => void {
   const unsubscribe = useStore.subscribe((state, previous) => {
-    const { draftId, project } = state;
+    const { draftId, project, baseline } = state;
     if (draftId !== previous.draftId) {
       void flush();
       if (!draftId || !project) return;
       latest = { id: draftId, project };
       remember(draftId);
-      if (!useDrafts.getState().drafts.some((draft) => draft.id === draftId)) void writeDraft(draftId, project);
+      if (!useDrafts.getState().drafts.some((draft) => draft.id === draftId)) void writeDraft(draftId, project, baseline);
       return;
     }
-    if (!draftId || !project || project === previous.project) return;
+    if (!draftId || !project) return;
+    if (baseline !== previous.baseline) {
+      // Written with the edits still waiting, if any.
+      cancelPending();
+      void writeDraft(draftId, project, baseline);
+      return;
+    }
+    if (project === previous.project) return;
     cancelPending();
-    pending = { id: draftId, project, timer: setTimeout(() => void flush(), AUTOSAVE_DELAY_MS) };
+    pending = { id: draftId, project, baseline, timer: setTimeout(() => void flush(), AUTOSAVE_DELAY_MS) };
   });
   return () => {
     cancelPending();
