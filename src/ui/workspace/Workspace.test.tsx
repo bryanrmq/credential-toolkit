@@ -74,7 +74,8 @@ describe('Workspace', () => {
     render(<Workspace />);
     const banner = screen.getByText(/This browser is out of space/).closest('[role="status"]')!;
     expect(banner).toHaveClass('space-banner');
-    expect(within(banner as HTMLElement).getByRole('button', { name: 'Save project file' })).toBeDisabled();
+    // A project file keeps the project as it is, errors included.
+    expect(within(banner as HTMLElement).getByRole('button', { name: 'Save project file' })).toBeEnabled();
     act(() => useStore.getState().setDraftSaveFailed(false));
     expect(screen.queryByText(/This browser is out of space/)).not.toBeInTheDocument();
   });
