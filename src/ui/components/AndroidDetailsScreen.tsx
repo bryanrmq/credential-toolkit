@@ -3,7 +3,7 @@ import type { CredentialDetails, DetailsClaim, DetailsGroup, DetailsRow } from '
 import { ANDROID_STATUS_STYLE, type AndroidDetailsText, type CredentialStatus } from '../../core/card/detailsChrome';
 import { type FormattedValue, type ValueOptions, formatClaim } from '../../core/card/values';
 import { t } from '../../strings';
-import { CardLogo } from './cardParts';
+import { isDrawableLogo } from '../../core/card/branding';
 import { CredentialCard, type CredentialCardProps } from './CredentialCard';
 import { linkedProps, rowProps, useDetailsLink } from './detailsLink';
 import { GroupTitle } from './GroupTitle';
@@ -35,7 +35,7 @@ export interface AndroidDetailsScreenProps {
  * The Android wallet's credential details screen (`CredentialDetailScreen`, compact width): top bar, the large card
  * with its status badge, the claim clusters (`CredentialElements.kt`) and "Issued by". Sizes and colours are the
  * wallet's, in dp (`Sizes.kt`, `WalletColorScheme.kt`, `WalletTypography.kt`); its ABC Diatype fonts are replaced by
- * the app's.
+ * the app's. Follows eidch-android-wallet v1.19.0 (commit c29a6f3), re-checked in #113.
  *
  * Every claim row and group carries `data-node-id` (the attribute or group link it comes from) and `data-path` (its
  * claims path), so other views can point at it. Inside a `DetailsLinkContext`, rows and group titles from a node pick
@@ -45,7 +45,14 @@ export function AndroidDetailsScreen({ label, theme, title, card, status, detail
   const context: RowContext = { text, valueOptions };
   const link = useDetailsLink();
   return (
-    <div className={`android-details android-details--${theme}`} role="region" aria-label={label} style={{ zoom: scale, '--details-zoom': scale } as CSSProperties}>
+    <div
+      className={`android-details android-details--${theme}`}
+      role="region"
+      aria-label={label}
+      // Every wallet text style hyphenates (`WalletTypography.kt`), which needs the text's language.
+      lang={valueOptions.locale}
+      style={{ zoom: scale, '--details-zoom': scale } as CSSProperties}
+    >
       <div className="android-details__bar" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="24" height="24">
           <path d={BACK_ICON} fill="currentColor" />
@@ -72,7 +79,7 @@ export function AndroidDetailsScreen({ label, theme, title, card, status, detail
             <Headline title={text.issuedBy} depth={0} />
             <div className="android-section__card">
               <div className="android-item android-item--leading">
-                <CardLogo logo={issuer.logo} ink={theme === 'dark' ? 'white' : 'black'} className="android-details__avatar" />
+                <IssuerAvatar logo={issuer.logo} />
                 {issuer.name ? (
                   <span className="android-item__headline">{issuer.name}</span>
                 ) : (
@@ -85,7 +92,7 @@ export function AndroidDetailsScreen({ label, theme, title, card, status, detail
                   <span className="android-item__overline">{text.issuanceType}</span>
                   <span className="android-item__headline">{text.standard}</span>
                 </div>
-                <svg className="android-item__chevron" viewBox="0 0 12 14" width="21" height="24" aria-hidden="true">
+                <svg className="android-item__chevron" viewBox="0 0 12 14" width="24" height="24" aria-hidden="true">
                   <path d={CHEVRON_ICON} fill="currentColor" />
                 </svg>
               </div>
@@ -102,6 +109,26 @@ const BACK_ICON = 'M7.825,13L13.425,18.6L12,20L4,12L12,4L13.425,5.4L7.825,11H20V
 const MORE_ICON =
   'M480,800q-33,0 -56.5,-23.5T400,720q0,-33 23.5,-56.5T480,640q33,0 56.5,23.5T560,720q0,33 -23.5,56.5T480,800ZM480,560q-33,0 -56.5,-23.5T400,480q0,-33 23.5,-56.5T480,400q33,0 56.5,23.5T560,480q0,33 -23.5,56.5T480,560ZM480,320q-33,0 -56.5,-23.5T400,240q0,-33 23.5,-56.5T480,160q33,0 56.5,23.5T560,240q0,33 -23.5,56.5T480,320Z';
 const CHEVRON_ICON = 'M6.3,7.5L4,5.2L4.7,4.5L7.7,7.5L4.7,10.5L4,9.8L6.3,7.5Z';
+const ACTOR_DEFAULT_ICON =
+  'M11.65,13.225H12.35V8.225H11.65V13.225ZM12,15.225C12.15,15.225 12.267,15.175 12.35,15.075C12.45,14.975 12.5,14.858 12.5,14.725C12.5,14.575 12.45,14.458 12.35,14.375C12.267,14.275 12.15,14.225 12,14.225C11.867,14.225 11.75,14.275 11.65,14.375C11.55,14.458 11.5,14.575 11.5,14.725C11.5,14.858 11.55,14.975 11.65,15.075C11.75,15.175 11.867,15.225 12,15.225ZM12,20.95L3.05,12L12,3.05L20.95,12L12,20.95ZM12,20L20,12L12,4L4,12L12,20Z';
+
+/**
+ * `IssuerInfo` / `Avatar` (`CredentialElements.kt` L195-206): the logo, or `wallet_ic_actor_default` without one, fitted
+ * into 18 dp and tinted with `onSurface` through its alpha (`ColorFilter.tint`).
+ */
+function IssuerAvatar({ logo }: { logo?: string }) {
+  return (
+    <span className="android-details__avatar" aria-hidden="true">
+      {isDrawableLogo(logo) ? (
+        <span className="android-details__avatar-logo" style={{ '--logo': `url("${logo}")` } as CSSProperties} />
+      ) : (
+        <svg viewBox="0 0 24 24" width="18" height="18">
+          <path d={ACTOR_DEFAULT_ICON} fill="currentColor" />
+        </svg>
+      )}
+    </span>
+  );
+}
 
 const INVALID_ICON =
   'M7,15.333C6.193,15.333 5.435,15.183 4.725,14.881C4.015,14.57 3.398,14.152 2.873,13.627C2.348,13.102 1.93,12.485 1.619,11.775C1.317,11.065 1.167,10.307 1.167,9.5C1.167,8.693 1.317,7.935 1.619,7.225C1.93,6.515 2.348,5.898 2.873,5.373C3.398,4.848 4.015,4.435 4.725,4.133C5.435,3.822 6.193,3.667 7,3.667C7.807,3.667 8.565,3.822 9.275,4.133C9.985,4.435 10.602,4.848 11.127,5.373C11.652,5.898 12.065,6.515 12.367,7.225C12.678,7.935 12.833,8.693 12.833,9.5C12.833,10.307 12.678,11.065 12.367,11.775C12.065,12.485 11.652,13.102 11.127,13.627C10.602,14.152 9.985,14.57 9.275,14.881C8.565,15.183 7.807,15.333 7,15.333ZM7,14.167C7.525,14.167 8.031,14.084 8.517,13.919C9.003,13.744 9.45,13.496 9.858,13.175L3.325,6.642C3.004,7.05 2.756,7.497 2.581,7.983C2.416,8.469 2.333,8.975 2.333,9.5C2.333,10.803 2.785,11.906 3.69,12.81C4.594,13.715 5.697,14.167 7,14.167ZM10.675,12.358C10.996,11.95 11.239,11.503 11.404,11.017C11.579,10.531 11.667,10.025 11.667,9.5C11.667,8.197 11.215,7.094 10.31,6.19C9.406,5.285 8.303,4.833 7,4.833C6.475,4.833 5.969,4.921 5.483,5.096C4.997,5.261 4.55,5.504 4.142,5.825L10.675,12.358Z';

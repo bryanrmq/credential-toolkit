@@ -6,6 +6,9 @@
  * `CredentialDetailView.swift`, `CredentialClaimViewModel.swift` and BITL10n's `Localizable.strings`.
  * Android: swiyu-admin-ch/eidch-android-wallet v1.19.0 (commit c29a6f3): `CredentialStatusBadge.kt`,
  * `CredentialElements.kt`, `Badges.kt` and `app/src/main/res/values/strings.xml` with its translations.
+ *
+ * Both are the wallets' latest tags (iOS v1.19.0 has no GitHub release yet; v1.18.0 is the latest one). Every rule was
+ * re-checked against them, file by file, in #113 (2026-10-23).
  */
 
 import { ANDROID_APP_LANGUAGES, IOS_DEFAULT_LANGUAGE } from './details.ts';

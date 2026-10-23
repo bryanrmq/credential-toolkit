@@ -5,6 +5,7 @@ import { type CredentialStatus, IOS_STATUS_STYLE, type IosDetailsText } from '..
 import { type FormattedValue, type ValueOptions, formatClaim } from '../../core/card/values';
 import type { Ink } from '../../core/card/profiles';
 import { t } from '../../strings';
+import { isDrawableLogo } from '../../core/card/branding';
 import { CardLogo } from './cardParts';
 import { CredentialCard, type CredentialCardProps } from './CredentialCard';
 import { linkedProps, rowProps, useDetailsLink } from './detailsLink';
@@ -36,7 +37,8 @@ export interface IosDetailsScreenProps {
 /**
  * The iOS wallet's credential details screen (`CredentialDetailView`, portrait): navigation bar, the large card with
  * its status badge, the claim sections (`ClaimClusterList`, `ChildClusterView`, `ClaimCell`) and "Issued by". Sizes and
- * colours are the wallet's, in points; the wallet's ABC Diatype fonts are replaced by the app's.
+ * colours are the wallet's, in points; the wallet's ABC Diatype fonts are replaced by the app's. Follows
+ * eidch-ios-wallet v1.19.0 (commit 42e746c), re-checked in #113.
  *
  * Every claim row and group carries `data-node-id` (the attribute or group link it comes from) and `data-path` (its
  * claims path), so other views can point at it. Inside a `DetailsLinkContext`, rows and group titles from a node pick
@@ -62,7 +64,8 @@ export function IosDetailsScreen({ label, theme, title, card, status, details, t
         ))}
         <Section title={text.issuedBy}>
           <div className="ios-details__issuer">
-            <CardLogo logo={issuer.logo} ink={theme === 'dark' ? 'white' : 'black'} className="ios-details__issuer-logo" />
+            {/* `NormalizedLogoCircular`: the wallet's unknown icon stands in for a logo it cannot draw. */}
+            <CardLogo logo={isDrawableLogo(issuer.logo) ? issuer.logo : UNKNOWN_ICON} ink={theme === 'dark' ? 'white' : 'black'} className="ios-details__issuer-logo" />
             {issuer.name ? (
               <span>{issuer.name}</span>
             ) : (
@@ -82,6 +85,9 @@ export function IosDetailsScreen({ label, theme, title, card, status, details, t
     </div>
   );
 }
+
+/** BITTheming's `UnknownIcon` (`UnknownIcon-light@x2.png`), a template image tinted like a logo. */
+const UNKNOWN_ICON = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFUAAABVCAYAAAA49ahaAAAACXBIWXMAABYlAAAWJQFJUiTwAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAPdSURBVHgB7d1NbtNAGMbxd1IlitQNi0psvYzEBk5A4ARdsqM9AedgyQkIN2DLhoYblAVSlmZXiQpFQpEqBWL85s1M2saJv+bjcey/ZNU4zoz5qU3T2mmIutrb6Wj8lhdqQCfUgBgzITUhUueDsyhe3sbfCTh41C2oDh8WGnUXVIcNC4u6A6poni536dpwswEWVhFgWaCql7zi1WSlriihJ9ubkovFbPqJgIJD3Qe6+DG9Xt/+bPwcHRYKNQ/U7AcOC4NaFNTsDwwLgVoW1NwPFDY4alVQc39A2KCodUHNOGCwwVBtgZrxgGCDoNoGNeOCwHpHdQVqxgeA9YrqGtTMExjWG6ovUDNfQFgvqL5BzbyBYJ2jhgI18weAdYoaGtQch2dYZ6gooOZ4PMI6QUUD1fmCtY6KCqrzAWsVFR1U5xrWGqpL0NPR64v0w8vNP78tZl8nVDOXsD2ykOvP0ISScbpc8EJb3Frxsa3Pe/EJRTOPmti4YKM2alO+5LNyBVsLtcmgOhewlVGPAVRnG7YS6jGB6mzClkY9RlCdLdhSqMcMqrMBWxi1DaC6urCFUNsEqqsDm4vaRlBdVdiDqG0G1VWB3YvagW4rC5uJ2oHuVgZ2B7UD3V9R2AeoHWh+RWANagdavDzYNWoHWr5DsPozFfIFFQ1NrVHTUwiT9FTCpdmcnmLgUw18yoG6MttzOuaSLc1jagdbvEOgvP7gu38Hm18eKLfzPLWD3V8RUC7zJyo02B4lcfqddMrLSq2CvGyyKKhsPzTQaJyeFlYf7+3dyqdaZUDltrwBWw5bFlRuLzJwS2GrgMo+RSdoGWxVUNmvzESBYIejcXSS9N7xel+tPsxn05gcVgdU9i07oWdYBu1R+h8kijab4sFd8mIeT+fkoLqgXOnz/r6fbvXVCY8b3dsULYe9c3KQDVCu0hUqPmFXf//Fj7f1aTUly9kC5Sr/DZXlbXw9OIt+8t8y2WwaputvBk+jL8tf8Q1Zavk7vumfRenDlBrLr9nU+z+zq89kMZugct+6B9TwZwW2QeX+Ng6sobAuQGUMSzUN1hWojGOxpsC6BJWxLIcO6xpUxnMQKqwPUBnTUWiwvkBlXIehwPoElbEdFxrWN6iM76FQsCFAZQ5P+YYNBSrzeMwXbEhQmctzrmFDg8p8AXIFiwAqcwbKNiwKqMwbMFuwSKAyd+DqwqKByvwAVYVFBJVjAKksLCqoHAdQRWGRQTm4y9LzYNFBOchr/ffB8io6KAf7Aoos2PVHcFAO9r1Tsq8r0O+bggvKQb/LTwbsOmRQDv79qB7DooM2Kn6M5YUa0H/jgURXU/AY+AAAAABJRU5ErkJggg==';
 
 /** The status icons from the wallet's assets (`Status*.imageset`, template images), drawn in the badge's text colour. */
 const INVALID_ICON =

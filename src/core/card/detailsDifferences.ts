@@ -42,10 +42,13 @@ export type DetailsDifference =
   | { kind: 'label'; label: string; other: string }
   | { kind: 'value'; label: string; value: FormattedValue }
   | { kind: 'sensitive'; label: string; shown: boolean }
-  /** A row only one platform lists (Android keeps null values). `shown`: the other platform lists it. */
-  | { kind: 'row'; label: string; shown: boolean }
-  /** A group only one platform shows (Android drops groups without claims). */
-  | { kind: 'group'; title?: string; shown: boolean }
+  /**
+   * A row only one platform lists (Android keeps null values, and leaves out the rows next to an image it cannot
+   * decode). `shown`: the other platform lists it. `empty`: the row that is listed has a null value.
+   */
+  | { kind: 'row'; label: string; shown: boolean; empty: boolean }
+  /** A group only one platform shows (Android drops groups without claims). `empty`: the group shown has no claims. */
+  | { kind: 'group'; title?: string; shown: boolean; empty: boolean }
   | { kind: 'title'; title: string; other: string };
 
 export interface DetailsDifferenceOptions {
@@ -76,6 +79,7 @@ export function detailsDifferences(project: Project, current: CardPlatform, opti
     const details = credentialDetails(project, {
       languages: device.languages,
       platform,
+      valueOptions: device.valueOptions,
       ...(options.screen ? { screen: options.screen } : {}),
       ...(options.orders ? { orders: options.orders } : {}),
     });
@@ -99,17 +103,17 @@ export function detailsDifferences(project: Project, current: CardPlatform, opti
 
   for (const [key, { row: groupHere }] of here.flat.groups) {
     const groupThere = there.flat.groups.get(key)?.row;
-    if (!groupThere) differences.push({ kind: 'group', ...titled(groupHere.title), shown: false });
+    if (!groupThere) differences.push({ kind: 'group', ...titled(groupHere.title), shown: false, empty: !hasClaim(groupHere) });
     else if (groupHere.title && groupThere.title && groupHere.title !== groupThere.title) differences.push({ kind: 'title', title: groupHere.title, other: groupThere.title });
   }
   for (const [key, { row: groupThere }] of there.flat.groups) {
-    if (!here.flat.groups.has(key)) differences.push({ kind: 'group', ...titled(groupThere.title), shown: true });
+    if (!here.flat.groups.has(key)) differences.push({ kind: 'group', ...titled(groupThere.title), shown: true, empty: !hasClaim(groupThere) });
   }
 
   for (const [key, { row: claimHere }] of here.flat.claims) {
     const claimThere = there.flat.claims.get(key)?.row;
     if (!claimThere) {
-      differences.push({ kind: 'row', label: claimHere.label, shown: false });
+      differences.push({ kind: 'row', label: claimHere.label, shown: false, empty: claimHere.value.kind === 'null' });
       continue;
     }
     if (claimHere.label !== claimThere.label) differences.push({ kind: 'label', label: claimHere.label, other: claimThere.label });
@@ -119,13 +123,17 @@ export function detailsDifferences(project: Project, current: CardPlatform, opti
     if (claimHere.sensitive !== claimThere.sensitive) differences.push({ kind: 'sensitive', label: claimHere.label, shown: claimThere.sensitive });
   }
   for (const [key, { row: claimThere }] of there.flat.claims) {
-    if (!here.flat.claims.has(key)) differences.push({ kind: 'row', label: claimThere.label, shown: true });
+    if (!here.flat.claims.has(key)) differences.push({ kind: 'row', label: claimThere.label, shown: true, empty: claimThere.value.kind === 'null' });
   }
   return differences;
 }
 
 function entry(flat: Flat, key: string): Entry<DetailsRow> | undefined {
   return flat.claims.get(key) ?? flat.groups.get(key);
+}
+
+function hasClaim(group: DetailsGroup): boolean {
+  return group.rows.some((row) => row.kind === 'claim' || hasClaim(row));
 }
 
 function titled(title: string | undefined): { title?: string } {

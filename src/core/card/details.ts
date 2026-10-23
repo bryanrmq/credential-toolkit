@@ -15,6 +15,9 @@
  * `utils/CredentialElementCollectionExt.kt` and `locale/.../GetLocalizedDisplayImpl.kt` read it back, and
  * `credential/presentation/CredentialElements.kt` draws it. See `ANDROID_RULES` for what differs.
  *
+ * Both are the wallets' latest tags (iOS v1.19.0 has no GitHub release yet; v1.18.0 is the latest one). Every rule was
+ * re-checked against them, file by file, in #113 (2026-10-23).
+ *
  * Nested paths: the wallet matches each attribute's claims path against every path in the whole payload, not only
  * top-level disclosures, so `["address", "street"]` finds `address.street`. A `refs:` group whose own source is missing
  * from the payload still shows its title, with no rows when none of its claims are found.
@@ -35,7 +38,8 @@ import {
   walkNodes,
 } from '../model.ts';
 import type { CardPlatform } from './profiles.ts';
-import { walletText } from './values.ts';
+import { MAX_JOIN_SEPARATOR, joinSeparator, parseExpression, resolveEditorPath } from '../templates.ts';
+import { type ValueOptions, formatClaimValue, iosEntryText, walletText } from './values.ts';
 
 /** Claims the iOS wallet never lists, as they carry protocol data (`VcSdJWSDecoder.nonSelectivelyDisclosableClaims`). */
 export const IOS_TECHNICAL_CLAIMS: readonly string[] = [
@@ -89,6 +93,8 @@ export interface DetailsOptions {
   screen?: DetailsScreen;
   /** Each group's Order overlay, or undefined when it has none. Defaults to the one the export writes. */
   orders?: (group: Group) => Readonly<Record<string, number>> | undefined;
+  /** How iOS formats the claim values it fills group title templates with. Defaults to the first language. */
+  valueOptions?: ValueOptions;
 }
 
 export interface CredentialDetails {
@@ -101,13 +107,15 @@ export interface CredentialDetails {
    * Always false on Android, which keeps ties in capture base order.
    */
   orderUndefined: boolean;
+  /** Android left out a group's claims because one of them is an image it cannot decode. */
+  undecodableImage: boolean;
 }
 
 export type DetailsRow = DetailsClaim | DetailsGroup;
 
 export interface DetailsGroup {
   kind: 'group';
-  /** The label of the `refs:` or array attribute in the chosen language. Templates in it are not resolved yet. */
+  /** The label of the `refs:` or array attribute in the chosen language, with its `{{…}}` templates filled in. */
   title?: string;
   /** 0 for a section, 1 for a group in a section, and so on; iOS uses a smaller title from depth 2. */
   depth: number;
@@ -180,7 +188,15 @@ interface PlatformRules {
   /** Whether a row's pill shows, given the group's depth, the flag it inherits and its own. */
   groupSensitive(depth: number, inherited: boolean, own: boolean): { rows: boolean; groups: boolean };
   /** The text entry codes are matched against. */
-  text(value: string | number | boolean): string;
+  text(value: string | number | boolean, format: ClaimFormat | undefined): string;
+  /** The order of a claim without an attribute. */
+  unmappedOrder(path: ClaimsPath): number;
+  /** An `Array[refs:…]` attribute whose value is not a list gives a group of the referenced group, not a row. */
+  referenceArrayAsGroup: boolean;
+  /** A group's own claims are all left out when one of them is an image the wallet cannot decode. */
+  hidesClaimsOfUndecodableImage: boolean;
+  /** A claim's value as the group title templates show it. */
+  templateText(claim: DetailsClaim, options: ValueOptions): string;
   /** The label of a row without one. */
   pathText(path: ClaimsPath): string;
   /** Picks a claim's display; `path` is the label of the fallback display. */
@@ -199,7 +215,17 @@ const IOS_RULES: PlatformRules = {
   unmappedFirstOnDetails: true,
   // `ClaimClusterList` passes a section's flag to its rows; `ChildClusterView` passes a group's flag to its sub-groups only.
   groupSensitive: (depth, inherited, own) => ({ rows: inherited, groups: depth === 0 ? inherited : inherited || own }),
-  text: walletText,
+  // `OcaClaimGenerator.generate` L31-36: a DateTime value that parses is replaced by its ISO 8601 form before the entry
+  // lookup, so entry codes are matched against `2024-01-05T00:00:00Z`, not `2024-01-05`.
+  text: (value, format) => iosEntryText(walletText(value), format),
+  // `OcaClusterGenerator.createClusterWithoutOca`: by the last index, else unordered.
+  unmappedOrder: (path) => lastIndex(path) ?? 32767,
+  // `OcaClusterGenerator.swift` L155-162: an array attribute with a non-list value is a plain row.
+  referenceArrayAsGroup: false,
+  // The wallet refuses such a credential (`ImageValidator`); the preview says so.
+  hidesClaimsOfUndecodableImage: false,
+  // `String+ResolveTemplates.swift`: `CredentialClaim.localizedValue`, formatted as on the details screen.
+  templateText: (claim, options) => templateValue(formatClaimValue(claim.value, claim.format, { ...options, platform: 'ios' }), claim),
   // `JSONSerialization` escapes `/`.
   pathText: (path) => JSON.stringify(path).replaceAll('/', '\\/'),
   pickClaim: pickPrefix,
@@ -226,6 +252,27 @@ const ANDROID_RULES: PlatformRules = {
   },
   // `JsonPrimitive.contentOrNull`: JSON booleans stay `true` and `false`.
   text: (value) => String(value),
+  // `GenerateOcaDisplaysImpl.generateClusterWithoutOca` passes no order, so every claim gets -1 and keeps payload order.
+  unmappedOrder: () => -1,
+  // `AttributeType.getReferenceValue` looks into arrays, so `generateElement` takes the reference branch
+  // (`GenerateOcaDisplaysImpl.kt` L148-166): the value is used up and a group of the referenced group is built.
+  referenceArrayAsGroup: true,
+  // `MapToCredentialClaimDataImpl.kt` L72 fails to decode it, and `MapToCredentialClaimClusterImpl.kt` L46 then lists
+  // none of the group's claims; its sub-groups stay.
+  hidesClaimsOfUndecodableImage: true,
+  // `ResolveClaimTemplateImpl.kt` L39-42: the entry label, else the stored value as is, else `–`.
+  templateText: (claim) => {
+    switch (claim.value.kind) {
+      case 'entry':
+        return claim.value.label;
+      case 'raw':
+        return String(claim.value.value);
+      case 'null':
+        return '–';
+      case 'placeholder':
+        return `‹${claim.label}›`;
+    }
+  },
   // kotlinx `Json.encodeToString`, which leaves `/` as is.
   pathText: (path) => JSON.stringify(path),
   pickClaim: (displays, languages, path) => pickAndroid([...withoutEntryOnly(displays), { locale: FALLBACK_LOCALE, name: path }, ...entryOnly(displays)], languages[0]),
@@ -256,6 +303,8 @@ type OcaType = { kind: 'primitive'; type: PrimitiveType } | { kind: 'reference';
 /** A child of a group as the wallet reads it from the bundle. */
 interface OcaAttribute {
   node: AttributeNode | GroupLink;
+  /** The group whose overlays hold the attribute's labels; their templates are relative to it. */
+  owner: Group;
   type: OcaType;
   order?: number;
   source?: ClaimsPath;
@@ -283,6 +332,8 @@ interface RawCluster {
   order: number;
   sensitive: boolean;
   labels?: Record<LangTag, string>;
+  /** The group the labels belong to (see `OcaAttribute.owner`). */
+  owner?: Group;
   nodeId?: string;
   claims: RawClaim[];
   clusters: RawCluster[];
@@ -305,6 +356,9 @@ class DetailsBuilder {
   private readonly orders: (group: Group) => Readonly<Record<string, number>> | undefined;
   private readonly rules: PlatformRules;
   private orderUndefined = false;
+  private undecodableImage = false;
+  /** Titles whose templates are filled in once every claim is known. */
+  private readonly titles: { group: DetailsGroup; owner: Group }[] = [];
 
   constructor(project: Project, options: DetailsOptions) {
     this.project = project;
@@ -330,10 +384,12 @@ class DetailsBuilder {
       else sections.push(unmapped);
     }
     const rendered = sections.map((section) => this.render(section, 0, section.sensitive));
+    this.fillTitles(rendered);
     return {
       sections: this.rules.dropsEmptyGroups ? rendered.filter(hasClaims) : rendered,
       noSample: this.project.sample === undefined,
       orderUndefined: this.orderUndefined,
+      undecodableImage: this.undecodableImage,
     };
   }
 
@@ -356,6 +412,7 @@ class DetailsBuilder {
     const encodings = passthroughOverlay(group, CHARACTER_ENCODING_OVERLAY);
     return group.children.map((node) => ({
       node,
+      owner: group,
       type: node.kind === 'attribute' ? ocaType(node.type) : linkType(node),
       order: orders && Object.hasOwn(orders, node.key) ? orders[node.key] : undefined,
       source: node.source?.length ? node.source : undefined,
@@ -383,6 +440,7 @@ class DetailsBuilder {
       order: lastIndex(path) ?? attribute?.order ?? UNORDERED_GROUP,
       sensitive: attribute?.node.sensitive ?? false,
       labels: attribute?.node.labels,
+      owner: attribute?.owner,
       nodeId: attribute?.node.id,
       claims,
       clusters,
@@ -393,9 +451,12 @@ class DetailsBuilder {
     const elementPath = this.elementPath(path, type);
     const element = elementPath ? this.claims.take(elementPath) : undefined;
     switch (type.kind) {
-      case 'array':
+      case 'array': {
         if (elementPath && Array.isArray(element)) return this.arrayCluster(type.of, element, attribute, elementPath);
+        const group = referencedGroup(type);
+        if (group && this.rules.referenceArrayAsGroup) return this.cluster(group, attribute, path);
         return this.claimFor(element, path, undefined, nodeId);
+      }
       case 'reference':
         // Shown even when the payload has nothing at `path`.
         return this.cluster(type.group, attribute, path);
@@ -450,6 +511,7 @@ class DetailsBuilder {
       order: lastIndex(parent) ?? attribute?.order ?? UNORDERED_GROUP,
       sensitive: attribute?.node.sensitive ?? false,
       labels: hasReference(of) ? undefined : attribute?.node.labels,
+      owner: attribute?.owner,
       nodeId: attribute?.node.id,
       claims,
       clusters,
@@ -460,7 +522,7 @@ class DetailsBuilder {
   private unmapped(): RawCluster | undefined {
     const claims: RawClaim[] = [];
     for (const { path, value } of this.claims.rest()) {
-      if (this.isValue(value)) claims.push({ kind: 'claim', path, order: lastIndex(path) ?? this.rules.unorderedClaim, value });
+      if (this.isValue(value)) claims.push({ kind: 'claim', path, order: this.rules.unmappedOrder(path), value });
     }
     if (!claims.length) return undefined;
     return { kind: 'group', path: [], order: UNORDERED_GROUP, sensitive: false, claims, clusters: [], unmapped: true };
@@ -475,8 +537,12 @@ class DetailsBuilder {
     const pill = this.rules.groupSensitive(depth, sensitive, cluster.sensitive);
     const { items, tie } = this.sorted<RawClaim | RawCluster>([...cluster.claims, ...cluster.clusters]);
     const title = cluster.labels && this.rules.pickTitle(this.labelDisplays(cluster.labels), this.options.languages)?.name;
-    const rows = items.map((item) => (item.kind === 'claim' ? this.renderClaim(item, pill.rows) : this.render(item, depth + 1, pill.groups)));
-    return {
+    let rows: DetailsRow[] = items.map((item) => (item.kind === 'claim' ? this.renderClaim(item, pill.rows) : this.render(item, depth + 1, pill.groups)));
+    if (this.rules.hidesClaimsOfUndecodableImage && rows.some((row) => row.kind === 'claim' && undecodableImage(row))) {
+      rows = rows.filter((row) => row.kind === 'group');
+      this.undecodableImage = true;
+    }
+    const group: DetailsGroup = {
       kind: 'group',
       ...(title ? { title } : {}),
       depth,
@@ -488,11 +554,61 @@ class DetailsBuilder {
       ...(cluster.nodeId ? { nodeId: cluster.nodeId } : {}),
       rows: this.rules.dropsEmptyGroups ? rows.filter((row) => row.kind === 'claim' || hasClaims(row)) : rows,
     };
+    if (title?.includes('{{') && cluster.owner) this.titles.push({ group, owner: cluster.owner });
+    return group;
+  }
+
+  /**
+   * Fills the `{{…}}` templates of group titles with claim values. Both wallets first turn each template into a claims
+   * path through the Data Source overlay of the group the label belongs to (iOS `AttributeTemplateResolver.swift`,
+   * Android `TransformOcaOverlaysImpl.kt`), so a template that names no attribute with a source becomes empty. Then
+   * every claim on the screen at that path is listed, with `null` segments taken from the group's own indices, joined
+   * by the `.join()` separator or `, ` (iOS `String+ResolveTemplates.swift`, Android `ResolveClaimTemplateImpl.kt`).
+   */
+  private fillTitles(sections: DetailsGroup[]): void {
+    if (!this.titles.length) return;
+    const claims: DetailsClaim[] = [];
+    const collect = (group: DetailsGroup) => group.rows.forEach((row) => (row.kind === 'claim' ? claims.push(row) : collect(row)));
+    sections.forEach(collect);
+    const valueOptions = this.options.valueOptions ?? { locale: this.options.languages[0] ?? 'en' };
+    for (const { group, owner } of this.titles) {
+      const title = group.title!.replace(TEMPLATE, (_, inner: string) => {
+        const path = this.templatePath(inner, owner);
+        if (!path) return '';
+        const target = resolveNulls(path.path, indices(group.path));
+        const values = claims.filter((claim) => pointsAt(target, claim.path)).map((claim) => this.rules.templateText(claim, valueOptions));
+        return values.join(path.separator);
+      });
+      if (title) group.title = title;
+      else delete group.title;
+    }
+  }
+
+  /** The claims path a template stands for in the exported bundle, or undefined when the wallet empties it. */
+  private templatePath(inner: string, owner: Group): { path: ClaimsPath; separator: string } | undefined {
+    const expression = parseExpression(inner);
+    const separator = joinSeparator(expression) ?? ', ';
+    if (separator.length > MAX_JOIN_SEPARATOR) return undefined;
+    const target = resolveEditorPath(this.project.root, owner, expression);
+    const source = target?.node.source;
+    if (!source?.length) return undefined;
+    const index = /\[(\d+|null)\]/.exec(expression.suffix)?.[1];
+    if (index === undefined || index === 'null') return { path: source, separator };
+    // `[n]` stands for the path's single `null`; with none or several, the template is emptied.
+    if (source.filter((segment) => segment === null).length !== 1) return undefined;
+    return { path: source.map((segment) => (segment === null ? Number(index) : segment)), separator };
   }
 
   private renderClaim(claim: RawClaim, sensitive: boolean): DetailsClaim {
     const { attribute } = claim;
-    const text = claim.value instanceof Placeholder || claim.value === null ? undefined : this.rules.text(claim.value);
+    const type = attribute && (isArrayType(attribute.type) ? attribute.type.array : attribute.type);
+    const format: ClaimFormat | undefined = type && {
+      type,
+      ...(attribute.standard ? { standard: attribute.standard } : {}),
+      ...(claim.format ? { format: claim.format } : {}),
+      ...(claim.characterEncoding ? { characterEncoding: claim.characterEncoding } : {}),
+    };
+    const text = claim.value instanceof Placeholder || claim.value === null ? undefined : this.rules.text(claim.value, format);
     const path = this.rules.pathText(claim.path);
     const display = attribute
       ? this.rules.pickClaim(this.claimDisplays(attribute, text), this.options.languages, path)
@@ -502,13 +618,6 @@ class DetailsBuilder {
     else if (claim.value instanceof Placeholder) value = { kind: 'placeholder', type: claim.value.type };
     else if (claim.value === null) value = { kind: 'null' };
     else value = { kind: 'raw', value: claim.value };
-    const type = attribute && (isArrayType(attribute.type) ? attribute.type.array : attribute.type);
-    const format: ClaimFormat | undefined = type && {
-      type,
-      ...(attribute.standard ? { standard: attribute.standard } : {}),
-      ...(claim.format ? { format: claim.format } : {}),
-      ...(claim.characterEncoding ? { characterEncoding: claim.characterEncoding } : {}),
-    };
     return {
       kind: 'claim',
       // A display with only an entry translation has no name, so the label falls back to the path too.
@@ -545,6 +654,33 @@ class DetailsBuilder {
     if (sorted.tie) this.orderUndefined = true;
     return sorted;
   }
+}
+
+const TEMPLATE = /\{\{(.*?)\}\}/g;
+
+/** `pointsAtSetOf(…, enforceLength: true)`: the same length, with `null` matching any index. */
+function pointsAt(template: ClaimsPath, path: ClaimsPath): boolean {
+  return template.length === path.length && template.every((segment, index) => segment === path[index] || (segment === null && typeof path[index] === 'number'));
+}
+
+/** A formatted value as text in a title; an image gives its data, a placeholder the attribute's label. */
+function templateValue(value: ReturnType<typeof formatClaimValue>, claim: DetailsClaim): string {
+  switch (value.kind) {
+    case 'text':
+      return value.text;
+    case 'image':
+      return value.base64;
+    case 'invalidImage':
+      return '';
+    case 'placeholder':
+      return `‹${claim.label}›`;
+  }
+}
+
+/** An image Android accepts but cannot decode for the details screen (Java's basic base64 decoder fails). */
+function undecodableImage(claim: DetailsClaim): boolean {
+  const value = formatClaimValue(claim.value, claim.format, { locale: 'en', platform: 'android' });
+  return value.kind === 'invalidImage' && value.reason === 'invalidData';
 }
 
 /** Whether a group holds a claim anywhere below it (`numberOfNonClusterChildren`). */
@@ -642,7 +778,13 @@ function linkType(link: GroupLink): OcaType {
 }
 
 function hasReference(type: OcaType): boolean {
-  return type.kind === 'reference' || (type.kind === 'array' && hasReference(type.of));
+  return referencedGroup(type) !== undefined;
+}
+
+/** The group a `refs:` type, or a list of them, points at. */
+function referencedGroup(type: OcaType): Group | undefined {
+  if (type.kind === 'reference') return type.group;
+  return type.kind === 'array' ? referencedGroup(type.of) : undefined;
 }
 
 function isPrimitive(value: unknown): value is Primitive {

@@ -178,6 +178,28 @@ describe('labels and language', () => {
   });
 });
 
+describe('entries on dates', () => {
+  it('matches iOS entry codes against the ISO 8601 form of a date', () => {
+    const born = (value: string) =>
+      claims(
+        details(
+          project(
+            [
+              newAttribute('born', {
+                type: 'DateTime',
+                labels: { [DE]: 'Geboren' },
+                entries: { codes: ['2024-01-05T00:00:00Z', '2024-01-06'], labels: { [DE]: { '2024-01-05T00:00:00Z': 'Erster', '2024-01-06': 'Zweiter' } } },
+              }),
+            ],
+            { born: value },
+          ),
+        ).sections[0].rows,
+      )[0].value;
+    expect(born('2024-01-05')).toEqual({ kind: 'entry', code: '2024-01-05T00:00:00Z', label: 'Erster' });
+    expect(born('2024-01-06')).toEqual({ kind: 'raw', value: '2024-01-06' });
+  });
+});
+
 describe('sensitive', () => {
   it('carries the attribute flag to the row, unmasked', () => {
     const p = project([newAttribute('id', { sensitive: true }), newAttribute('name')], { id: '756.1234', name: 'Rex' });
@@ -256,6 +278,51 @@ describe('arrays', () => {
     const result = details(project([newAttribute('owner'), pets], { owner: 'Ann', pets: [{ name: 'Rex' }, { name: 'Bello' }] }));
     expect(sections(result)).toEqual([{ '#': ['["owner"]: Ann', { '#': [{ '# Tier': ['Name: Rex'] }, { '# Tier': ['Name: Bello'] }] }] }]);
     expect(claims(result.sections[0].rows).map((claim) => claim.path)).toEqual([['owner'], ['pets', 0, 'name'], ['pets', 1, 'name']]);
+  });
+});
+
+describe('templates in group titles', () => {
+  const ZURICH = { locale: 'de-CH', timeZone: 'Europe/Zurich' };
+  const pet = () =>
+    newGroupLink('pet', {
+      source: ['pet'],
+      labels: { [DE]: 'Tier {{pet.name}}, {{pet.born}}{{nope}}' },
+      group: group(
+        newAttribute('name', { source: ['pet', 'name'], labels: { [DE]: 'Name' } }),
+        newAttribute('born', { type: 'DateTime', source: ['pet', 'born'], labels: { [DE]: 'Geboren' } }),
+      ),
+    });
+  const titles = (result: CredentialDetails): string[] => {
+    const all: string[] = [];
+    const visit = (group: DetailsGroup) => {
+      if (group.title) all.push(group.title);
+      group.rows.forEach((row) => row.kind === 'group' && visit(row));
+    };
+    result.sections.forEach(visit);
+    return all;
+  };
+
+  it('fills them with the claim values, formatted on iOS and as stored on Android, and empties unknown ones', () => {
+    const p = project([newAttribute('owner'), pet()], { owner: 'Ann', pet: { name: 'Rex', born: '2024-01-05' } });
+    expect(titles(details(p, { valueOptions: ZURICH }))).toEqual(['Tier Rex, 05.01.24']);
+    expect(titles(details(p, { platform: 'android', languages: ['de-CH'] }))).toEqual(['Tier Rex, 2024-01-05']);
+  });
+
+  it('takes list indices from the group, an [n] index, and joins several values', () => {
+    const pets = newGroupLink('pets', {
+      array: true,
+      source: ['pets', null],
+      labels: { [DE]: 'Tier {{pets.name}} (1: {{pets.name[1]}})' },
+      group: group(newAttribute('name', { source: ['pets', null, 'name'], labels: { [DE]: 'Name' } })),
+    });
+    const all = newGroupLink('all', { labels: { [DE]: "Alle: {{/pets.name.join(' & ')}}" }, group: group(newAttribute('x')) });
+    const p = project([pets, all], { pets: [{ name: 'Rex' }, { name: 'Bello' }], x: 1 });
+    expect(titles(details(p)).sort()).toEqual(['Alle: Rex & Bello', 'Tier Bello (1: Bello)', 'Tier Rex (1: Bello)']);
+  });
+
+  it('shows the label of an attribute without a sample value, and drops a title that ends up empty', () => {
+    const empty = newGroupLink('empty', { labels: { [DE]: '{{missing}}' }, group: group(newAttribute('y')) });
+    expect(titles(details(project([newAttribute('owner'), pet(), empty])))).toEqual(['Tier ‹Name›, ‹Geboren›']);
   });
 });
 
@@ -359,6 +426,30 @@ describe('Android rules', () => {
     const p = project([newAttribute('a/b', { source: ['a/b'] }), vaccinated], { 'a/b': 'x', vaccinated: true });
     expect(outline(android(p).sections[0].rows)).toEqual(['["a/b"]: x', 'Geimpft: Ja']);
     expect(outline(details(p).sections[0].rows)).toEqual(['["a\\/b"]: x', 'Geimpft: true']);
+  });
+
+  it('turns an Array[refs:] attribute whose value is not a list into its group, which iOS shows as a row', () => {
+    const people = newGroupLink('people', { array: true, source: ['people'], labels: { [DE]: 'Leute' }, group: group(newAttribute('name', { source: ['people', null, 'name'] })) });
+    const p = project([newAttribute('owner'), people], { owner: 'Ann', people: 'oops' });
+    // Android: the value is used up, and the group without claims is dropped.
+    expect(sections(android(p))).toEqual([{ '#': ['["owner"]: Ann'] }]);
+    expect(sections(details(p))).toEqual([{ '#': ['["owner"]: Ann', '["people"]: oops'] }]);
+  });
+
+  it('keeps the claims without an attribute in payload order, list elements included', () => {
+    const p = project([newAttribute('name', { labels: { [DE]: 'Name' } })], { name: 'Rex', zzz: 'x', tags: ['a', 'b'], other: ['c'] });
+    expect(sections(android(p))[1]).toEqual({ '#': ['["zzz"]: x', '["tags",0]: a', '["tags",1]: b', '["other",0]: c'] });
+    // iOS sorts them by their last index, else 32767.
+    expect(sections(details(p))[0]).toEqual({ '#': ['["tags",0]: a', '["other",0]: c', '["tags",1]: b', '["zzz"]: x'] });
+  });
+
+  it("hides a group's own claims when one is an image it cannot decode, but keeps its sub-groups", () => {
+    const photo = newAttribute('photo', { standard: 'urn:ietf:rfc:2397', source: ['photo'] });
+    const inner = newGroupLink('inner', { labels: { [DE]: 'Innen' }, group: group(newAttribute('c', { source: ['c'] })) });
+    const p = project([newAttribute('a', { source: ['a'] }), photo, inner], { a: 'A', photo: 'data:image/png;base64,iVBORw0KGgo\nAAAAN', c: 'C' });
+    expect(sections(android(p))).toEqual([{ '#': [{ '# Innen': ['["c"]: C'] }] }]);
+    // iOS refuses such a credential; the preview shows the row and says so.
+    expect(claims(details(p).sections[0].rows).map((claim) => claim.label)).toContain('["photo"]');
   });
 
   it('falls back to the path label when the app language only translates the entry, as iOS does', () => {
