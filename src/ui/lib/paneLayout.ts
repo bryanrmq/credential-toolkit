@@ -98,6 +98,20 @@ export function saveOutputOpen(open: boolean): void {
   saveStored(OUTPUT_OPEN_KEY, open);
 }
 
+export const EDIT_PREVIEW_OPEN_KEY = 'oca-generator:edit-preview-open';
+
+/**
+ * Whether the wallet preview under the form (an Edit pane narrower than the preview column needs) shows its body,
+ * not only its header; open unless the user collapsed it.
+ */
+export function loadEditPreviewOpen(): boolean {
+  return loadStored(EDIT_PREVIEW_OPEN_KEY) !== false;
+}
+
+export function saveEditPreviewOpen(open: boolean): void {
+  saveStored(EDIT_PREVIEW_OPEN_KEY, open);
+}
+
 export const PREVIEW_HEIGHT_KEY = 'oca-generator:preview-height';
 export const DEFAULT_PREVIEW_HEIGHT = 320;
 export const PREVIEW_HEIGHT_LIMITS: [min: number, max: number] = [120, 800];

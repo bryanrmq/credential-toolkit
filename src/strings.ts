@@ -383,6 +383,12 @@ export const t = {
       title: (platform: string, title: string, other: string) => `${platform}: group "${title}" is titled "${other}"`,
     },
   },
+  /** The wallet preview in the Edit pane: beside the form, or below it with a header that collapses it. */
+  editPreview: {
+    title: 'Preview',
+    collapse: 'Collapse preview',
+    expand: 'Expand preview',
+  },
   output: {
     title: 'Output',
     preview: 'Preview',

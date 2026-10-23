@@ -5,6 +5,7 @@ import {
   DEFAULT_OUTPUT_HALVES,
   DEFAULT_PREVIEW_HEIGHT,
   DEFAULT_PANE_WIDTHS,
+  EDIT_PREVIEW_OPEN_KEY,
   ISSUES_HEIGHT_KEY,
   ISSUES_OPEN_KEY,
   OUTPUT_HALVES_KEY,
@@ -14,12 +15,14 @@ import {
   clampIssuesHeight,
   clampPaneWidth,
   clampPreviewHeight,
+  loadEditPreviewOpen,
   loadIssuesHeight,
   loadIssuesOpen,
   loadOutputHalves,
   loadOutputOpen,
   loadPaneWidths,
   loadPreviewHeight,
+  saveEditPreviewOpen,
   saveIssuesHeight,
   saveIssuesOpen,
   saveOutputHalves,
@@ -112,6 +115,24 @@ describe('output pane shown state', () => {
     expect(loadOutputOpen()).toBe(false);
     saveOutputOpen(true);
     expect(loadOutputOpen()).toBe(true);
+  });
+});
+
+describe('edit preview open state', () => {
+  it('is open unless it was saved as collapsed', () => {
+    expect(loadEditPreviewOpen()).toBe(true);
+    localStorage.setItem(EDIT_PREVIEW_OPEN_KEY, 'not json');
+    expect(loadEditPreviewOpen()).toBe(true);
+    localStorage.setItem(EDIT_PREVIEW_OPEN_KEY, '0');
+    expect(loadEditPreviewOpen()).toBe(true);
+  });
+
+  it('saves and restores the state', () => {
+    saveEditPreviewOpen(false);
+    expect(localStorage.getItem(EDIT_PREVIEW_OPEN_KEY)).toBe('false');
+    expect(loadEditPreviewOpen()).toBe(false);
+    saveEditPreviewOpen(true);
+    expect(loadEditPreviewOpen()).toBe(true);
   });
 });
 
