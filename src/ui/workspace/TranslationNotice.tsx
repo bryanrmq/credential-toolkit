@@ -1,16 +1,16 @@
 import { useEffect } from 'react';
 import { t } from '../../strings';
 import { Button, Dialog } from '../components/controls';
-import { useDownloadNotice } from '../lib/translate';
+import { useTranslationState } from '../lib/translate';
 
 /**
  * Before the browser downloads a translation model: which pairs, and that the text stays on the device.
  * Cancel, Escape or a click outside does nothing at all.
  */
 export function TranslationNotice() {
-  const notice = useDownloadNotice((state) => state.notice);
+  const notice = useTranslationState((state) => state.notice);
   // A notice still open when the workspace goes is a Cancel, so the translation it holds ends.
-  useEffect(() => () => useDownloadNotice.getState().notice?.answer(false), []);
+  useEffect(() => () => useTranslationState.getState().notice?.answer(false), []);
   if (!notice) return null;
   const cancel = () => notice.answer(false);
   return (

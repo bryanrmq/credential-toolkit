@@ -33,7 +33,7 @@ import { t } from '../../strings';
 import { fillMissingFromI14y } from './i14y';
 import { usesCommandKey } from './platform';
 import { openProjectFile, saveProjectFile } from './projectFile';
-import { missingTexts, translateMissing } from './translate';
+import { missingTexts, translateMissing, useTranslationState } from './translate';
 import { hasTranslator } from './translator';
 import {
   type NodePlace,
@@ -440,9 +440,10 @@ export const COMMANDS: readonly Command[] = [
       const project = useStore.getState().project;
       return hasTranslator() && project !== null && project.languages.length > 1;
     },
+    // Not while a translation runs: one at a time.
     appliesWhen: () => {
       const { project, editLang } = useStore.getState();
-      return project !== null && missingTexts(project, editLang).length > 0;
+      return project !== null && !useTranslationState.getState().running && missingTexts(project, editLang).length > 0;
     },
     // Every empty text in every other language, from the editing language, as one undo step.
     run: () => {

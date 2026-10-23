@@ -79,8 +79,8 @@ function Toast({ notice }: { notice: FixNotice }) {
 }
 
 /**
- * A long action as it runs: what it does, a technical detail in mono, the percentage once known, and a thin bar
- * along the toast's bottom edge that fills with the share done, or runs back and forth while the share is unknown.
+ * A long action as it runs: what it does, a technical detail in mono, the percentage once known, and a thin track
+ * under them that fills with the share done, or runs back and forth while the share is unknown.
  */
 function Progress({ notice }: { notice: Extract<FixNotice, { kind: 'progress' }> }) {
   const percent = notice.share === undefined ? undefined : Math.round(Math.min(Math.max(notice.share, 0), 1) * 100);

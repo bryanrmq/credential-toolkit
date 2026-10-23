@@ -11,7 +11,7 @@ import { type PairTranslator, type TranslatorAdapter, translator } from './trans
  * Suggested translations with the browser's on-device Translator (`translator.ts`): the empty texts of the other
  * languages are filled from the editing language, marked "needs review" (`core/review.ts`), as one undo step.
  * Existing texts are never overwritten. A pair whose model the browser must download first asks the user
- * (`useDownloadNotice`); a pair the browser cannot translate is skipped, and the toast says so.
+ * (`useTranslationState`); a pair the browser cannot translate is skipped, and the toast says so.
  */
 
 /** One empty text to fill, with the editing language's text it is translated from. */
@@ -66,16 +66,19 @@ export interface DownloadNotice {
   answer: (download: boolean) => void;
 }
 
-/** The notice before the browser downloads translation models, which `TranslationNotice` shows. */
-export const useDownloadNotice = create<{ notice: DownloadNotice | null }>(() => ({ notice: null }));
+/**
+ * Whether a translation runs (one at a time: the actions are disabled meanwhile), and the notice before the
+ * browser downloads translation models, which `TranslationNotice` shows.
+ */
+export const useTranslationState = create<{ running: boolean; notice: DownloadNotice | null }>(() => ({ running: false, notice: null }));
 
 function askToDownload(source: LangTag, targets: LangTag[]): Promise<boolean> {
   return new Promise((resolve) => {
-    useDownloadNotice.setState({
+    useTranslationState.setState({
       notice: {
         pairs: targets.map((target) => t.translate.pair(languageName(source), languageName(target))),
         answer: (download) => {
-          useDownloadNotice.setState({ notice: null });
+          useTranslationState.setState({ notice: null });
           resolve(download);
         },
       },
@@ -101,8 +104,27 @@ async function translateText(translate: PairTranslator, text: string): Promise<s
   return translated.join('');
 }
 
-/** Whether a translation is running; another one asked for meanwhile does nothing. */
-let running = false;
+/** How long the browser's translator may take to say whether it has a pair, or to start one it has. */
+export const TRANSLATOR_TIMEOUT_MS = 10_000;
+
+/** The browser's translator did not answer in time: some embedded or background pages never get an answer. */
+class NoAnswer extends Error {}
+
+function withTimeout<T>(promise: Promise<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new NoAnswer()), TRANSLATOR_TIMEOUT_MS);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 /**
  * Fills the empty texts in `scope` from the editing language with the browser's translation, marks them for
@@ -110,20 +132,20 @@ let running = false;
  */
 export async function translateMissing(scope: TranslationScope = {}, api: TranslatorAdapter | undefined = translator()): Promise<void> {
   const { project, editLang, draftId } = useStore.getState();
-  if (!api || !project || running) return;
+  if (!api || !project || useTranslationState.getState().running) return;
   const missing = missingTexts(project, editLang, scope);
   if (missing.length === 0) return;
-  running = true;
+  useTranslationState.setState({ running: true });
   const translators = new Map<LangTag, PairTranslator>();
   try {
     // In project order, as the notice and the toast name them.
     const targets = project.languages.filter((lang) => missing.some((text) => text.lang === lang));
     await translateInto(api, editLang, targets, missing, draftId, translators);
-  } catch {
-    if (useStore.getState().draftId === draftId) useStore.getState().showError(t.translate.failed);
+  } catch (error) {
+    if (useStore.getState().draftId === draftId) useStore.getState().showError(error instanceof NoAnswer ? t.translate.noAnswer : t.translate.failed);
   } finally {
     for (const created of translators.values()) created.destroy();
-    running = false;
+    useTranslationState.setState({ running: false });
   }
 }
 
@@ -135,14 +157,21 @@ async function translateInto(
   draftId: string | null,
   translators: Map<LangTag, PairTranslator>,
 ): Promise<void> {
-  const availability = new Map(await Promise.all(targets.map(async (lang) => [lang, await api.availability(source, lang)] as const)));
+  const store = useStore.getState;
+  // Right away, so the click shows something even when the browser is slow to answer.
+  store().showProgress(t.translate.checking, { detail: t.translate.direction(source, targets) });
+  const availability = new Map(
+    await Promise.all(targets.map(async (lang) => [lang, await withTimeout(api.availability(source, lang))] as const)),
+  );
   const unsupported = targets.filter((lang) => availability.get(lang) === 'unavailable');
   const usable = targets.filter((lang) => availability.get(lang) !== 'unavailable');
   const toDownload = usable.filter((lang) => availability.get(lang) === 'downloadable');
-  // Cancel does nothing at all, not even the pairs that need no download.
-  if (toDownload.length > 0 && !(await askToDownload(source, toDownload))) return;
+  if (toDownload.length > 0) {
+    store().dismissFixNotice();
+    // Cancel does nothing at all, not even the pairs that need no download.
+    if (!(await askToDownload(source, toDownload))) return;
+  }
 
-  const store = useStore.getState;
   const current = () => store().draftId === draftId;
   const downloads = usable.filter((lang) => availability.get(lang) !== 'available');
   const loaded = new Map<LangTag, number>(downloads.map((lang) => [lang, 0]));
@@ -165,7 +194,15 @@ async function translateInto(
             showDownload();
           }
         : undefined;
-      translators.set(lang, await api.create(source, lang, onProgress));
+      // A download may take minutes; starting a translator the browser already has may not.
+      const created = api.create(source, lang, onProgress);
+      try {
+        translators.set(lang, await (onProgress ? created : withTimeout(created)));
+      } catch (error) {
+        // One that starts after all is not kept.
+        void created.then((late) => late.destroy(), () => {});
+        throw error;
+      }
     }),
   );
 

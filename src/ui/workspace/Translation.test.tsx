@@ -7,7 +7,7 @@ import { reviewMarks, textAt } from '../../core/review';
 import { useStore } from '../../state/store';
 import { availableCommands, runCommand } from '../lib/commands';
 import { TOUR_SEEN_KEY } from '../lib/tour';
-import { missingTexts, translateMissing, useDownloadNotice } from '../lib/translate';
+import { TRANSLATOR_TIMEOUT_MS, missingTexts, translateMissing, useTranslationState } from '../lib/translate';
 import { Inspector } from './Inspector';
 import { Workspace } from './Workspace';
 
@@ -65,7 +65,7 @@ const fetchSpy = vi.fn();
 beforeEach(() => {
   localStorage.clear();
   localStorage.setItem(TOUR_SEEN_KEY, '1');
-  useDownloadNotice.setState({ notice: null });
+  useTranslationState.setState({ running: false, notice: null });
   loadProject();
   vi.stubGlobal('fetch', fetchSpy);
 });
@@ -187,6 +187,18 @@ describe('Translate missing languages', () => {
     expect(translate).toHaveBeenCalledWith('Halter', 'fr');
   });
 
+  it('runs one at a time: the other actions wait while one runs', async () => {
+    const { downloads } = mockTranslator({ fr: 'downloading' });
+    useStore.getState().select({ kind: 'node', id: nameNode().id });
+    render(<Workspace />);
+    act(() => runCommand('workspace.translateMissing'));
+    await waitFor(() => expect(downloads).toHaveLength(1));
+    expect(screen.getByRole('button', { name: 'Suggest the Label (fr-CH) from de-CH' })).toBeDisabled();
+    expect(commandIds()).not.toContain('workspace.translateMissing');
+    act(() => downloads[0].release());
+    await waitFor(() => expect(toast()).toHaveTextContent('Translated 4 texts, marked for review'));
+  });
+
   it('leaves a text typed while the translation ran', async () => {
     let finish!: () => void;
     const api = {
@@ -206,6 +218,29 @@ describe('Translate missing languages', () => {
     await running;
     expect(label('fr-CH')).toBe('Nom');
     expect(marked()).toEqual([]);
+  });
+
+  it('shows at once that it runs, and says so when the browser never answers, ready to try again', async () => {
+    vi.useFakeTimers();
+    try {
+      const silent = { availability: () => new Promise<never>(() => {}), create: vi.fn() };
+      render(<Workspace />);
+      let running!: Promise<void>;
+      act(() => void (running = translateMissing({}, silent)));
+      expect(toast()).toHaveTextContent("Checking the browser's translatorde-CH → fr-CH, en-GB");
+      expect(within(toast() as HTMLElement).getByRole('progressbar')).toHaveAttribute('data-indeterminate');
+      await act(() => vi.advanceTimersByTimeAsync(TRANSLATOR_TIMEOUT_MS));
+      await running;
+      expect(toast()).toHaveTextContent("The browser's translator didn't answer. Try again in a moment.");
+      expect(silent.create).not.toHaveBeenCalled();
+      expect(meta('en-GB').name).toBe('');
+    } finally {
+      vi.useRealTimers();
+    }
+    // Not stuck: the next try runs.
+    mockTranslator();
+    await act(() => translateMissing());
+    expect(label('fr-CH')).toBe('fr:Name');
   });
 
   it('sends nothing over the network', async () => {

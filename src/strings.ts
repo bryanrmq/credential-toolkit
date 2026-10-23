@@ -485,6 +485,8 @@ export const t = {
     /** The toast: what was translated, then what was skipped. */
     report: (notes: string[]) => notes.join('. '),
     failed: "Couldn't translate. Try again.",
+    checking: "Checking the browser's translator",
+    noAnswer: "The browser's translator didn't answer. Try again in a moment.",
   },
   sample: {
     none: 'No sample credential attached. Attach one to check that every source path exists.',

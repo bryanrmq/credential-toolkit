@@ -594,10 +594,11 @@ kbd.palette__meta {
   border-color: transparent;
   color: var(--red-text);
 }
-/* A long action in the toast: title, mono detail and percentage on one line, a 2px bar on the bottom edge. */
+/* A long action in the toast: title, mono detail and percentage on one line, a 3px track under them. */
 .toast--progress {
-  position: relative;
-  overflow: hidden;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 9px;
   min-width: min(320px, calc(100vw - 32px));
   padding: 10px 14px 12px;
 }
@@ -606,7 +607,6 @@ kbd.palette__meta {
   align-items: baseline;
   gap: 10px;
   min-width: 0;
-  flex: 1;
 }
 .toast__title {
   font-weight: 500;
@@ -629,11 +629,11 @@ kbd.palette__meta {
   color: var(--text-strong);
 }
 .toast__bar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 2px;
+  position: relative;
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  overflow: hidden;
   background: var(--border);
 }
 .toast__bar-fill {
@@ -1861,6 +1861,7 @@ button.tree__toggle:hover {
   font-weight: 600;
 }
 .lang-row__input {
+  position: relative;
   min-width: 0;
 }
 .lang-row .input[data-empty='true'] {
@@ -1904,8 +1905,27 @@ button.tree__toggle:hover {
 .lang-row__suggest svg {
   flex: none;
 }
+/* Inside the empty input, at its end, so the row's columns keep their width. */
 .lang-row__suggest {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  max-width: calc(100% - 8px);
+  transform: translateY(-50%);
   white-space: nowrap;
+}
+/* A narrow Edit pane keeps the icon; the title and the accessible name still say what it does. */
+@container (max-width: 360px) {
+  .lang-row__suggest-label {
+    display: none;
+  }
+}
+/* On a narrow Edit pane the review marker goes on its own line under the input, so it does not narrow every input. */
+@container (max-width: 480px) {
+  .lang-row__review {
+    grid-column: 2 / -1;
+    justify-self: start;
+  }
 }
 .inspector__header {
   margin: 16px 0 28px;

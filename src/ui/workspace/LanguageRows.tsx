@@ -5,7 +5,7 @@ import { confirmReview, reviewMarkAt, samePlace } from '../../core/review';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
-import { translateMissing } from '../lib/translate';
+import { translateMissing, useTranslationState } from '../lib/translate';
 import { hasTranslator } from '../lib/translator';
 import { I14yReset } from './I14yLink';
 import { type TranslationRow, editingFirst } from './translationRows';
@@ -40,20 +40,25 @@ function ReviewMarker({ mark, label }: { mark: ReviewMark; label: string }) {
   );
 }
 
-/** On an empty row: fills it with the browser's translation from the editing language, marked for review. */
+/**
+ * On an empty row, at the end of its input: fills it with the browser's translation from the editing language,
+ * marked for review. Typing hides it, as the row is then no longer empty.
+ */
 function SuggestTranslation({ row, lang, label }: { row: TranslationRow; lang: LangTag; label: string }) {
   const editLang = useStore((state) => state.editLang);
+  // One translation at a time.
+  const running = useTranslationState((state) => state.running);
   return (
-    <span className="lang-row__review">
-      <Button
-        size="small"
-        className="lang-row__suggest"
-        aria-label={t.translate.suggestText(label, lang, editLang)}
-        onClick={() => void translateMissing({ place: row.place, lang })}
-      >
-        <TranslateIcon size={12} /> {t.translate.suggestFrom(editLang)}
-      </Button>
-    </span>
+    <Button
+      size="small"
+      className="lang-row__suggest"
+      disabled={running}
+      aria-label={t.translate.suggestText(label, lang, editLang)}
+      title={t.translate.suggestFrom(editLang)}
+      onClick={() => void translateMissing({ place: row.place, lang })}
+    >
+      <TranslateIcon size={12} /> <span className="lang-row__suggest-label">{t.translate.suggestFrom(editLang)}</span>
+    </Button>
   );
 }
 
@@ -124,9 +129,12 @@ export function LanguageRows({
         return (
           <div key={lang} className="lang-row" data-editing={lang === editLang || undefined} data-review={mark?.source}>
             <code className="lang-row__code">{lang}</code>
-            <div className="lang-row__input">{input(props(lang))}</div>
+            <div className="lang-row__input">
+              {input(props(lang))}
+              {suggest(lang)}
+            </div>
             {reset(lang)}
-            {reviewMarker(mark) || suggest(lang)}
+            {reviewMarker(mark)}
           </div>
         );
       })}
