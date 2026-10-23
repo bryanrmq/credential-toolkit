@@ -170,6 +170,16 @@ export const t = {
     undo: 'Undo',
     redo: 'Redo',
   },
+  palette: {
+    title: 'Search and commands',
+    search: 'Search attributes and commands',
+    attributes: 'Attributes',
+    commands: 'Commands',
+    noResults: 'No results',
+    move: 'move',
+    openOrRun: 'open or run',
+    close: 'close',
+  },
   i14y: {
     title: 'Add attributes from I14Y',
     intro:

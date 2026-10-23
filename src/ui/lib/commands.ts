@@ -76,7 +76,8 @@ export type CommandId =
   | 'workspace.redo'
   | 'workspace.toggleOutput'
   | 'workspace.saveProjectFile'
-  | 'workspace.openProjectFile';
+  | 'workspace.openProjectFile'
+  | 'workspace.palette';
 
 /** Where a command's keys work: on a row of the Structure tree (`tree`), or anywhere in the workspace, text fields included. */
 export type CommandScope = 'tree' | 'workspace';
@@ -152,6 +153,8 @@ export interface TreeHost {
 export interface WorkspaceHost {
   /** Shows or hides the Output pane, moving focus out of it when it hides with focus inside. */
   toggleOutput: () => void;
+  /** Opens the command palette. */
+  openPalette: () => void;
 }
 
 interface Hosts {
@@ -403,6 +406,19 @@ export const COMMANDS: readonly Command[] = [
     appliesWhen: always,
     run: openProjectFile,
   },
+  {
+    id: 'workspace.palette',
+    label: t.palette.title,
+    icon: MagnifyingGlassIcon,
+    keys: mod('k'),
+    scope: 'workspace',
+    available: () => hosts.workspace !== undefined,
+    // Never over a dialog or the tour, the palette itself included.
+    appliesWhen: () => !overlayOpen(),
+    run: () => {
+      if (!overlayOpen()) hosts.workspace?.openPalette();
+    },
+  },
 ];
 
 const BY_ID = new Map(COMMANDS.map((entry) => [entry.id, entry]));
@@ -434,6 +450,11 @@ export function applies(id: CommandId): boolean {
 /** Every command that is available and would do something now, in menu order: what a command palette lists. */
 export function availableCommands(): Command[] {
   return COMMANDS.filter((entry) => applies(entry.id));
+}
+
+/** Puts keyboard focus on the tree's selected row, once a change has re-rendered the tree. */
+export function focusTreeSelection(): void {
+  hosts.tree?.refocus();
 }
 
 /** Runs command `id`; it does nothing when it does not apply. */

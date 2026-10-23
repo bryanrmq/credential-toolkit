@@ -1,4 +1,4 @@
-import { DownloadSimpleIcon, SidebarSimpleIcon } from '@phosphor-icons/react';
+import { DownloadSimpleIcon, MagnifyingGlassIcon, SidebarSimpleIcon } from '@phosphor-icons/react';
 import type { Ref } from 'react';
 import { BUNDLE_FILE_NAME } from '../../core/export/outputs';
 import { useStore } from '../../state/store';
@@ -21,7 +21,8 @@ function commandItem(id: CommandId): MenuItem {
  * One row at every width: names on the left, actions on the right. Below 960 px the language
  * switcher becomes a dropdown and the view toggle moves into the menu (see `.wide-only` /
  * `.narrow-only` in styles.css). The error and warning counts are one button that shows the issues.
- * Below 1000 px, where Output is one of the pane tabs, the Output toggle is left out.
+ * Below 1000 px, where Output is one of the pane tabs, the Output toggle is left out, and the search
+ * button (the command palette) shows only its icon.
  */
 export function TopBar({ exportState, onShowIssues, ref }: { exportState: ExportState; onShowIssues: () => void; ref?: Ref<HTMLElement> }) {
   const project = useStore((state) => state.project)!;
@@ -107,6 +108,19 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
             <SidebarSimpleIcon mirrored />
           </Button>
         )}
+        {/* For touch and narrow windows too, where the tree commands are otherwise keyboard or right-click only. */}
+        <Button
+          variant="ghost"
+          size={wide ? 'small' : 'icon'}
+          className="topbar__palette"
+          aria-label={t.palette.title}
+          aria-keyshortcuts={ariaKeyShortcuts('workspace.palette')}
+          title={t.palette.title}
+          onClick={() => runCommand('workspace.palette')}
+        >
+          <MagnifyingGlassIcon size={16} />
+          {wide && <kbd aria-hidden="true">{shortcutLabel('workspace.palette')}</kbd>}
+        </Button>
         <Button
           variant="primary"
           disabled={!canDownload}
