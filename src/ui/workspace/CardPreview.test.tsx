@@ -63,7 +63,7 @@ describe('CardPreview', () => {
     const row = screen.getByRole('figure', { name: 'iOS home row' });
     expect(row).toHaveTextContent('Hundebewilligung');
     expect(row).toHaveTextContent('Für Hundehalter');
-    expect(row.closest('.card-preview__stage')).toHaveStyle({ background: 'rgb(241, 245, 252)' });
+    expect(row.closest('.card-preview__stage')).toHaveStyle({ background: 'rgb(241, 245, 249)' });
 
     act(() => useStore.getState().setBrandingTheme('dark'));
     expect(row.closest('.card-preview__stage')).toHaveStyle({ background: 'rgb(28, 28, 30)' });

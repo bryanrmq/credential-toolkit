@@ -115,6 +115,8 @@ describe('profiles', () => {
     expect(android.thumbnail).toMatchObject({ width: 48, height: 64, radius: 8, logo: { width: 24, height: 24 } });
     expect([ios.chevron, android.chevron]).toEqual([false, true]);
     expect([ios.missingName, android.missingName]).toEqual(['Credential', null]);
+    // betaWallet/Background/Secondary.colorset in eidch-ios-wallet 1.14.0: 241/245/249 light
+    expect(ios.colours.light.page).toBe('#F1F5F9');
     expect(ios.colours.dark).toEqual({ page: '#1C1C1E', row: '#2C2C2E', name: '#FFFFFF', summary: 'rgba(235, 235, 245, 0.6)' });
     expect(android.colours.light).toEqual({ page: '#FFFFFF', row: '#FFFFFF', name: '#092740', summary: '#41484D' });
   });
