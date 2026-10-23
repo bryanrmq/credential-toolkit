@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildBundle } from '../../../src/core/export/bundle.ts';
+import { buildIssuerMetadata } from '../../../src/core/export/issuerMetadata.ts';
 import { buildOutputs, buildVctSnippet } from '../../../src/core/export/outputs.ts';
 import type { Project } from '../../../src/core/model.ts';
 import { parseProjectFile } from '../../../src/core/projectFile.ts';
@@ -51,13 +52,18 @@ describe('@bryanrmq/oca-generator', () => {
     const entry = await import(new URL('../dist/index.js', import.meta.url).href);
     expect(Object.keys(entry).sort()).toEqual([
       'BUNDLE_FILE_NAME',
+      'EXTERNAL_URL_PLACEHOLDER',
       'FALLBACK_IDENTIFIER_BASE',
       'IDENTIFIER_PATTERN',
+      'ISSUER_METADATA_FILE_NAME',
+      'ISSUER_METADATA_FORMAT',
       'ImportError',
       'PROJECT_FILE_EXTENSION',
       'PROJECT_FILE_FORMAT',
       'PROJECT_FILE_VERSION',
+      'VCT_INTEGRITY_PLACEHOLDER',
       'buildBundle',
+      'buildIssuerMetadata',
       'buildOutputs',
       'buildVctSnippet',
       'bundleDataUrl',
@@ -75,9 +81,20 @@ describe('@bryanrmq/oca-generator', () => {
       'parseProjectFile',
       'projectFileName',
       'serializeBundle',
+      'serializeIssuerMetadata',
       'serializeProjectFile',
       'validate',
     ]);
+  });
+
+  it('builds the issuer_metadata.json the app builds', async () => {
+    const entry = await import(new URL('../dist/index.js', import.meta.url).href);
+    const parsed = parseProjectFile(readFileSync(fixture, 'utf8'));
+    if (!parsed.ok) throw new Error(parsed.error);
+    const built = entry.buildIssuerMetadata(parsed.project);
+    expect(built).toEqual(buildIssuerMetadata(parsed.project));
+    expect(entry.ISSUER_METADATA_FILE_NAME).toBe('issuer_metadata.json');
+    expect(built.metadata.credential_issuer).toBe(entry.EXTERNAL_URL_PLACEHOLDER);
   });
 
   it('packs only the build, the README and package.json', () => {

@@ -3,7 +3,8 @@
 Build and check the OCA bundle of a swiyu SD-JWT credential outside the browser, in your own tools
 and in CI. This is the logic of the [OCA Generator](https://github.com/bryanrmq/oca-generator) web
 app: it reads the project files the app saves (`*.oca-project.json`), reports the same issues, and
-builds the same bundle, `uri#integrity` value and VCT `display` snippet.
+builds the same bundle, `uri#integrity` value and VCT `display` snippet, and the `issuer_metadata.json`
+of the swiyu generic issuer.
 
 ES modules with TypeScript declarations, for Node 20 or later (and browsers). No network access.
 
@@ -44,6 +45,8 @@ if (result.ok) {
 | `buildOutputs(project, bundle)` | The bundle text (`json`), its `dataUrl`, the `uri` to reference and its `integrity`. |
 | `bundleIntegrity(json, hosting)` | The `uri#integrity` of bundle text as hosted at a URL or embedded as a data URL. |
 | `buildVctSnippet(project, outputs)` | The `display` array for the SD-JWT VC Type Metadata. |
+| `buildIssuerMetadata(project)` | The generic issuer's `issuer_metadata.json` (`ISSUER_METADATA_FILE_NAME`): `{ metadata, json, placeholders }`. The infrastructure keeps the generic issuer's `${external-url}` (`EXTERNAL_URL_PLACEHOLDER`), which the service fills in; the configuration entry under the Configuration id is the project's: `dc+sd-jwt`, ES256, `jwk`, `vct` and `vct_metadata_uri`, the issuer and credential `display` and one claim per attribute. `vct_metadata_uri#integrity` holds `VCT_INTEGRITY_PLACEHOLDER`, to replace with the SRI hash of `vct.json` as served. `placeholders` lists each placeholder left in `json` (`{ text, explanation, integrity }`). No `profile_version` and no encryption fields: the generic issuer adds them itself. |
+| `serializeIssuerMetadata(metadata)` | The file text: 2-space JSON, the same bytes for the same project. |
 | `issuerOf(project)` | The issuer settings (`project.issuer`: issuer name per language, logo, Issuer URL, identifiers), with a name for every language. Projects saved before them read as empty. They never go into the bundle. |
 | `issuerIdentifiers(project)`, `defaultIdentifiers(name)` | The Configuration id and Type key of the generic issuer files: the ones set in the project, else derived from the credential name (`Lernfahrausweis` gives `lernfahrausweis_sd_jwt` and `lernfahrausweis-v01`). Both match `IDENTIFIER_PATTERN` (`^[a-z0-9_-]+$`). |
 | `isIssuerLogo(uri)`, `isIssuerUrl(value)` | Whether a value can be the issuer logo (a PNG or JPEG data URL) or the Issuer URL (a real https URL). |
