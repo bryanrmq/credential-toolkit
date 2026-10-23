@@ -6,7 +6,9 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildBundle } from '../../../src/core/export/bundle.ts';
-import { buildOutputs, buildVctSnippet } from '../../../src/core/export/outputs.ts';
+import { buildIssuerMetadata } from '../../../src/core/export/issuerMetadata.ts';
+import { buildOutputs } from '../../../src/core/export/outputs.ts';
+import { type TypeMetadata, buildTypeMetadata } from '../../../src/core/export/typeMetadata.ts';
 import type { Project } from '../../../src/core/model.ts';
 import { parseProjectFile } from '../../../src/core/projectFile.ts';
 
@@ -42,7 +44,7 @@ describe('@bryanrmq/oca-generator', () => {
       json: outputs.json,
       uri: 'https://example.org/oca/oca-bundle.json',
       integrity: outputs.integrity,
-      vct: buildVctSnippet(parsed.project, outputs),
+      vct: buildTypeMetadata(parsed.project, outputs),
       roundTrip: true,
     });
   });
@@ -51,15 +53,21 @@ describe('@bryanrmq/oca-generator', () => {
     const entry = await import(new URL('../dist/index.js', import.meta.url).href);
     expect(Object.keys(entry).sort()).toEqual([
       'BUNDLE_FILE_NAME',
+      'EXTERNAL_URL_PLACEHOLDER',
       'FALLBACK_IDENTIFIER_BASE',
       'IDENTIFIER_PATTERN',
+      'ISSUER_METADATA_FILE_NAME',
+      'ISSUER_METADATA_FORMAT',
       'ImportError',
       'PROJECT_FILE_EXTENSION',
       'PROJECT_FILE_FORMAT',
       'PROJECT_FILE_VERSION',
+      'VCT_FILE_NAME',
+      'VCT_INTEGRITY_PLACEHOLDER',
       'buildBundle',
+      'buildIssuerMetadata',
       'buildOutputs',
-      'buildVctSnippet',
+      'buildTypeMetadata',
       'bundleDataUrl',
       'bundleIntegrity',
       'defaultIdentifiers',
@@ -75,9 +83,22 @@ describe('@bryanrmq/oca-generator', () => {
       'parseProjectFile',
       'projectFileName',
       'serializeBundle',
+      'serializeIssuerMetadata',
       'serializeProjectFile',
+      'serializeTypeMetadata',
+      'typeMetadataUri',
       'validate',
     ]);
+  });
+
+  it('builds the issuer_metadata.json the app builds', async () => {
+    const entry = await import(new URL('../dist/index.js', import.meta.url).href);
+    const parsed = parseProjectFile(readFileSync(fixture, 'utf8'));
+    if (!parsed.ok) throw new Error(parsed.error);
+    const built = entry.buildIssuerMetadata(parsed.project);
+    expect(built).toEqual(buildIssuerMetadata(parsed.project));
+    expect(entry.ISSUER_METADATA_FILE_NAME).toBe('issuer_metadata.json');
+    expect(built.metadata.credential_issuer).toBe(entry.EXTERNAL_URL_PLACEHOLDER);
   });
 
   it('packs only the build, the README and package.json', () => {
@@ -116,27 +137,28 @@ describe('@bryanrmq/oca-generator', () => {
       const parsed = parseProjectFile(readFileSync(path, 'utf8'));
       if (!parsed.ok) throw new Error(parsed.error);
       const outputs = await buildOutputs(parsed.project, (await buildBundle(parsed.project)).bundle);
-      return { outputs, snippet: JSON.stringify(buildVctSnippet(parsed.project, outputs), null, 2) };
+      return { outputs, vct: buildTypeMetadata(parsed.project, outputs).text };
     }
 
-    it('builds the bundle, #integrity and VCT snippet the app exports', async () => {
-      const { outputs, snippet } = await appExport(fixture);
+    it('builds the bundle, #integrity and Type Metadata the app exports', async () => {
+      const { outputs, vct } = await appExport(fixture);
 
       const toFiles = oca('build', fixture, '-o', 'bundle.json', '--vct', 'vct.json');
       expect(toFiles.status).toBe(0);
       expect(readFileSync(join(work, 'bundle.json'), 'utf8')).toBe(outputs.json);
-      expect(readFileSync(join(work, 'vct.json'), 'utf8')).toBe(`${snippet}\n`);
+      expect(readFileSync(join(work, 'vct.json'), 'utf8')).toBe(vct);
       expect(toFiles.stdout).toContain('Wrote bundle.json');
       expect(toFiles.stdout).toContain(`uri#integrity  ${outputs.integrity}`);
-      expect(toFiles.stdout).not.toContain('"display": [');
+      expect(toFiles.stdout).toContain('Wrote vct.json (Type Metadata)');
+      expect(toFiles.stdout).not.toContain('"profile_version"');
       expect(toFiles.stderr).toBe('');
 
-      // Without -o the bundle is all of stdout, byte for byte; the integrity and the snippet go to stderr.
+      // Without -o the bundle is all of stdout, byte for byte; the integrity and the Type Metadata go to stderr.
       const toStdout = oca('build', fixture);
       expect(toStdout.status).toBe(0);
       expect(toStdout.stdout).toBe(outputs.json);
       expect(toStdout.stderr).toContain(`uri#integrity  ${outputs.integrity}`);
-      expect(toStdout.stderr).toContain(snippet);
+      expect(toStdout.stderr).toContain(vct);
       expect(toStdout.stderr).not.toContain('\x1b['); // no colour when not a terminal
 
       const checked = oca('check', fixture);
@@ -167,7 +189,7 @@ describe('@bryanrmq/oca-generator', () => {
 
       const built = oca('build', path, '-o', 'embedded.json', '--vct', 'embedded.vct.json');
       expect(built.status).toBe(0);
-      const [entry] = (JSON.parse(readFileSync(join(work, 'embedded.vct.json'), 'utf8')) as ReturnType<typeof buildVctSnippet>).display;
+      const [entry] = (JSON.parse(readFileSync(join(work, 'embedded.vct.json'), 'utf8')) as TypeMetadata).display;
       // As both wallets check it: SHA-256 over the UTF-8 bytes of the whole data URL, standard base64.
       const walletIntegrity = `sha256-${createHash('sha256').update(entry.rendering.oca.uri, 'utf8').digest('base64')}`;
       expect(entry.rendering.oca.uri).toBe(outputs.dataUrl);

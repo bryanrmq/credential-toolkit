@@ -25,7 +25,7 @@ export interface AndroidDetailsScreenProps {
   /** The wallet's own texts in the app language. */
   text: AndroidDetailsText;
   valueOptions: ValueOptions;
-  /** The "Issued by" row. The wallet reads it from the issuer metadata; a missing name draws a placeholder. */
+  /** The "Issued by" row (`issuedBy`): the issuer name and logo from the Issuer Metadata. A missing name draws a placeholder. */
   issuer: { name?: string; logo?: string };
   /** CSS zoom factor that fits the screen into the available width. */
   scale?: number;

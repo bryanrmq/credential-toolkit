@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { selectBranding } from '../../core/card/branding';
-import { type DetailsRow, credentialDetails } from '../../core/card/details';
+import { type DetailsRow, credentialDetails, issuedBy } from '../../core/card/details';
 import {
   ANDROID_DETAILS_TEXT,
   CREDENTIAL_STATUSES,
@@ -15,6 +15,7 @@ import { type DetailsDifference, detailsDevice, detailsDifferences } from '../..
 import { otherPlatform } from '../../core/card/differences';
 import { CARD_PROFILES, isDefaultBackground } from '../../core/card/profiles';
 import { cardSummary } from '../../core/card/summary';
+import { languageLabel } from '../../core/langs';
 import { type FormattedValue, formatClaim } from '../../core/card/values';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
@@ -116,6 +117,7 @@ export function DetailsPreview() {
     const device = detailsDevice(platform, [lang]);
     return credentialDetails(project, { languages: device.languages, valueOptions: device.valueOptions, platform });
   }, [project, lang, platform]);
+  const issuer = issuedBy(project, { languages, platform });
   const differences = useMemo(() => detailsDifferences(project, platform, { deviceLanguages: [lang] }), [project, platform, lang]);
   const { branding } = selectBranding(project, lang, theme);
   const background = profile.parseBackground(branding.primaryBackgroundColor) ?? profile.fallbackBackground;
@@ -134,7 +136,7 @@ export function DetailsPreview() {
     summary: cardSummary(project, lang, branding, platform),
     logo: branding.logo,
   };
-  const screenProps = { label: `${platformName} ${t.detailsPreview.screen}`, theme, title: name, card, details, valueOptions, issuer: { logo: branding.logo }, scale };
+  const screenProps = { label: `${platformName} ${t.detailsPreview.screen}`, theme, title: name, card, details, valueOptions, issuer, scale };
 
   let screen;
   if (platform === 'ios') {
@@ -171,7 +173,7 @@ export function DetailsPreview() {
       {details.orderUndefined && <p className="note">{t.detailsPreview.orderUndefined}</p>}
       {invalidImage && <p className="note">{t.detailsPreview.invalidImageNote}</p>}
       {details.undecodableImage && <p className="note">{t.detailsPreview.undecodableImageNote}</p>}
-      <p className="note">{t.detailsPreview.issuer}</p>
+      <p className="note">{issuer.name ? t.detailsPreview.issuer.named : t.detailsPreview.issuer.missing(issuer.lang && languageLabel(issuer.lang))}</p>
       {differences.length > 0 && (
         <ul className="card-preview__differences" aria-label={t.detailsPreview.differencesLabel(otherName)}>
           {differences.map((difference, index) => (

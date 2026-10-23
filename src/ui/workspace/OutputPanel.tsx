@@ -1,7 +1,8 @@
 import { CheckIcon, CopyIcon, DownloadSimpleIcon, SidebarSimpleIcon } from '@phosphor-icons/react';
 import { Fragment, useState } from 'react';
 import type { ProjectChange } from '../../core/compare';
-import { BUNDLE_FILE_NAME, buildVctSnippet } from '../../core/export/outputs';
+import { BUNDLE_FILE_NAME } from '../../core/export/outputs';
+import { buildTypeMetadata } from '../../core/export/typeMetadata';
 import { useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
@@ -59,7 +60,8 @@ export function OutputPanel({ exportState, onHide, onJump }: { exportState: Expo
   const tab = useStore((state) => state.outputTab);
   const setOutputTab = useStore((state) => state.setOutputTab);
   const ready = exportState.status === 'ready' ? exportState : null;
-  const snippet = ready ? JSON.stringify(buildVctSnippet(project, ready.outputs), null, 2) : '';
+  // The `display` entries of `vct.json`, until the Type metadata tab shows the whole file (#111).
+  const snippet = ready ? JSON.stringify({ display: buildTypeMetadata(project, ready.outputs).metadata.display }, null, 2) : '';
   const baseline = useBaseline();
   const changes = useChanges(project, baseline);
   const changeCount = changes.status === 'ready' ? changes.changes.length : 0;
