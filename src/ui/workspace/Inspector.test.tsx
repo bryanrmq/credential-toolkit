@@ -125,13 +125,15 @@ describe('Inspector with several nodes selected', () => {
 });
 
 describe('Inspector for the credential', () => {
-  it('edits the name and branding without a card preview, which lives in the Output pane', () => {
+  it('edits the name and branding, with the wallet preview after the form', () => {
     useStore.getState().select({ kind: 'credential' });
     render(<Inspector />);
     expect(screen.getByLabelText('Name')).toBeInTheDocument();
     expect(screen.getByRole('tablist', { name: 'Branding' })).toBeInTheDocument();
-    expect(screen.queryByRole('figure')).not.toBeInTheDocument();
-    expect(screen.queryByRole('group', { name: 'Preview platform' })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Approximation of the swiyu wallets/)).not.toBeInTheDocument();
+    const preview = screen.getByRole('region', { name: 'Preview' });
+    expect(screen.getByRole('tablist', { name: 'Branding' }).compareDocumentPosition(preview)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(screen.getAllByRole('figure')).toEqual([within(preview).getByRole('figure', { name: 'iOS card' })]);
+    expect(within(preview).getByRole('group', { name: 'Preview platform' })).toBeInTheDocument();
+    expect(within(preview).getByText(/Approximation of the swiyu wallets/)).toBeInTheDocument();
   });
 });

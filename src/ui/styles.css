@@ -1678,9 +1678,10 @@ button.tree__toggle:hover {
   cursor: grabbing;
 }
 
-/* Inspector: the form, at most 640px wide. The pane is a size container for layouts that depend on its width. */
+/* Inspector: the form, at most 640px wide, and the wallet preview. The pane is a size container: layouts depend on
+   its width, and the preview column beside the form is at most its height. */
 .pane--inspector {
-  container-type: inline-size;
+  container-type: size;
 }
 .inspector {
   display: grid;
@@ -1691,6 +1692,65 @@ button.tree__toggle:hover {
 .inspector__main {
   min-width: 0;
   max-width: 640px;
+}
+
+/* The wallet preview in the Edit pane. Below the form it is a section under a 1px line, and its header collapses it.
+   From a pane 840px wide (PREVIEW_BESIDE_WIDTH in EditPreview.tsx) it is a column beside the form, behind a 1px
+   divider, that stays in view while the form scrolls and scrolls on its own when taller than the pane. */
+.edit-preview {
+  min-width: 0;
+  max-width: 640px;
+  margin-top: 40px;
+  border-top: 1px solid var(--border);
+}
+.edit-preview__header {
+  min-height: 44px;
+  padding: 8px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--surface);
+}
+/* The pickers take a line of their own under the title, as in the Output pane. */
+.edit-preview__controls {
+  flex: 1 0 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.edit-preview__toggle {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  justify-content: center;
+}
+.edit-preview .output-preview {
+  padding: 4px 0 20px;
+}
+@container (min-width: 840px) {
+  .inspector {
+    grid-template-columns: minmax(0, 640px) minmax(300px, 1fr);
+    align-items: start;
+  }
+  .edit-preview {
+    position: sticky;
+    top: 8px;
+    max-width: 440px;
+    max-height: calc(100cqh - 16px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin-top: 0;
+    padding-left: 24px;
+    border-top: none;
+    border-left: 1px solid var(--border);
+  }
+  .edit-preview__header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
 }
 
 /* A translatable text in every language: the editing language first, marked by a dark left edge. The rows share

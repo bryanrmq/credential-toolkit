@@ -1,12 +1,11 @@
 import { CaretDownIcon, CaretRightIcon, CheckIcon, CopyIcon, DownloadSimpleIcon, GearSixIcon, SidebarSimpleIcon } from '@phosphor-icons/react';
 import { type CSSProperties, Fragment, useRef, useState } from 'react';
 import type { ProjectChange } from '../../core/compare';
-import { CARD_PROFILES, type PreviewView, previewViewOf, shownVariant } from '../../core/card/profiles';
 import { BUNDLE_FILE_NAME, buildVctSnippet } from '../../core/export/outputs';
 import { type OutputHalf, useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
-import { Button, InlineIssueFixes, Segmented, Tabs } from '../components/controls';
+import { Button, InlineIssueFixes, Tabs } from '../components/controls';
 import { PaneResizer } from '../components/PaneResizer';
 import { useFieldIssues, useIssues } from '../issues';
 import { useBaseline } from '../lib/baseline';
@@ -15,14 +14,12 @@ import { copyText, downloadText } from '../lib/download';
 import { DEFAULT_PREVIEW_HEIGHT, PREVIEW_HEIGHT_LIMITS, clampPreviewHeight, loadPreviewHeight, savePreviewHeight } from '../lib/paneLayout';
 import { ChangesView } from './ChangesView';
 import { OutputPreview } from './OutputPreview';
+import { PreviewControls } from './PreviewControls';
 import { SampleControl } from './SampleControl';
 
 const PREVIEW_BODY_ID = 'output-preview-body';
 const BUNDLE_BODY_ID = 'output-bundle-body';
 const SETTINGS_ID = 'output-bundle-settings';
-const PREVIEW_VIEWS: PreviewView[] = ['card', 'details', 'home'];
-/** The cards of a wallet with a separate offer card, picked under the Card view. */
-const CARD_VARIANTS = ['detail', 'offer'] as const;
 
 function CopyButton({ text, label, iconOnly = false }: { text: string; label: string; iconOnly?: boolean }) {
   const [copied, setCopied] = useState(false);
@@ -138,16 +135,6 @@ export function OutputPanel({
 
 function PreviewHalf({ onHide }: { onHide?: () => void }) {
   const open = useStore((state) => state.outputHalves.preview);
-  const platform = useStore((state) => state.cardPlatform);
-  const variant = useStore((state) => state.cardVariant);
-  const { setCardPlatform, setCardVariant } = useStore.getState();
-  const profile = CARD_PROFILES[platform];
-  const shown = shownVariant(profile, variant);
-  const view = previewViewOf(shown);
-  // Card opens the detail card; picking it again keeps the card shown, offer included.
-  const pickView = (option: PreviewView) => {
-    if (option !== view) setCardVariant(option === 'card' ? 'detail' : option);
-  };
 
   return (
     <div className={open ? 'output-half output-half--preview' : 'output-half output-half--preview output-half--collapsed'}>
@@ -161,33 +148,7 @@ function PreviewHalf({ onHide }: { onHide?: () => void }) {
           )}
           <CollapseButton half="preview" controls={PREVIEW_BODY_ID} collapseLabel={t.output.collapsePreview} expandLabel={t.output.expandPreview} />
         </span>
-        {open && (
-          <span className="output-half__controls">
-            <Segmented
-              label={t.output.previewPlatform}
-              value={platform}
-              onChange={setCardPlatform}
-              options={[
-                { value: 'ios', label: t.cardPreview.platforms.ios },
-                { value: 'android', label: t.cardPreview.platforms.android },
-              ]}
-            />
-            <Segmented
-              label={t.output.previewView}
-              value={view}
-              onChange={pickView}
-              options={PREVIEW_VIEWS.map((option) => ({ value: option, label: t.output.views[option] }))}
-            />
-            {view === 'card' && profile.variants.includes('offer') && (
-              <Segmented
-                label={t.output.previewCard}
-                value={shown}
-                onChange={setCardVariant}
-                options={CARD_VARIANTS.map((option) => ({ value: option, label: t.cardPreview.variants[option] }))}
-              />
-            )}
-          </span>
-        )}
+        {open && <PreviewControls className="output-half__controls" />}
       </div>
       {open && (
         <div className="output-half__body" id={PREVIEW_BODY_ID}>

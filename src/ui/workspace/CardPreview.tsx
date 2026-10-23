@@ -26,7 +26,7 @@ function describeDifference(difference: CardDifference, platform: CardPlatform):
 
 /**
  * The credential card or home row as the iOS or Android wallet would roughly draw it, for the editing language and
- * theme, with the notes on it underneath. The platform and variant are picked in the Output preview's header.
+ * theme, with the notes on it underneath. The platform and variant are picked in the preview's header.
  */
 export function CardPreview() {
   const project = useStore((state) => state.project)!;

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { selectBranding } from '../../core/card/branding';
 import { type DetailsRow, credentialDetails } from '../../core/card/details';
 import {
@@ -82,6 +82,8 @@ export function DetailsPreview() {
   const lang = useStore((state) => state.editLang);
   const theme = useStore((state) => state.brandingTheme);
   const [status, setStatus] = useState<CredentialStatus>('valid');
+  // The preview can show in more than one pane at once, so the picker's id is generated.
+  const statusId = useId();
   const { ref, scale } = useFitScale(platform === 'ios' ? IOS_SCREEN_WIDTH : ANDROID_SCREEN_WIDTH);
 
   const profile = CARD_PROFILES[platform];
@@ -120,9 +122,9 @@ export function DetailsPreview() {
   return (
     <div className="details-preview">
       <div className="details-preview__status">
-        <label htmlFor="details-preview-status">{t.detailsPreview.status}</label>
+        <label htmlFor={statusId}>{t.detailsPreview.status}</label>
         <select
-          id="details-preview-status"
+          id={statusId}
           className="select select--compact"
           value={status}
           onChange={(event) => setStatus(event.target.value as CredentialStatus)}
