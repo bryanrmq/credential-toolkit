@@ -90,7 +90,6 @@ describe('Workspace', () => {
   it('attaches a sample credential and checks source paths against it', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
-    await user.click(screen.getByRole('button', { name: 'Bundle settings' }));
     await user.click(screen.getByRole('button', { name: 'Attach sample' }));
     const dialog = screen.getByRole('dialog');
     await user.click(within(dialog).getByLabelText(/Paste JSON/));
@@ -107,7 +106,6 @@ describe('Workspace', () => {
   it('refuses a sample that is not a claims object', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
-    await user.click(screen.getByRole('button', { name: 'Bundle settings' }));
     await user.click(screen.getByRole('button', { name: 'Attach sample' }));
     const dialog = screen.getByRole('dialog');
     await user.click(within(dialog).getByLabelText(/Paste JSON/));

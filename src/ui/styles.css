@@ -1789,7 +1789,7 @@ button.tree__toggle:hover {
   gap: 8px;
   background: var(--surface);
 }
-/* The pickers take a line of their own under the title, as in the Output pane. */
+/* The pickers take a line of their own under the title. */
 .edit-preview__controls {
   flex: 1 0 100%;
   display: flex;
@@ -2669,9 +2669,8 @@ button.tree__toggle:hover {
   display: grid;
   gap: 8px;
 }
-/* The Output pane in two halves: the wallet preview on top, the bundle below. On a wide window they share the
-   pane's height (the preview's set by the divider) and each body scrolls; collapsed, a half keeps only its header
-   and the other takes the room. On a narrow window they stack in the pane's one scrolling column. */
+/* The Output pane: the bundle's tabs on top and their body under them. On a wide window the body scrolls on its own
+   under the header; on a narrow window the pane scrolls as one column. */
 .pane--output {
   background: var(--canvas);
 }
@@ -2687,100 +2686,46 @@ button.tree__toggle:hover {
     display: flex;
     flex-direction: column;
   }
-  .output-half {
-    flex: 1 1 0;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
-  /* A remembered height can outgrow a window made shorter since: the Bundle half keeps room regardless. */
-  .output--split .output-half--preview {
-    flex: 0 0 var(--preview-height, 320px);
-    max-height: calc(100% - 160px);
-  }
-  .output-half--collapsed {
-    flex: none;
-  }
-  .output-half__body {
+  .output__body {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
   }
-  .output-half .code-block {
+  .output .code-block {
     max-height: none;
   }
 }
-.output > .pane-resizer--horizontal {
-  flex: none;
-  height: 5px;
-}
-.output-half--bundle {
-  border-top: 1px solid var(--border);
-}
-.output--split .output-half--bundle {
-  border-top: none;
-}
-.output-half__header {
+/* The tabs are the pane's title: they sit on the header's bottom line, which the selected one underlines. */
+.output__header {
   min-height: 44px;
-  padding: 8px 12px 8px 20px;
+  padding: 0 12px 0 8px;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
   gap: 8px;
   background: var(--canvas);
-}
-/* The Bundle half's tabs are its title: they sit on the header's bottom line, which the selected one underlines. */
-.output-half__header--tabs {
-  padding: 0 12px 0 8px;
-  flex-wrap: nowrap;
-  align-items: stretch;
   border-bottom: 1px solid var(--border);
 }
-.output-half--collapsed .output-half__header--tabs {
-  border-bottom: none;
-}
-.output-half__header--tabs .tabs {
+.output__header .tabs {
   border-bottom: none;
   min-width: 0;
 }
-.output-half__actions {
+.output__actions {
   display: flex;
   align-items: center;
   gap: 4px;
   flex: none;
 }
-.output-half__actions .field__hint {
+.output__actions .field__hint {
   margin-right: 4px;
   font-family: var(--font-mono);
 }
-/* The preview's segmented controls take a line of their own under the title, like the Structure filter box. */
-.output-half__controls {
-  flex: 1 0 100%;
-  order: 1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.output-half__toggle {
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  justify-content: center;
-}
-.output-half__settings.is-active {
-  background: var(--surface-muted);
-  color: var(--text-strong);
-}
-.output-preview {
-  padding: 4px 20px 20px;
-}
+/* Hosting and the sample credential, above the JSON under the Bundle tab. */
 .output-settings {
   display: grid;
   gap: 16px;
   padding: 16px 20px;
-  background: var(--surface-muted);
   border-bottom: 1px solid var(--border);
 }
 .output-settings__hosting {
