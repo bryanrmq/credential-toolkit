@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from 'react';
 import { selectBranding } from '../../core/card/branding';
 import { type CardDifference, cardDifferences, otherPlatform } from '../../core/card/differences';
 import { CARD_PROFILES, type CardPlatform, shownVariant } from '../../core/card/profiles';
@@ -7,6 +6,7 @@ import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { CredentialCard } from '../components/CredentialCard';
 import { CredentialHomeRow } from '../components/CredentialHomeRow';
+import { useFitScale } from '../components/useFitScale';
 
 function describeDifference(difference: CardDifference, platform: CardPlatform): string {
   const name = t.cardPreview.platforms[platform];
@@ -22,20 +22,6 @@ function describeDifference(difference: CardDifference, platform: CardPlatform):
     case 'summary':
       return t.cardPreview.summary(name, difference.text);
   }
-}
-
-/** Scale that fits `width` px into the observed element, never above 1. Stays 1 without ResizeObserver (tests). */
-function useFitScale(width: number) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [available, setAvailable] = useState<number | null>(null);
-  useEffect(() => {
-    const element = ref.current;
-    if (!element || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(([entry]) => setAvailable(entry.contentRect.width));
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-  return { ref, scale: available === null ? 1 : Math.min(1, available / width) };
 }
 
 /**

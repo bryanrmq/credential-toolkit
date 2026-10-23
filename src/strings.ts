@@ -302,6 +302,21 @@ export const t = {
     nameHidden: (platform: string) => `${platform}: no text when the name is empty`,
     summary: (platform: string, text: string) => (text ? `${platform}: summary "${text}"` : `${platform}: empty summary`),
   },
+  detailsPreview: {
+    /** Accessible name of the drawn screen, after the platform name. */
+    screen: 'details screen',
+    status: 'Card status',
+    statuses: { valid: 'Valid', invalid: 'Expired', revoked: 'Revoked', suspended: 'Suspended', notYetValid: 'Not yet valid', unknown: 'Unknown' },
+    /** Stands in for the issuer's name, which the wallet reads from the issuer metadata. */
+    issuerPlaceholder: 'Issuer name',
+    /** What a screen reader says for an image value. */
+    image: 'Image',
+    invalidImage: 'Image the wallet rejects',
+    orderUndefined: 'Some rows share an order value, usually because there is no Order overlay, so the wallet may list them in another order.',
+    invalidImageNote: 'An image does not match its format, so the wallet refuses the whole credential.',
+    issuer: "The wallet takes the issuer's name and logo from the issuer metadata, not the OCA bundle. The preview shows the card logo.",
+    caption: "Approximation of the iOS wallet's details screen. Uses this app's font and leaves out Latest Activities.",
+  },
   output: {
     title: 'Output',
     preview: 'Preview',
