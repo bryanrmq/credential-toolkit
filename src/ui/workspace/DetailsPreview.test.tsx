@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { type Group, type Node, type Project, emptyGroup, emptyProject, newAttribute, newGroupLink } from '../../core/model';
 import { useStore } from '../../state/store';
-import { pngDataUrl } from '../../test/images';
+import { jpegDataUrl, pngDataUrl } from '../../test/images';
 import { EditPreview } from './EditPreview';
 
 const DE = 'de-CH';
@@ -35,6 +35,13 @@ function load(configure?: (project: Project) => void) {
   configure?.(project);
   useStore.getState().load(project);
   useStore.setState({ cardPlatform: 'ios', cardVariant: 'details', editLang: DE, brandingTheme: 'light' });
+}
+
+const ISSUER_LOGO = jpegDataUrl(6, 6);
+
+/** Issuer settings with a name in both languages and a logo. */
+function withIssuer(project: Project) {
+  project.issuer = { name: { [DE]: 'Kanton Bern', 'en-GB': 'Canton of Bern' }, logo: ISSUER_LOGO };
 }
 
 const renderPreview = () => render(<EditPreview beside />);
@@ -124,20 +131,49 @@ describe('DetailsPreview on iOS', () => {
     expect(screen.getByText(/wallet may list them in another order/)).toBeInTheDocument();
   });
 
-  it('draws "Issued by" with a placeholder name and the card logo, and says where the wallet takes it from', () => {
+  it('draws "Issued by" with a placeholder name without issuer settings, and says where the wallet takes the name from', () => {
     renderPreview();
     const issuer = phone().getByRole('region', { name: 'Ausgestellt von' });
     expect(within(issuer).getByText('Issuer name')).toHaveClass('ios-details__placeholder');
-    expect(issuer.querySelector('.ios-details__issuer-logo img')).toHaveAttribute('src', useStore.getState().project!.branding[DE].light.logo);
     expect(issuer).toHaveTextContent('AusstellungsartStandard');
-    expect(screen.getByText(/name and logo from the issuer metadata/)).toBeInTheDocument();
+    expect(screen.getByText(/^No issuer name in .*de-CH.*takes it from the Issuer Metadata, so the preview shows a placeholder\.$/)).toBeInTheDocument();
   });
 
-  it("draws the wallet's unknown icon in the logo circle without a logo", () => {
-    load((project) => delete project.branding[DE].light.logo);
+  it("draws the wallet's unknown icon in the logo circle without an issuer logo, not the card logo", () => {
     renderPreview();
     const logo = phone().getByRole('region', { name: 'Ausgestellt von' }).querySelector('.ios-details__issuer-logo img');
     expect(logo?.getAttribute('src')).toMatch(/^data:image\/png;base64,iVBORw0KGgo/);
+    expect(logo?.getAttribute('src')).not.toBe(useStore.getState().project!.branding[DE].light.logo);
+  });
+
+  it('draws the issuer name in the preview language and the issuer logo in the round logo circle', () => {
+    load(withIssuer);
+    renderPreview();
+    const issuer = phone().getByRole('region', { name: 'Ausgestellt von' });
+    expect(within(issuer).getByText('Kanton Bern')).not.toHaveClass('ios-details__placeholder');
+    expect(issuer.querySelector('.ios-details__issuer-logo img')).toHaveAttribute('src', ISSUER_LOGO);
+    expect(screen.getByText(/takes the issuer name and logo from the Issuer Metadata/)).toBeInTheDocument();
+  });
+
+  it('switches the issuer name with the preview language', () => {
+    load(withIssuer);
+    renderPreview();
+    act(() => useStore.setState({ editLang: 'en-GB' }));
+    expect(within(phone().getByRole('region', { name: 'Issued by' })).getByText('Canton of Bern')).toBeInTheDocument();
+  });
+
+  it('keeps the placeholder, with the logo, when the preview language has no issuer name', () => {
+    load((project) => {
+      withIssuer(project);
+      project.issuer!.name['en-GB'] = '';
+    });
+    useStore.setState({ editLang: 'en-GB' });
+    renderPreview();
+    const issuer = phone().getByRole('region', { name: 'Issued by' });
+    expect(within(issuer).getByText('Issuer name')).toHaveClass('ios-details__placeholder');
+    expect(within(issuer).queryByText('Kanton Bern')).not.toBeInTheDocument();
+    expect(issuer.querySelector('.ios-details__issuer-logo img')).toHaveAttribute('src', ISSUER_LOGO);
+    expect(screen.getByText(/^No issuer name in .*en-GB/)).toBeInTheDocument();
   });
 
   it('shows Valid by default and the status picked above the preview', async () => {
@@ -273,23 +309,44 @@ describe('DetailsPreview on Android', () => {
     expect(differences.getByText('iOS: shows the empty group "Adresse"')).toBeInTheDocument();
   });
 
-  it('draws "Issued by" with a placeholder name, the card logo in the avatar, and the issuance type', () => {
+  it('draws "Issued by" with a placeholder name without issuer settings, and the issuance type', () => {
     renderPreview();
     const issuer = android().getByRole('region', { name: 'Ausgestellt von' });
     expect(within(issuer).getByText('Issuer name')).toHaveClass('android-details__placeholder');
-    // The logo's alpha, tinted with onSurface.
-    const logo = issuer.querySelector<HTMLElement>('.android-details__avatar-logo')!;
-    expect(logo.style.getPropertyValue('--logo')).toBe(`url("${useStore.getState().project!.branding[DE].light.logo}")`);
     expect(issuer).toHaveTextContent('AusstellungsartStandard');
+    expect(screen.getByText(/^No issuer name in .*de-CH.*from the Issuer Metadata/)).toBeInTheDocument();
   });
 
-  it("draws the wallet's default actor icon in the avatar without a logo", () => {
-    load((project) => delete project.branding[DE].light.logo);
-    useStore.setState({ cardPlatform: 'android' });
+  it("draws the wallet's default actor icon in the avatar without an issuer logo, not the card logo", () => {
     renderPreview();
     const issuer = android().getByRole('region', { name: 'Ausgestellt von' });
     expect(issuer.querySelector('.android-details__avatar-logo')).toBeNull();
     expect(issuer.querySelector('.android-details__avatar svg path')).toBeInTheDocument();
+  });
+
+  it('draws the issuer name in the preview language and the issuer logo in the round avatar', () => {
+    load(withIssuer);
+    useStore.setState({ cardPlatform: 'android' });
+    renderPreview();
+    const issuer = android().getByRole('region', { name: 'Ausgestellt von' });
+    expect(within(issuer).getByText('Kanton Bern')).not.toHaveClass('android-details__placeholder');
+    // The logo's alpha, tinted with onSurface.
+    const logo = issuer.querySelector<HTMLElement>('.android-details__avatar-logo')!;
+    expect(logo.style.getPropertyValue('--logo')).toBe(`url("${ISSUER_LOGO}")`);
+    act(() => useStore.setState({ editLang: 'en-GB' }));
+    expect(within(android().getByRole('region', { name: 'Issued by' })).getByText('Canton of Bern')).toBeInTheDocument();
+  });
+
+  it('keeps the placeholder when the preview language has no issuer name', () => {
+    load((project) => {
+      withIssuer(project);
+      project.issuer!.name[DE] = '';
+    });
+    useStore.setState({ cardPlatform: 'android' });
+    renderPreview();
+    const issuer = android().getByRole('region', { name: 'Ausgestellt von' });
+    expect(within(issuer).getByText('Issuer name')).toHaveClass('android-details__placeholder');
+    expect(within(issuer).queryByText('Canton of Bern')).not.toBeInTheDocument();
   });
 
   it("shows the status in Android's badge and words", async () => {
