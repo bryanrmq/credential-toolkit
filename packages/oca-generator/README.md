@@ -44,10 +44,13 @@ if (result.ok) {
 | `buildOutputs(project, bundle)` | The bundle text (`json`), its `dataUrl`, the `uri` to reference and its `integrity`. |
 | `bundleIntegrity(json, hosting)` | The `uri#integrity` of bundle text as hosted at a URL or embedded as a data URL. |
 | `buildVctSnippet(project, outputs)` | The `display` array for the SD-JWT VC Type Metadata. |
+| `issuerOf(project)` | The issuer settings (`project.issuer`: issuer name per language, logo, Issuer URL, identifiers), with a name for every language. Projects saved before them read as empty. They never go into the bundle. |
+| `issuerIdentifiers(project)`, `defaultIdentifiers(name)` | The Configuration id and Type key of the generic issuer files: the ones set in the project, else derived from the credential name (`Lernfahrausweis` gives `lernfahrausweis_sd_jwt` and `lernfahrausweis-v01`). Both match `IDENTIFIER_PATTERN` (`^[a-z0-9_-]+$`). |
+| `isIssuerLogo(uri)`, `isIssuerUrl(value)` | Whether a value can be the issuer logo (a PNG or JPEG data URL) or the Issuer URL (a real https URL). |
 | `importBundle(bundle)` | A project from a parsed bundle, with a report of what was repaired. Throws `ImportError`. |
 | `parseJsonText(text)` | `JSON.parse` that throws an `ImportError` naming the line and column. |
 
-The types (`Project`, `Issue`, `BundleJson`, `ExportOutputs`, …) are exported too.
+The types (`Project`, `IssuerSettings`, `Issue`, `BundleJson`, `ExportOutputs`, …) are exported too.
 
 ## Command line
 

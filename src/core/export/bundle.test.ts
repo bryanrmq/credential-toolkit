@@ -121,6 +121,23 @@ describe('buildBundle', () => {
     expect(format.capture_base).toBe(bundle.capture_bases[0].digest);
   });
 
+  it('leaves out the issuer settings: the bundle is byte-identical with, without and with other ones', async () => {
+    const withIssuer = petPermit().project;
+    withIssuer.issuer = {
+      name: { en: 'Canton of Bern' },
+      logo: 'data:image/png;base64,iVBORw0KGgo=',
+      url: 'https://issuer.example.ch',
+      configurationId: 'pet_permit_sd_jwt',
+      typeKey: 'pet-permit-v01',
+    };
+    const without = petPermit().project;
+    delete without.issuer;
+    const json = serializeBundle((await buildBundle(withIssuer)).bundle);
+    expect(json).toBe(serializeBundle((await buildBundle(without)).bundle));
+    expect(json).toBe(serializeBundle((await buildBundle(petPermit().project)).bundle));
+    for (const text of ['Canton of Bern', 'issuer.example.ch', 'pet_permit_sd_jwt', 'pet-permit-v01', 'iVBORw0KGgo']) expect(json).not.toContain(text);
+  });
+
   it('is deterministic', async () => {
     const first = serializeBundle((await buildBundle(petPermit().project)).bundle);
     const second = serializeBundle((await buildBundle(petPermit().project)).bundle);

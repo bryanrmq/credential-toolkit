@@ -3,7 +3,7 @@ import type { Baseline } from './baseline';
 import { type Project, emptyProject, newAttribute, newGroupLink } from './model';
 import { PROJECT_FILE_FORMAT, PROJECT_FILE_VERSION, parseProjectFile, projectFileName, serializeProjectFile } from './projectFile';
 
-/** A project with every part a bundle leaves out: the sample credential and an I14Y link. */
+/** A project with every part a bundle leaves out: the sample credential, an I14Y link and the issuer settings. */
 function fullProject(): Project {
   const project = emptyProject(['de-CH', 'fr-CH']);
   project.meta['de-CH'] = { name: 'Hundebewilligung', description: 'Für Hundehalter' };
@@ -26,6 +26,13 @@ function fullProject(): Project {
   project.sample = { canton: 'BE', holder: { name: 'Seraina' } };
   project.hosting = { mode: 'url', url: 'https://example.ch/oca' };
   project.bundleExtras = { x_note: 'kept' };
+  project.issuer = {
+    name: { 'de-CH': 'Kanton Bern', 'fr-CH': 'Canton de Berne' },
+    logo: 'data:image/png;base64,iVBORw0KGgo=',
+    url: 'https://issuer.example.ch',
+    configurationId: 'dog_permit_sd_jwt',
+    typeKey: 'dog-permit-v01',
+  };
   return project;
 }
 
@@ -38,6 +45,17 @@ describe('project files', () => {
     const project = fullProject();
     const parsed = parseProjectFile(serializeProjectFile(project));
     expect(parsed).toEqual({ ok: true, project });
+  });
+
+  it('keeps the issuer settings, and opens a file saved before them without adding them', () => {
+    const project = fullProject();
+    const parsed = parseProjectFile(serializeProjectFile(project));
+    expect(parsed.ok && parsed.project.issuer).toEqual(project.issuer);
+
+    const { issuer: _issuer, ...before } = project;
+    const older = parseProjectFile(file({ format: PROJECT_FILE_FORMAT, version: 1, project: before }));
+    expect(older).toEqual({ ok: true, project: before });
+    expect(older.ok && 'issuer' in older.project).toBe(false);
   });
 
   it('writes the format and the version around the project', () => {

@@ -17,7 +17,7 @@ import { MAX_JOIN_SEPARATOR, joinSeparator, listExpressions, resolveEditorPath }
 
 export type Severity = 'error' | 'warning';
 
-export type CredentialField = 'name' | 'description' | 'logo' | 'primaryBackgroundColor' | 'primaryField' | 'secondaryField';
+export type CredentialField = 'name' | 'description' | 'logo' | 'primaryBackgroundColor' | 'primaryField' | 'secondaryField' | 'issuerName';
 export type NodeField = 'key' | 'type' | 'source' | 'label' | 'entries';
 
 export type IssueTarget =
