@@ -3,13 +3,22 @@ import type { ClaimsPath } from '../../core/model';
 import { formatPath, parsePath } from '../../core/paths';
 import { t } from '../../strings';
 
+/** What every text input takes besides its value: a name when no `<label>` points to it, and the empty highlight. */
+interface TextProps {
+  ariaLabel?: string;
+  /** Highlights the input as an empty translation. */
+  empty?: boolean;
+}
+
 export function TextInput({
   id,
   value,
   onChange,
   placeholder,
   mono = false,
-}: {
+  ariaLabel,
+  empty,
+}: TextProps & {
   id: string;
   value: string;
   onChange: (value: string) => void;
@@ -20,6 +29,8 @@ export function TextInput({
     <input
       id={id}
       className={mono ? 'input input--mono' : 'input'}
+      aria-label={ariaLabel}
+      data-empty={empty || undefined}
       value={value}
       placeholder={placeholder}
       spellCheck={!mono}
@@ -213,7 +224,9 @@ export function TemplateInput({
   paths,
   placeholder,
   suggestions: source,
-}: {
+  ariaLabel,
+  empty,
+}: TextProps & {
   id: string;
   value: string;
   onChange: (value: string) => void;
@@ -254,6 +267,8 @@ export function TemplateInput({
         ref={inputRef}
         id={id}
         className="input"
+        aria-label={ariaLabel}
+        data-empty={empty || undefined}
         value={value}
         placeholder={placeholder}
         role="combobox"

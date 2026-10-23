@@ -324,9 +324,6 @@ export const t = {
     delete: 'Delete',
     passthrough: (types: string) => `Kept unchanged from the imported bundle: ${types}. These are not updated when keys change.`,
     editing: 'editing',
-    translationsTitle: 'Translations',
-    translationsHint: 'This item in every language. Empty fields are highlighted; click a language to edit it in the form.',
-    switchLanguage: (lang: string) => `Edit in ${lang}`,
   },
   /** The Edit pane when several nodes are selected. */
   selection: {

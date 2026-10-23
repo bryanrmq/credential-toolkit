@@ -3,8 +3,6 @@ import { useStore } from '../../state/store';
 import { CredentialInspector } from './CredentialInspector';
 import { NodeInspector } from './NodeInspector';
 import { SelectionInspector } from './SelectionInspector';
-import { TranslationsAside } from './TranslationsAside';
-import { credentialRows, nodeRows } from './translationRows';
 
 export function Inspector() {
   const project = useStore((state) => state.project)!;
@@ -22,7 +20,6 @@ export function Inspector() {
           <CredentialInspector />
         )}
       </div>
-      {!several && project.languages.length > 1 && <TranslationsAside rows={visit ? nodeRows(visit.node) : credentialRows()} />}
     </div>
   );
 }
