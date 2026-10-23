@@ -1,0 +1,40 @@
+{
+  "profile_version": "swiss-profile-vc:1.0.0",
+  "vct": "${external-url}/oid4vci/vct/hundebewilligung-v01",
+  "name": "Hundebewilligung",
+  "description": "Für Hundehalter im Kanton Bern",
+  "display": [
+    {
+      "lang": "de-CH",
+      "name": "Hundebewilligung",
+      "description": "Für Hundehalter im Kanton Bern",
+      "rendering": {
+        "oca": {
+          "uri": "https://issuer.example.ch/oca/oca-bundle.json",
+          "uri#integrity": "sha256-xXPFvoSpY1byBCanMinlHP5KZnLND/wmF+jOwlTqa9w="
+        }
+      }
+    },
+    {
+      "lang": "fr-CH",
+      "name": "Permis pour chien",
+      "description": "Pour les détenteurs de chiens",
+      "rendering": {
+        "oca": {
+          "uri": "https://issuer.example.ch/oca/oca-bundle.json",
+          "uri#integrity": "sha256-xXPFvoSpY1byBCanMinlHP5KZnLND/wmF+jOwlTqa9w="
+        }
+      }
+    },
+    {
+      "lang": "en-GB",
+      "name": "Dog permit",
+      "rendering": {
+        "oca": {
+          "uri": "https://issuer.example.ch/oca/oca-bundle.json",
+          "uri#integrity": "sha256-xXPFvoSpY1byBCanMinlHP5KZnLND/wmF+jOwlTqa9w="
+        }
+      }
+    }
+  ]
+}

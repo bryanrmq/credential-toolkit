@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sriSha256, utf8 } from '../cesr';
 import { emptyProject, newAttribute } from '../model';
 import { buildBundle } from './bundle';
-import { buildOutputs, buildVctSnippet } from './outputs';
+import { buildOutputs } from './outputs';
 
 async function outputsFor(hosting: Parameters<typeof buildOutputs>[0]['hosting']) {
   const project = emptyProject(['de-CH', 'en-GB']);
@@ -30,27 +30,5 @@ describe('buildOutputs', () => {
       JSON.parse(outputs.json),
     );
     expect(outputs.integrity).toBe(await sriSha256(utf8(outputs.dataUrl)));
-  });
-});
-
-describe('buildVctSnippet', () => {
-  it('writes one display entry per language with lang and locale', async () => {
-    const { project, outputs } = await outputsFor({ mode: 'url', url: 'https://issuer.example.ch/oca-bundle.json' });
-    const snippet = buildVctSnippet(project, outputs);
-    expect(snippet.display).toEqual([
-      {
-        lang: 'de-CH',
-        locale: 'de-CH',
-        name: 'Ausweis',
-        description: 'Für Tests',
-        rendering: { oca: { uri: 'https://issuer.example.ch/oca-bundle.json', 'uri#integrity': outputs.integrity } },
-      },
-      {
-        lang: 'en-GB',
-        locale: 'en-GB',
-        name: 'Card',
-        rendering: { oca: { uri: 'https://issuer.example.ch/oca-bundle.json', 'uri#integrity': outputs.integrity } },
-      },
-    ]);
   });
 });

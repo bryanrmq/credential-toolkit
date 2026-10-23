@@ -3,7 +3,7 @@
 Build and check the OCA bundle of a swiyu SD-JWT credential outside the browser, in your own tools
 and in CI. This is the logic of the [OCA Generator](https://github.com/bryanrmq/oca-generator) web
 app: it reads the project files the app saves (`*.oca-project.json`), reports the same issues, and
-builds the same bundle, `uri#integrity` value and VCT `display` snippet.
+builds the same bundle, `uri#integrity` value and Type Metadata (`vct.json`) for the swiyu generic issuer.
 
 ES modules with TypeScript declarations, for Node 20 or later (and browsers). No network access.
 
@@ -27,7 +27,7 @@ for (const issue of result.issues) console.log(`${issue.severity}: ${issue.messa
 if (result.ok) {
   await writeFile('oca-bundle.json', result.outputs.json);
   console.log(result.outputs.integrity); // sha256-…
-  console.log(JSON.stringify(result.vct, null, 2)); // { "display": [ … ] } for the VCT
+  await writeFile('vct.json', result.vct.text); // the Type Metadata, for the swiyu generic issuer
 }
 ```
 
@@ -43,14 +43,15 @@ if (result.ok) {
 | `buildBundle(project)` | The bundle object (`{ bundle, digests }`). Throws when two groups would share a digest; `validate` reports that first. |
 | `buildOutputs(project, bundle)` | The bundle text (`json`), its `dataUrl`, the `uri` to reference and its `integrity`. |
 | `bundleIntegrity(json, hosting)` | The `uri#integrity` of bundle text as hosted at a URL or embedded as a data URL. |
-| `buildVctSnippet(project, outputs)` | The `display` array for the SD-JWT VC Type Metadata. |
+| `buildTypeMetadata(project, outputs)` | The SD-JWT VC Type Metadata (`vct.json`, `VCT_FILE_NAME`) as `{ metadata, text }`, for the swiyu generic issuer: `profile_version`, `vct` (`${external-url}/oid4vci/vct/<type key>`, which the issuer fills in), `name`, `description`, and one `display` entry per language with `lang`, `name`, `description` and `rendering.oca` (`uri` and `uri#integrity` of the bundle). No `claims`, `extends` or schema. `text` is the exact file: 2-space JSON in a fixed key order. |
+| `serializeTypeMetadata(metadata)`, `typeMetadataUri(project)` | That text for a Type Metadata object, and the project's `vct`. |
 | `issuerOf(project)` | The issuer settings (`project.issuer`: issuer name per language, logo, Issuer URL, identifiers), with a name for every language. Projects saved before them read as empty. They never go into the bundle. |
 | `issuerIdentifiers(project)`, `defaultIdentifiers(name)` | The Configuration id and Type key of the generic issuer files: the ones set in the project, else derived from the credential name (`Lernfahrausweis` gives `lernfahrausweis_sd_jwt` and `lernfahrausweis-v01`). Both match `IDENTIFIER_PATTERN` (`^[a-z0-9_-]+$`). |
 | `isIssuerLogo(uri)`, `isIssuerUrl(value)` | Whether a value can be the issuer logo (a PNG or JPEG data URL) or the Issuer URL (a real https URL). |
 | `importBundle(bundle)` | A project from a parsed bundle, with a report of what was repaired. Throws `ImportError`. |
 | `parseJsonText(text)` | `JSON.parse` that throws an `ImportError` naming the line and column. |
 
-The types (`Project`, `IssuerSettings`, `Issue`, `BundleJson`, `ExportOutputs`, …) are exported too.
+The types (`Project`, `IssuerSettings`, `Issue`, `BundleJson`, `ExportOutputs`, `TypeMetadata`, …) are exported too.
 
 ## Command line
 
@@ -81,8 +82,8 @@ oca check <project.oca-project.json>
   ```
 
 - **`oca build`** checks the same way, then writes the bundle byte for byte as the app downloads it, to
-  `-o <file>` or to stdout, and prints its `uri#integrity` and the VCT `display` snippet (or writes the
-  snippet to `--vct <file>`). When the bundle goes to stdout, everything else goes to stderr, so
+  `-o <file>` or to stdout, and prints its `uri#integrity` and the Type Metadata (or writes it byte for
+  byte to `--vct <file>`). When the bundle goes to stdout, everything else goes to stderr, so
   `oca build project.oca-project.json > oca-bundle.json` works. It writes nothing when there are errors.
 
 | Exit code | Meaning |
@@ -97,7 +98,7 @@ work as usual.
 In CI, for example:
 
 ```yaml
-- run: npx -p @bryanrmq/oca-generator oca build credential.oca-project.json -o public/oca/oca-bundle.json --vct vct-display.json
+- run: npx -p @bryanrmq/oca-generator oca build credential.oca-project.json -o public/oca/oca-bundle.json --vct vct.json
 ```
 
 ## License

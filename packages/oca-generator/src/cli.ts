@@ -30,13 +30,13 @@ const HELP = `oca: build and check swiyu OCA bundles from OCA Generator project 
 ${USAGE}
 Commands:
   build   Validate the project and write its bundle (to stdout without -o), then
-          print its uri#integrity and the VCT display snippet. Writes nothing
-          when there are errors.
+          print its uri#integrity and its Type Metadata (vct.json). Writes
+          nothing when there are errors.
   check   List the project's errors and warnings, as the app's Issues panel does.
 
 Options:
   -o, --output <file>  Write the bundle to <file> instead of stdout.
-      --vct <file>     Write the VCT display snippet to <file> instead of printing it.
+      --vct <file>     Write the Type Metadata to <file> instead of printing it.
   -h, --help           Show this help.
       --version        Show the version.
 
@@ -47,9 +47,8 @@ Exit codes:
      project file, a file saved by a newer app, or bad arguments.
 `;
 
-/** The app's wording: the Output pane's VCT hint and the Issues panel's texts. */
-const VCT_HINT =
-  'Add these entries to the "display" array of your SD-JWT VC Type Metadata. The type metadata also needs "profile_version": "swiss-profile-vc:1.0.0".';
+const VCT_HINT = 'Type Metadata (vct.json) for the swiyu generic issuer, which fills in ${external-url} when it serves the file:';
+/** The app's wording: the Issues panel's texts. */
 const NO_ISSUES = 'No issues. The bundle is ready.';
 const LOCATIONS = { credential: 'Credential', languages: 'Languages', hosting: 'Hosting' };
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
@@ -175,17 +174,18 @@ async function build(file: string, output: string | undefined, vctFile: string |
   // the rest goes to stderr to keep stdout a clean bundle.
   const report = output ? process.stdout : process.stderr;
   const style = styles(report);
-  const snippet = JSON.stringify(result.vct, null, 2);
   if (output) await write(output, result.outputs.json);
   else process.stdout.write(result.outputs.json);
-  if (vctFile) await write(vctFile, `${snippet}\n`);
+  // Byte for byte too: the Issuer Metadata's `vct_metadata_uri#integrity` hashes the text the generic issuer serves,
+  // which is this file's with `${external-url}` filled in.
+  if (vctFile) await write(vctFile, result.vct.text);
 
   const lines: string[] = [];
   if (output) lines.push(`Wrote ${output}`);
-  if (vctFile) lines.push(`Wrote ${vctFile} (VCT display snippet)`);
+  if (vctFile) lines.push(`Wrote ${vctFile} (Type Metadata)`);
   const uri = project.hosting.mode === 'dataUrl' ? 'embedded as a data URL' : result.outputs.uri || '(no hosting URL)';
-  lines.push(`${style.bold('uri')}            ${uri}`, `${style.bold('uri#integrity')}  ${result.outputs.integrity}`, '', style.dim(VCT_HINT));
-  if (!vctFile) lines.push(snippet);
+  lines.push(`${style.bold('uri')}            ${uri}`, `${style.bold('uri#integrity')}  ${result.outputs.integrity}`);
+  if (!vctFile) lines.push('', style.dim(VCT_HINT), result.vct.text);
   report.write(`${output ? '' : '\n'}${lines.join('\n')}\n`);
   return EXIT.ok;
 }
