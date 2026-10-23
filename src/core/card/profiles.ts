@@ -248,7 +248,7 @@ export const CARD_PROFILES: Record<CardPlatform, CardProfile> = {
       chevron: false,
       missingName: 'Credential',
       colours: {
-        light: { page: '#F1F5FC', row: '#FFFFFF', name: '#0A2841', summary: 'rgba(10, 40, 65, 0.68)' },
+        light: { page: '#F1F5F9', row: '#FFFFFF', name: '#0A2841', summary: 'rgba(10, 40, 65, 0.68)' },
         dark: { page: '#1C1C1E', row: '#2C2C2E', name: '#FFFFFF', summary: 'rgba(235, 235, 245, 0.6)' },
       },
     },
