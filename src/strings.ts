@@ -12,7 +12,7 @@ export const t = {
       'Build the OCA bundle for an SD-JWT credential: names, labels, colours, logos and attribute order in every language. Digests and references are computed for you.',
     privacy: 'Everything stays in this browser. Nothing is uploaded.',
     resumeTitle: 'Continue your draft',
-    resumeBody: (name: string) => `${name || 'Untitled credential'} — saved in this browser.`,
+    resumeBody: (name: string) => `${name} — saved in this browser.`,
     resumeAction: 'Open draft',
     confirmReplaceDraft: 'Starting a new project replaces the draft saved in this browser. Continue?',
     footer: 'Follows the swiyu "Visualisation of Verifiable Credential with OCA 1.0" specification.',
@@ -58,6 +58,12 @@ export const t = {
     empty: 'Paste some JSON first.',
     noLanguage: 'Choose at least one language.',
   },
+  drafts: {
+    untitled: 'Untitled credential',
+    outOfSpace:
+      "This browser is out of space, so recent changes aren't saved here. Save a project file to keep them, or delete old projects from the start screen.",
+    saveProjectFile: 'Save project file',
+  },
   workspace: {
     untitled: 'Untitled credential',
     editor: 'Editor',
@@ -82,7 +88,6 @@ export const t = {
     newProject: 'New project',
     confirmNew: 'Discard this draft and go back to the start screen? Download the bundle first if you want to keep it.',
     storageUnavailable: 'This browser does not allow local storage, so the draft will not be saved.',
-    saveFailed: 'The draft is too large to save in this browser, usually because of large logos. Shrink the logos or download the bundle to keep your work.',
     reportTitle: 'Import report',
     dismiss: 'Dismiss',
     panes: { structure: 'Structure', inspector: 'Edit', output: 'Output', issues: 'Issues' },

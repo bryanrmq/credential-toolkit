@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { rawDraft, saveDraft } from '../state/persistence';
+import { deleteDraft, rawDraft, useDrafts } from '../state/persistence';
 import { t } from '../strings';
 import { Button } from './components/controls';
 import { downloadText } from './lib/download';
@@ -36,8 +36,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
           <Button
             variant="danger"
             onClick={() => {
-              saveDraft(null);
-              window.location.reload();
+              const { rememberedId } = useDrafts.getState();
+              void (rememberedId ? deleteDraft(rememberedId) : Promise.resolve()).finally(() => window.location.reload());
             }}
           >
             {t.crash.reset}

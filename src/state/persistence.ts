@@ -1,8 +1,71 @@
-import type { Project } from '../core/model';
-import { isPlainObject } from '../core/import/report';
+/**
+ * Drafts kept in this browser. Every project open in the workspace is a draft (`AppState.draftId`): the store's
+ * `load` makes a new one unless it is given a stored draft's id, and autosave (`startAutosave`) keeps it stored.
+ * Drafts live in IndexedDB; without it (private mode, blocked storage) they live in memory for the session and
+ * the workspace says that nothing is saved.
+ *
+ * The API for the UI:
+ * - `useDrafts`: the drafts list (`drafts`, newest first), whether storage works (`available`), and the draft
+ *   last open (`rememberedId`), which a reload offers to continue (`selectResumeDraft`).
+ * - `draftDisplayName(summary)`: the name to show.
+ * - `openDraft(id)`, `createDraft(project)`: open a stored draft or a new one in the workspace.
+ * - `getDraft(id)`: a whole draft, project included.
+ * - `renameDraft(id, name)`, `deleteDraft(id)` (returns the draft so that `restoreDraft` can undo it).
+ * - `saveOpenDraft()`: saves the open draft now instead of after the autosave delay.
+ */
+import { create } from 'zustand';
+import { type ReportNote, isPlainObject } from '../core/import/report';
+import { type LangTag, type Project, newId } from '../core/model';
+import { t } from '../strings';
+import { DRAFTS_STORE, SUMMARIES_STORE, openDatabase, transact } from './idb';
+import { useStore } from './store';
 
+/** Where the single draft lived before drafts moved to IndexedDB. Read once to migrate it, then removed. */
 export const DRAFT_KEY = 'oca-generator:draft';
+/** The id of the draft last open in the workspace. */
+export const OPEN_DRAFT_KEY = 'oca-generator:open-draft';
 const AUTOSAVE_DELAY_MS = 500;
+
+/** One stored draft. */
+export interface DraftRecord {
+  id: string;
+  /** The name the user gave the draft; without one it is named after the credential. */
+  customName?: string;
+  /** When the draft was last saved, in milliseconds since the epoch. */
+  updatedAt: number;
+  project: Project;
+}
+
+/** What the drafts list needs to know about a draft, without its project. */
+export interface DraftSummary {
+  id: string;
+  customName?: string;
+  updatedAt: number;
+  /** The credential name in the project's first language, trimmed; empty when there is none. */
+  credentialName: string;
+  languages: LangTag[];
+}
+
+export interface DraftsState {
+  /** Whether drafts outlive the page. Until `initDrafts` has run (in tests that never call it), drafts live in memory. */
+  available: boolean;
+  /** Every draft, the most recently saved first. */
+  drafts: DraftSummary[];
+  /** The draft last open in the workspace, if it still exists. */
+  rememberedId: string | null;
+}
+
+export const useDrafts = create<DraftsState>(() => ({ available: true, drafts: [], rememberedId: null }));
+
+/** The draft the start screen offers to continue: the one last open, else the newest. */
+export function selectResumeDraft(state: DraftsState): DraftSummary | null {
+  return state.drafts.find((draft) => draft.id === state.rememberedId) ?? state.drafts[0] ?? null;
+}
+
+/** The draft's custom name, else the credential name, else "Untitled credential". */
+export function draftDisplayName(draft: Pick<DraftSummary, 'customName' | 'credentialName'>): string {
+  return draft.customName || draft.credentialName || t.drafts.untitled;
+}
 
 function isProject(value: unknown): value is Project {
   return (
@@ -16,18 +79,62 @@ function isProject(value: unknown): value is Project {
   );
 }
 
-export function storageAvailable(): boolean {
-  try {
-    const probe = `${DRAFT_KEY}:probe`;
-    localStorage.setItem(probe, '1');
-    localStorage.removeItem(probe);
-    return true;
-  } catch {
-    return false;
-  }
+function summaryOf({ id, customName, updatedAt, project }: DraftRecord): DraftSummary {
+  const credentialName = project.meta[project.languages[0]]?.name?.trim() ?? '';
+  return { id, ...(customName && { customName }), updatedAt, credentialName, languages: [...project.languages] };
 }
 
-export function loadDraft(): Project | null {
+const newestFirst = (a: DraftSummary, b: DraftSummary) => b.updatedAt - a.updatedAt;
+
+/** Where drafts are kept: IndexedDB, or memory when the browser has no usable storage. */
+interface Backend {
+  summaries(): Promise<DraftSummary[]>;
+  get(id: string): Promise<DraftRecord | undefined>;
+  put(record: DraftRecord): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
+function databaseBackend(db: IDBDatabase): Backend {
+  const both = [DRAFTS_STORE, SUMMARIES_STORE];
+  return {
+    summaries: () => transact(db, [SUMMARIES_STORE], 'readonly', (tx) => tx.objectStore(SUMMARIES_STORE).getAll() as IDBRequest<DraftSummary[]>),
+    get: (id) => transact(db, [DRAFTS_STORE], 'readonly', (tx) => tx.objectStore(DRAFTS_STORE).get(id) as IDBRequest<DraftRecord | undefined>),
+    put: (record) =>
+      transact(db, both, 'readwrite', (tx) => {
+        tx.objectStore(DRAFTS_STORE).put(record);
+        tx.objectStore(SUMMARIES_STORE).put(summaryOf(record));
+      }),
+    remove: (id) =>
+      transact(db, both, 'readwrite', (tx) => {
+        tx.objectStore(DRAFTS_STORE).delete(id);
+        tx.objectStore(SUMMARIES_STORE).delete(id);
+      }),
+  };
+}
+
+function memoryBackend(): Backend {
+  const records = new Map<string, DraftRecord>();
+  return {
+    summaries: async () => [...records.values()].map(summaryOf),
+    get: async (id) => records.get(id),
+    put: async (record) => void records.set(record.id, record),
+    remove: async (id) => void records.delete(id),
+  };
+}
+
+let backend: Backend = memoryBackend();
+let database: IDBDatabase | null = null;
+/** The draft the crash screen downloads: the open one, else the one last open. */
+let latest: { id: string; project: Project } | null = null;
+/** The open draft's save that waits for edits to settle. */
+let pending: { id: string; project: Project; timer: ReturnType<typeof setTimeout> } | null = null;
+
+function cancelPending() {
+  if (pending) clearTimeout(pending.timer);
+  pending = null;
+}
+
+function readLegacyDraft(): Project | null {
   try {
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) return null;
@@ -38,41 +145,205 @@ export function loadDraft(): Project | null {
   }
 }
 
-/** The stored draft exactly as saved, for the crash screen's "Download draft". */
-export function rawDraft(): string | null {
+function remember(id: string | null) {
+  useDrafts.setState({ rememberedId: id });
   try {
-    return localStorage.getItem(DRAFT_KEY);
+    if (id) localStorage.setItem(OPEN_DRAFT_KEY, id);
+    else localStorage.removeItem(OPEN_DRAFT_KEY);
+  } catch {
+    // Without storage a reload offers the newest draft instead.
+  }
+}
+
+function rememberedFromStorage(): string | null {
+  try {
+    return localStorage.getItem(OPEN_DRAFT_KEY);
   } catch {
     return null;
   }
 }
 
-export function saveDraft(project: Project | null): boolean {
+function upsertSummary(summary: DraftSummary) {
+  const others = useDrafts.getState().drafts.filter((draft) => draft.id !== summary.id);
+  useDrafts.setState({ drafts: [...others, summary].sort(newestFirst) });
+}
+
+/**
+ * Opens the drafts database and reads the drafts list. Runs once before the app renders (and again in tests,
+ * which start over each time); never rejects. Moves the single draft of earlier versions into the database,
+ * removing the old copy only once the new one is written, and makes it the draft to continue.
+ */
+export async function initDrafts(): Promise<void> {
+  cancelPending();
+  database?.close();
+  database = null;
+  latest = null;
+  let next: Backend;
+  let available = true;
   try {
-    if (project) localStorage.setItem(DRAFT_KEY, JSON.stringify(project));
-    else localStorage.removeItem(DRAFT_KEY);
-    return true;
+    database = await openDatabase();
+    next = databaseBackend(database);
   } catch {
-    return false;
+    next = memoryBackend();
+    available = false;
+  }
+
+  const legacy = readLegacyDraft();
+  let migratedId: string | null = null;
+  if (legacy) {
+    const record: DraftRecord = { id: newId(), updatedAt: Date.now(), project: legacy };
+    try {
+      await next.put(record);
+      if (available) localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      // The old key stays for the next load to try again; meanwhile the draft lives in memory.
+      next = memoryBackend();
+      available = false;
+      await next.put(record);
+    }
+    migratedId = record.id;
+  }
+
+  backend = next;
+  let drafts: DraftSummary[] = [];
+  try {
+    drafts = (await backend.summaries()).sort(newestFirst);
+  } catch {
+    // An unreadable list starts empty; saving still works.
+  }
+  const wanted = migratedId ?? rememberedFromStorage();
+  useDrafts.setState({ available, drafts, rememberedId: drafts.some((draft) => draft.id === wanted) ? wanted : null });
+  if (migratedId) remember(migratedId);
+  const resume = selectResumeDraft(useDrafts.getState());
+  const record = resume && (await getDraft(resume.id));
+  if (record) latest = { id: record.id, project: record.project };
+}
+
+/** The stored draft `id` with its project, or null when there is none or it cannot be read. */
+export async function getDraft(id: string): Promise<DraftRecord | null> {
+  try {
+    const record = await backend.get(id);
+    return record && isProject(record.project) ? record : null;
+  } catch {
+    return null;
   }
 }
 
-type Subscribe = (listener: (state: { project: Project | null }, previous: { project: Project | null }) => void) => () => void;
+/** Opens the stored draft `id` in the workspace. Resolves false when it cannot be read. */
+export async function openDraft(id: string): Promise<boolean> {
+  const record = await getDraft(id);
+  if (!record) return false;
+  useStore.getState().load(record.project, undefined, { draftId: id });
+  return true;
+}
+
+/** Opens `project` in the workspace as a new draft, stored right away, and returns its id. */
+export function createDraft(project: Project, report?: ReportNote[], options?: { reviewI14y?: boolean }): string {
+  useStore.getState().load(project, report, options);
+  return useStore.getState().draftId!;
+}
 
 /**
- * Saves the project shortly after it stops changing and reports whether saving worked
- * (it fails when big logos exceed the browser's storage quota). Returns the unsubscribe function.
+ * Writes the draft and reports in the store whether it worked, which shows or clears the out-of-space banner.
+ * A failed write changes nothing that was stored.
  */
-export function startAutosave(subscribe: Subscribe, onSaved: (ok: boolean) => void = () => {}): () => void {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const unsubscribe = subscribe((state, previous) => {
-    if (state.project === previous.project) return;
-    clearTimeout(timer);
-    const project = state.project;
-    timer = setTimeout(() => onSaved(saveDraft(project)), AUTOSAVE_DELAY_MS);
+async function writeDraft(id: string, project: Project): Promise<boolean> {
+  latest = { id, project };
+  const customName = useDrafts.getState().drafts.find((draft) => draft.id === id)?.customName;
+  const record: DraftRecord = { id, ...(customName && { customName }), updatedAt: Date.now(), project };
+  let ok = true;
+  try {
+    await backend.put(record);
+    upsertSummary(summaryOf(record));
+  } catch {
+    ok = false;
+  }
+  useStore.getState().setDraftSaveFailed(!ok);
+  return ok;
+}
+
+function flush(): Promise<boolean> {
+  if (!pending) return Promise.resolve(true);
+  const { id, project } = pending;
+  cancelPending();
+  return writeDraft(id, project);
+}
+
+/** Saves the open draft now: its waiting autosave, or else the project as it is. */
+export function saveOpenDraft(): Promise<boolean> {
+  if (pending) return flush();
+  const { draftId, project } = useStore.getState();
+  return draftId && project ? writeDraft(draftId, project) : Promise.resolve(true);
+}
+
+/** Gives draft `id` a custom name, or names it after the credential again when `name` is blank. Keeps its place in the list. */
+export async function renameDraft(id: string, name: string): Promise<boolean> {
+  const record = await getDraft(id);
+  if (!record) return false;
+  const { customName: _previous, ...rest } = record;
+  const customName = name.trim();
+  const renamed: DraftRecord = customName ? { ...rest, customName } : rest;
+  try {
+    await backend.put(renamed);
+  } catch {
+    return false;
+  }
+  upsertSummary(summaryOf(renamed));
+  return true;
+}
+
+/** Deletes draft `id` and resolves with it, for `restoreDraft` to undo; null when there was none. */
+export async function deleteDraft(id: string): Promise<DraftRecord | null> {
+  if (pending?.id === id) cancelPending();
+  const record = await getDraft(id);
+  try {
+    await backend.remove(id);
+  } catch {
+    return null;
+  }
+  useDrafts.setState({ drafts: useDrafts.getState().drafts.filter((draft) => draft.id !== id) });
+  if (useDrafts.getState().rememberedId === id) remember(null);
+  if (latest?.id === id) latest = null;
+  return record;
+}
+
+/** Puts a deleted draft back as it was, in the same place in the list. */
+export async function restoreDraft(record: DraftRecord): Promise<boolean> {
+  try {
+    await backend.put(record);
+  } catch {
+    return false;
+  }
+  upsertSummary(summaryOf(record));
+  return true;
+}
+
+/** The draft as last saved, for the crash screen's "Download draft": the open one, else the one last open. */
+export function rawDraft(): string | null {
+  return latest ? JSON.stringify(latest.project) : null;
+}
+
+/**
+ * Keeps the open draft stored: a new draft is written at once, edits shortly after they stop, and the draft
+ * left by opening another one or closing the workspace keeps its last edits. Returns the unsubscribe function.
+ */
+export function startAutosave(): () => void {
+  const unsubscribe = useStore.subscribe((state, previous) => {
+    const { draftId, project } = state;
+    if (draftId !== previous.draftId) {
+      void flush();
+      if (!draftId || !project) return;
+      latest = { id: draftId, project };
+      remember(draftId);
+      if (!useDrafts.getState().drafts.some((draft) => draft.id === draftId)) void writeDraft(draftId, project);
+      return;
+    }
+    if (!draftId || !project || project === previous.project) return;
+    cancelPending();
+    pending = { id: draftId, project, timer: setTimeout(() => void flush(), AUTOSAVE_DELAY_MS) };
   });
   return () => {
-    clearTimeout(timer);
+    cancelPending();
     unsubscribe();
   };
 }

@@ -10,7 +10,7 @@ const ICONS = { weight: 'bold' as const, size: 16 };
 
 export function App() {
   const hasProject = useStore((state) => state.project !== null);
-  useEffect(() => startAutosave(useStore.subscribe, (ok) => useStore.getState().setDraftSaveFailed(!ok)), []);
+  useEffect(() => startAutosave(), []);
   return (
     <IconContext.Provider value={ICONS}>
       <ErrorBoundary>{hasProject ? <Workspace /> : <StartScreen />}</ErrorBoundary>
