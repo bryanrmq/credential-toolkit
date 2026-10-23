@@ -1741,6 +1741,8 @@ button.tree__toggle:hover {
     max-height: calc(100cqh - 16px);
     overflow-y: auto;
     overscroll-behavior: contain;
+    /* A row scrolled into view clears the sticky header (its height is measured, as the pickers can wrap). */
+    scroll-padding: calc(var(--edit-preview-header, 0px) + 8px) 0 8px;
     margin-top: 0;
     padding-left: 24px;
     border-top: none;
