@@ -29,6 +29,7 @@ import {
   walkNodes,
 } from '../model';
 import type { CardPlatform } from './profiles';
+import { walletText } from './values';
 
 /** Claims the iOS wallet never lists, as they carry protocol data (`VcSdJWSDecoder.nonSelectivelyDisclosableClaims`). */
 export const IOS_TECHNICAL_CLAIMS: readonly string[] = [
@@ -108,10 +109,20 @@ export interface DetailsClaim {
   /** The attribute the row comes from; absent for unmapped claims. */
   attributeId?: string;
   /**
-   * What the wallet formats the value with. Absent when the wallet has no attribute for the row (elements of an
-   * array, unmapped claims), so it shows the value as plain text.
+   * What the wallet formats the value with (see `formatClaim`). Absent when the wallet has no attribute for the row
+   * (elements of an array, unmapped claims), so it shows the value as plain text.
    */
-  format?: { type: PrimitiveType; standard?: string };
+  format?: ClaimFormat;
+}
+
+/** An attribute's type and the overlays that change how its value is shown. */
+export interface ClaimFormat {
+  type: PrimitiveType;
+  standard?: string;
+  /** From the group's Format overlay, which the project keeps unchanged; `image/png` or `image/jpeg` marks an image. */
+  format?: string;
+  /** From the group's Character Encoding overlay (the attribute's, else the default), also kept unchanged. */
+  characterEncoding?: string;
 }
 
 /**
@@ -150,6 +161,8 @@ interface OcaAttribute {
   type: OcaType;
   order?: number;
   source?: ClaimsPath;
+  format?: string;
+  characterEncoding?: string;
 }
 
 type Primitive = string | number | boolean | Placeholder;
@@ -161,6 +174,8 @@ interface RawClaim {
   value: Primitive;
   /** The attribute the wallet reads labels, entries and the type from. */
   attribute?: AttributeNode;
+  format?: string;
+  characterEncoding?: string;
   nodeId?: string;
 }
 
@@ -230,11 +245,15 @@ class DetailsBuilder {
 
   private attributes(group: Group): OcaAttribute[] {
     const orders = this.orders(group);
+    const formats = passthroughOverlay(group, FORMAT_OVERLAY);
+    const encodings = passthroughOverlay(group, CHARACTER_ENCODING_OVERLAY);
     return group.children.map((node) => ({
       node,
       type: node.kind === 'attribute' ? ocaType(node.type) : linkType(node),
       order: orders && Object.hasOwn(orders, node.key) ? orders[node.key] : undefined,
       source: node.source?.length ? node.source : undefined,
+      format: overlayString(formats?.attribute_formats, node.key),
+      characterEncoding: overlayString(encodings?.attribute_character_encoding, node.key) ?? overlayString(encodings, 'default_character_encoding'),
     }));
   }
 
@@ -353,6 +372,12 @@ class DetailsBuilder {
     else if (claim.value instanceof Placeholder) value = { kind: 'placeholder', type: claim.value.type };
     else value = { kind: 'raw', value: claim.value };
     const type = attribute && (isArrayType(attribute.type) ? attribute.type.array : attribute.type);
+    const format: ClaimFormat | undefined = type && {
+      type,
+      ...(attribute.standard ? { standard: attribute.standard } : {}),
+      ...(claim.format ? { format: claim.format } : {}),
+      ...(claim.characterEncoding ? { characterEncoding: claim.characterEncoding } : {}),
+    };
     return {
       kind: 'claim',
       // A display with only an entry translation has no name, so the label falls back to the path too.
@@ -361,7 +386,7 @@ class DetailsBuilder {
       sensitive: sensitive || (attribute?.sensitive ?? false),
       path: claim.path,
       ...(claim.nodeId ? { attributeId: claim.nodeId } : {}),
-      ...(attribute && type ? { format: { type, ...(attribute.standard ? { standard: attribute.standard } : {}) } } : {}),
+      ...(format ? { format } : {}),
     };
   }
 
@@ -480,6 +505,8 @@ function claimFor(element: unknown, path: ClaimsPath, attribute: OcaAttribute | 
     order: lastIndex(path) ?? attribute?.order ?? UNORDERED_CLAIM,
     value: element,
     attribute: attribute?.node.kind === 'attribute' ? attribute.node : undefined,
+    format: attribute?.format,
+    characterEncoding: attribute?.characterEncoding,
     nodeId,
   };
 }
@@ -501,10 +528,17 @@ function isPrimitive(value: unknown): value is Primitive {
   return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || value instanceof Placeholder;
 }
 
-/** The value as the wallet's string, which entry codes are matched against. */
-function walletText(value: string | number | boolean): string {
-  if (typeof value === 'boolean') return value ? '1' : '0';
-  return String(value);
+const FORMAT_OVERLAY = 'spec/overlays/format/1.0';
+const CHARACTER_ENCODING_OVERLAY = 'spec/overlays/character_encoding/1.0';
+
+/** The group's first overlay of `type`; the wallet reads only the first (`OverlayBundleAttributesGenerator`). */
+function passthroughOverlay(group: Group, type: string): Record<string, unknown> | undefined {
+  return group.passthrough.find((overlay) => overlay.type === type);
+}
+
+function overlayString(record: unknown, key: string): string | undefined {
+  const value = isPlainObject(record) ? record[key] : undefined;
+  return typeof value === 'string' ? value : undefined;
 }
 
 /** The first display whose language starts with a preferred code, else the first display's language (`findDisplaysWithFallback`). */
