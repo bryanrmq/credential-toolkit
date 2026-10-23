@@ -1,10 +1,10 @@
-import { imageInfo } from '../image';
-import { inferPrimitive } from '../import/sample';
-import { DEFAULT_LANGUAGES } from '../langs';
-import { type Branding, type ClaimsPath, type Entries, KNOWN_STANDARDS, type NodeVisit, type Project, findNode, isArrayType } from '../model';
-import { renameLanguage, renameNode, sourcePrefixFor, uniqueKey } from '../operations';
-import { formatPath } from '../paths';
-import { FORBIDDEN_KEY_CHARACTERS, type Issue, MAX_LOGO_SIZE, pathExists, valuesAt } from './index';
+import { imageInfo } from '../image.ts';
+import { inferPrimitive } from '../import/sample.ts';
+import { DEFAULT_LANGUAGES } from '../langs.ts';
+import { type Branding, type ClaimsPath, type Entries, KNOWN_STANDARDS, type NodeVisit, type Project, findNode, isArrayType } from '../model.ts';
+import { renameLanguage, renameNode, sourcePrefixFor, uniqueKey } from '../operations.ts';
+import { formatPath } from '../paths.ts';
+import { FORBIDDEN_KEY_CHARACTERS, type Issue, MAX_LOGO_SIZE, pathExists, valuesAt } from './index.ts';
 
 export interface Fix {
   /** Says what will change, e.g. 'Rename to "birth_date"'. */

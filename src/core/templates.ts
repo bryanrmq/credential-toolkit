@@ -1,4 +1,4 @@
-import type { Group, Node } from './model';
+import type { Group, Node } from './model.ts';
 
 /**
  * One `{{…}}` expression. Editor form uses key paths (`pets.name`, `/person.lastname`);

@@ -1,0 +1,26 @@
+{
+  // Compiles src/core (from its public entry) to ES modules and declarations in dist/.
+  // Only ES2023 and Node's types: browser globals don't type-check here, so they can't reach the package.
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "module": "nodenext",
+    "rootDir": "../../src/core",
+    "outDir": "dist",
+    "declaration": true,
+    "declarationMap": false,
+    "sourceMap": false,
+    "rewriteRelativeImportExtensions": true,
+    "resolveJsonModule": false,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "files": ["../../src/core/index.ts"]
+}

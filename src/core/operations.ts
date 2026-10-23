@@ -12,8 +12,8 @@ import {
   newGroupLink,
   newId,
   walkNodes,
-} from './model';
-import { renameInTemplate, resolveTemplate, retargetTemplate } from './templates';
+} from './model.ts';
+import { renameInTemplate, resolveTemplate, retargetTemplate } from './templates.ts';
 
 /** Inserts `node` into the group with `groupId` at `index` (end when omitted). */
 export function insertNode(project: Project, groupId: string, node: Node, index?: number): void {

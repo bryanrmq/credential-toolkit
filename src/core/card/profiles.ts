@@ -6,8 +6,8 @@
  * `CredentialCardListItem.kt`, `Gradients.kt`, `GetCredentialCardStateImpl.kt`, `GetContrastedColorImpl.kt`).
  */
 
-import type { ClaimsPath } from '../model';
-import type { Gradient } from './gradients';
+import type { ClaimsPath } from '../model.ts';
+import type { Gradient } from './gradients.ts';
 
 export type CardPlatform = 'ios' | 'android';
 /** Detail and offer cards, the details screen, and the row in the home list. */

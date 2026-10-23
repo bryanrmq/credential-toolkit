@@ -1,5 +1,5 @@
-import { buildBundle, serializeBundle } from './export/bundle';
-import { importBundle } from './import/bundle';
+import { buildBundle, serializeBundle } from './export/bundle.ts';
+import { importBundle } from './import/bundle.ts';
 import {
   type Branding,
   type ClaimsPath,
@@ -8,7 +8,7 @@ import {
   type Node,
   type Project,
   typeToString,
-} from './model';
+} from './model.ts';
 
 export type ChangeSection = 'attributes' | 'labels' | 'branding' | 'languages' | 'other';
 export type ChangeTag = 'added' | 'removed' | 'changed';

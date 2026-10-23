@@ -1,6 +1,6 @@
-import { structuralSignature } from '../export/bundle';
-import { imageInfo } from '../image';
-import { hasRegion, isValidLanguageTag } from '../langs';
+import { structuralSignature } from '../export/bundle.ts';
+import { imageInfo } from '../image.ts';
+import { hasRegion, isValidLanguageTag } from '../langs.ts';
 import {
   type Branding,
   type ClaimsPath,
@@ -12,8 +12,8 @@ import {
   isArrayType,
   walkGroups,
   walkNodes,
-} from '../model';
-import { MAX_JOIN_SEPARATOR, joinSeparator, listExpressions, resolveEditorPath } from '../templates';
+} from '../model.ts';
+import { MAX_JOIN_SEPARATOR, joinSeparator, listExpressions, resolveEditorPath } from '../templates.ts';
 
 export type Severity = 'error' | 'warning';
 
@@ -87,6 +87,7 @@ function childFingerprint(group: Group): string {
   });
 }
 
+/** Every issue in `project`, in the order the app lists them. Any error blocks the export; warnings don't. */
 export function validate(project: Project): Issue[] {
   const issues: Issue[] = [];
   const error = (code: string, message: string, target: IssueTarget, summary = message, subject?: string) =>
@@ -302,6 +303,7 @@ export function validate(project: Project): Issue[] {
   return issues;
 }
 
+/** Whether any of `issues` is an error. */
 export function hasErrors(issues: Issue[]): boolean {
   return issues.some((issue) => issue.severity === 'error');
 }

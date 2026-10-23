@@ -1,7 +1,7 @@
-import { type AttrType, type AttributeNode, type Entries, type Group, type I14yLink, type LangTag, type Project, KNOWN_STANDARDS, findGroup, findNode, newAttribute } from '../model';
-import { PLACEHOLDER_KEY, insertNode, renameNode, sourcePrefixFor, uniqueKey } from '../operations';
-import { FORBIDDEN_KEY_CHARACTERS } from '../validate';
-import { ImportError, type ReportNote, isPlainObject } from './report';
+import { type AttrType, type AttributeNode, type Entries, type Group, type I14yLink, type LangTag, type Project, KNOWN_STANDARDS, findGroup, findNode, newAttribute } from '../model.ts';
+import { PLACEHOLDER_KEY, insertNode, renameNode, sourcePrefixFor, uniqueKey } from '../operations.ts';
+import { FORBIDDEN_KEY_CHARACTERS } from '../validate/index.ts';
+import { ImportError, type ReportNote, isPlainObject } from './report.ts';
 
 /** The public I14Y API (https://apiconsole.i14y.admin.ch/public/v1/index.html). It needs no key and allows any origin. */
 export const I14Y_API = 'https://api.i14y.admin.ch/api/public/v1';

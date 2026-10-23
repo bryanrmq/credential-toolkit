@@ -1,5 +1,5 @@
 import canonicalize from 'canonicalize';
-import { cesrDigest } from '../cesr';
+import { cesrDigest } from '../cesr.ts';
 import {
   DATA_SOURCE_FORMAT,
   type Branding,
@@ -9,8 +9,8 @@ import {
   typeToString,
   walkGroups,
   walkNodes,
-} from '../model';
-import { toSpecTemplate } from '../templates';
+} from '../model.ts';
+import { toSpecTemplate } from '../templates.ts';
 
 export const CAPTURE_BASE_TYPE = 'spec/capture_base/1.0';
 
@@ -227,6 +227,7 @@ export async function buildBundle(project: Project): Promise<BuiltBundle> {
   return { bundle: { ...extras, capture_bases, overlays }, digests };
 }
 
+/** The bundle text the app downloads: two-space indented JSON. `#integrity` is computed over this text. */
 export function serializeBundle(bundle: BundleJson): string {
   return JSON.stringify(bundle, null, 2);
 }

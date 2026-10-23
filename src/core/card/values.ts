@@ -15,9 +15,9 @@
  * `formatAndroidValue` for where it differs. Android's ICU and the browser's `Intl` share CLDR, so nothing is pinned.
  */
 
-import type { ClaimFormat, DetailsClaim, DetailsValue } from './details';
-import type { PrimitiveType } from '../model';
-import type { CardPlatform } from './profiles';
+import type { ClaimFormat, DetailsClaim, DetailsValue } from './details.ts';
+import type { PrimitiveType } from '../model.ts';
+import type { CardPlatform } from './profiles.ts';
 
 export interface ValueOptions {
   /** iOS: the device's first preferred language (see `walletLocale`). Android: the app locale (`androidAppLocale`). */

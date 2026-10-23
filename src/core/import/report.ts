@@ -1,4 +1,4 @@
-import type { Project } from '../model';
+import type { Project } from '../model.ts';
 
 export interface ReportNote {
   level: 'info' | 'warning';

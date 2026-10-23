@@ -1,4 +1,4 @@
-import type { ClaimsPath } from './model';
+import type { ClaimsPath } from './model.ts';
 
 const SIMPLE_NAME = /^[^.[\]"\s](?:[^.[\]"]*[^.[\]"\s])?$/;
 

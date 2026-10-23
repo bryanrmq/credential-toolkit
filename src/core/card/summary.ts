@@ -1,6 +1,6 @@
-import type { AttributeNode, Branding, ClaimsPath, LangTag, Project } from '../model';
-import { MAX_JOIN_SEPARATOR, joinSeparator, parseExpression, resolveEditorPath } from '../templates';
-import { CARD_PROFILES, type CardPlatform } from './profiles';
+import type { AttributeNode, Branding, ClaimsPath, LangTag, Project } from '../model.ts';
+import { MAX_JOIN_SEPARATOR, joinSeparator, parseExpression, resolveEditorPath } from '../templates.ts';
+import { CARD_PROFILES, type CardPlatform } from './profiles.ts';
 
 /** A run of summary text, or an attribute shown by name because there is no sample value for it. */
 export type SummarySegment = { kind: 'text'; text: string } | { kind: 'placeholder'; label: string };

@@ -8,7 +8,7 @@
  * `CredentialElements.kt`, `Badges.kt` and `app/src/main/res/values/strings.xml` with its translations.
  */
 
-import { ANDROID_APP_LANGUAGES, IOS_DEFAULT_LANGUAGE } from './details';
+import { ANDROID_APP_LANGUAGES, IOS_DEFAULT_LANGUAGE } from './details.ts';
 
 /** The status the card's badge shows. The preview cannot know it, so the user picks one; Valid by default. */
 export type CredentialStatus = 'valid' | 'invalid' | 'revoked' | 'suspended' | 'notYetValid' | 'unknown';

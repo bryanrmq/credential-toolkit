@@ -1,0 +1,127 @@
+{
+  "format": "oca-generator-project",
+  "version": 1,
+  "project": {
+    "version": 1,
+    "languages": [
+      "de-CH",
+      "en-US"
+    ],
+    "meta": {
+      "de-CH": {
+        "name": "credential de-CH",
+        "description": ""
+      },
+      "en-US": {
+        "name": "credential en-US",
+        "description": ""
+      }
+    },
+    "branding": {
+      "de-CH": {
+        "light": {
+          "logo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAACPSURBVHgB7ZbbCYAwDEVvxEHcREdzlI7gCHUDN9AtfEJM0S9BUWwrSA5cWujHgdA2oWFcWhAyxKGjYVpYNpaZawSEiHJZCjhhP84lAuMczpUgMir8Tii32PBGiRdoSVWoQhX+UJjiOfnJf9pIV68QQFjsOWIkXoVGYi/OO9zgtlDKZeEBfRbeiT4IU+xRfwVePD+H6WV/zQAAAABJRU5ErkJggg==",
+          "primaryBackgroundColor": "#ffffff",
+          "primaryField": "summary de-CH"
+        }
+      },
+      "en-US": {
+        "light": {
+          "logo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAACPSURBVHgB7ZbbCYAwDEVvxEHcREdzlI7gCHUDN9AtfEJM0S9BUWwrSA5cWujHgdA2oWFcWhAyxKGjYVpYNpaZawSEiHJZCjhhP84lAuMczpUgMir8Tii32PBGiRdoSVWoQhX+UJjiOfnJf9pIV68QQFjsOWIkXoVGYi/OO9zgtlDKZeEBfRbeiT4IU+xRfwVePD+H6WV/zQAAAABJRU5ErkJggg==",
+          "primaryBackgroundColor": "#000000",
+          "primaryField": "summary en-US"
+        }
+      }
+    },
+    "root": {
+      "id": "e64ec1cd-e540-47e0-b795-f0d85d326a9f",
+      "children": [
+        {
+          "kind": "attribute",
+          "id": "070388c9-4eec-4f5e-9478-a84fa32244e3",
+          "key": "lastName",
+          "type": "Text",
+          "source": [
+            "lastName"
+          ],
+          "sensitive": false,
+          "labels": {
+            "de-CH": "lastName de-CH",
+            "en-US": "lastName en-US"
+          }
+        },
+        {
+          "kind": "attribute",
+          "id": "4f59ad21-1289-4f62-80ff-e97be2ed9a66",
+          "key": "isOver18",
+          "type": "Boolean",
+          "source": [
+            "isOver18"
+          ],
+          "sensitive": false,
+          "labels": {
+            "de-CH": "isOver18 de-CH",
+            "en-US": "isOver18 en-US"
+          },
+          "entries": {
+            "codes": [
+              "true",
+              "false"
+            ],
+            "labels": {
+              "de-CH": {
+                "true": "true de-CH",
+                "false": "false de-CH"
+              },
+              "en-US": {
+                "true": "true en-US",
+                "false": "false en-US"
+              }
+            }
+          }
+        },
+        {
+          "kind": "attribute",
+          "id": "9f045f93-efcf-41fb-a0e6-10fceae585a2",
+          "key": "height",
+          "type": "Numeric",
+          "source": [
+            "height"
+          ],
+          "sensitive": false,
+          "labels": {
+            "de-CH": "height de-CH",
+            "en-US": "height en-US"
+          }
+        },
+        {
+          "kind": "attribute",
+          "id": "08a41d72-cd08-4979-8ac0-c521b5a3dbab",
+          "key": "dateOfBirth",
+          "type": "DateTime",
+          "source": [
+            "dateOfBirth"
+          ],
+          "sensitive": false,
+          "labels": {
+            "de-CH": "dateOfBirth de-CH",
+            "en-US": "dateOfBirth en-US"
+          },
+          "standard": "urn:iso:std:iso:8601"
+        }
+      ],
+      "passthrough": [
+        {
+          "capture_base": "IFlDhTMXHu24X5NAIsryr9w078J691eWNi_PG6B9uYt4",
+          "type": "spec/overlays/character_encoding/1.0",
+          "default_character_encoding": "utf-8"
+        }
+      ]
+    },
+    "hosting": {
+      "mode": "url",
+      "url": "https://example.org/oca/oca-bundle.json"
+    },
+    "bundleExtras": {}
+  }
+}

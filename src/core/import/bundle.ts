@@ -1,4 +1,4 @@
-import { OVERLAY_TYPES, computeDigests } from '../export/bundle';
+import { OVERLAY_TYPES, computeDigests } from '../export/bundle.ts';
 import {
   type BrandingPair,
   type ClaimsPath,
@@ -13,9 +13,9 @@ import {
   newGroupLink,
   parseTypeString,
   walkGroups,
-} from '../model';
-import { toEditorTemplate } from '../templates';
-import { ImportError, type ImportResult, type ReportNote, isPlainObject } from './report';
+} from '../model.ts';
+import { toEditorTemplate } from '../templates.ts';
+import { ImportError, type ImportResult, type ReportNote, isPlainObject } from './report.ts';
 
 interface RawCaptureBase {
   digest: string;
@@ -98,6 +98,10 @@ function isClaimsPath(value: unknown): value is ClaimsPath {
   return Array.isArray(value) && value.every((segment) => segment === null || typeof segment === 'string' || typeof segment === 'number');
 }
 
+/**
+ * A project from a parsed OCA bundle (`parseJsonText` turns text into one), with notes on what was repaired or
+ * left out. Throws an `ImportError` when `input` is not a bundle it can read.
+ */
 export async function importBundle(input: unknown): Promise<ImportResult> {
   const report: ReportNote[] = [];
   const note = (message: string, level: ReportNote['level'] = 'info') => report.push({ level, message });
