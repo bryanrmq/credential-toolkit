@@ -7,7 +7,6 @@ import { TemplateInput, TextInput } from '../components/inputs';
 import { ColorInput, LogoInput } from '../components/media';
 import { fieldId } from '../issues';
 import { InspectorHeader } from './InspectorHeader';
-import { IssuerSection } from './IssuerSection';
 import { LanguageRows } from './LanguageRows';
 import { metaRow, primaryFieldRow } from './translationRows';
 
@@ -115,7 +114,6 @@ export function CredentialInspector() {
           )}
         </div>
       </div>
-      <IssuerSection />
       {passthrough.length > 0 && <p className="note">{t.inspector.passthrough(passthrough.join(', '))}</p>}
     </>
   );

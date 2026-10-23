@@ -52,7 +52,7 @@ export function primaryFieldRow(theme: 'light' | 'dark' = 'light'): TranslationR
 export function issuerNameRow(): TranslationRow {
   return {
     id: 'issuer-name',
-    label: t.issuerSection.name,
+    label: t.metadata.name,
     ...accessors({ kind: 'issuerName' }),
   };
 }

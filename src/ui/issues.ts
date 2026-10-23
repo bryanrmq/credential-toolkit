@@ -1,11 +1,10 @@
 import { createContext, useContext } from 'react';
 import type { Group, LangTag, Project, ReviewMark } from '../core/model';
 import { confirmReview, placeOrder, reviewMarks } from '../core/review';
-import { ISSUER_ISSUE_CODES, type Issue, type IssueTarget, type Severity, validate, validateIssuer } from '../core/validate';
+import { ISSUER_FIELDS, ISSUER_ISSUE_CODES, type Issue, type IssueTarget, type Severity, validate, validateIssuer } from '../core/validate';
 import { type Fix, type FixTools, LANGUAGE_RENAME_CODES, fixesFor } from '../core/validate/fixes';
 import { useStore } from '../state/store';
 import { t } from '../strings';
-import { setIdentifiersOpen } from './lib/identifiersDisclosure';
 import { downscaleLogo } from './lib/logo';
 
 export const IssuesContext = createContext<Issue[]>([]);
@@ -152,9 +151,15 @@ function keyPath(group: Group, nodeId: string): string[] | null {
   return null;
 }
 
+/** Whether an issue points to the issuer settings, which the Metadata page holds. */
+export function isIssuerIssue(issue: Pick<Issue, 'target'>): boolean {
+  return issue.target.kind === 'credential' && ISSUER_FIELDS.includes(issue.target.field);
+}
+
 /** Where an issue sits, as shown in the Issues panel: the attribute's key path, or what else it is about. */
 export function issueLocation(issue: Issue, project: Project): string {
   const target = issue.target;
+  if (isIssuerIssue(issue)) return t.issues.locations.metadata;
   if (target.kind !== 'node') return t.issues.locations[target.kind];
   return keyPath(project.root, target.nodeId)?.join('.') ?? '';
 }
@@ -179,6 +184,13 @@ export function focusField(id: string): void {
 export function goToIssue(issue: Issue): void {
   const state = useStore.getState();
   const target = issue.target;
+  if (isIssuerIssue(issue)) {
+    // The issuer settings are on the Metadata page; the OCA keeps its view and selection.
+    state.setArea('metadata');
+    if ('lang' in target && target.lang) state.setEditLang(target.lang);
+    focusField(fieldId(target));
+    return;
+  }
   state.setView('editor');
   if (target.kind === 'languages') {
     state.setLanguagesOpen(true);
@@ -192,8 +204,6 @@ export function goToIssue(issue: Issue): void {
     state.select({ kind: 'credential' });
     if (target.lang) state.setEditLang(target.lang);
     state.setBrandingTheme(target.theme ?? 'light');
-    // The identifier inputs are inside the Issuer section's disclosure.
-    if (target.field === 'issuerConfigurationId' || target.field === 'issuerTypeKey') setIdentifiersOpen(true);
   } else {
     state.select({ kind: 'node', id: target.nodeId });
     if (target.lang) state.setEditLang(target.lang);

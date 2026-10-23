@@ -6,9 +6,9 @@ import { emptyProject, ensureIssuer, newAttribute } from '../../core/model';
 import { reviewMarks, suggestText } from '../../core/review';
 import { useStore } from '../../state/store';
 import { pngDataUrl } from '../../test/images';
-import { IDENTIFIERS_OPEN_KEY, loadIdentifiersOpen, setIdentifiersOpen } from '../lib/identifiersDisclosure';
 import { TOUR_SEEN_KEY } from '../lib/tour';
 import { Inspector } from './Inspector';
+import { MetadataView } from './MetadataView';
 import { Workspace } from './Workspace';
 
 /** De and fr, named "Lernfahrausweis" in German; no issuer settings yet. */
@@ -23,37 +23,75 @@ function loadProject() {
 
 const project = () => useStore.getState().project!;
 const issuer = () => project().issuer!;
-const section = () => screen.getByText('Issuer', { selector: '.section__title' }).closest<HTMLElement>('.section')!;
-const field = (label: string | RegExp) => within(section()).getByText(label, { selector: 'label' }).closest<HTMLElement>('.field')!;
-const toggle = () => within(section()).getByRole('button', { name: 'Identifiers' });
+const page = () => screen.getByRole('region', { name: 'Metadata' });
+const field = (label: string | RegExp) => within(page()).getByText(label, { selector: 'label' }).closest<HTMLElement>('.field')!;
+const areaTabs = () => within(screen.getByRole('tablist', { name: 'File' }));
 const issuesPanel = () => screen.getByRole('region', { name: 'Issues' });
 
 beforeEach(() => {
   localStorage.clear();
   localStorage.setItem(TOUR_SEEN_KEY, '1');
-  setIdentifiersOpen(false);
-  localStorage.removeItem(IDENTIFIERS_OPEN_KEY);
   loadProject();
 });
 
-describe('Issuer section', () => {
-  it('comes after Branding with the intro line and the four fields', () => {
+describe('OCA / Metadata switch', () => {
+  it('opens on the OCA and switches to the Metadata page, which hides Editor and Translations', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    expect(areaTabs().getByRole('tab', { name: 'OCA' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('group', { name: 'View' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Metadata' })).not.toBeInTheDocument();
+
+    await user.click(areaTabs().getByRole('tab', { name: 'Metadata' }));
+    expect(useStore.getState().area).toBe('metadata');
+    expect(page()).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'View' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Structure' })).not.toBeInTheDocument();
+    // The Issues panel stays docked under the page.
+    expect(issuesPanel()).toBeInTheDocument();
+
+    await user.click(areaTabs().getByRole('tab', { name: 'OCA' }));
+    expect(screen.getByRole('group', { name: 'View' })).toBeInTheDocument();
+  });
+
+  it('comes back to the OCA view that was open, and the narrow select switches too', async () => {
+    useStore.getState().setView('translations');
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.selectOptions(screen.getByRole('combobox', { name: 'File' }), 'metadata');
+    expect(useStore.getState().area).toBe('metadata');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'File' }), 'oca');
+    expect(useStore.getState()).toMatchObject({ area: 'oca', view: 'translations' });
+  });
+
+  it('leaves the issuer settings out of the credential editor', () => {
     render(<Inspector />);
-    const titles = [...document.querySelectorAll('.section__title')].map((title) => title.textContent);
-    expect(titles.slice(-2)).toEqual(['Branding', 'Issuer']);
-    expect(within(section()).getByText(/^Goes into the Issuer Metadata, not the bundle\./)).toHaveClass('section__intro');
-    expect(within(section()).getAllByText(/./, { selector: 'label.field__label' }).map((label) => label.textContent)).toEqual([
+    expect(screen.queryByLabelText('Issuer name')).not.toBeInTheDocument();
+    expect([...document.querySelectorAll('.section__title')].map((title) => title.textContent)).toEqual(['Branding']);
+  });
+});
+
+describe('Metadata page', () => {
+  it('holds the Issuer and Identifiers sections and the details preview', () => {
+    render(<MetadataView />);
+    expect([...page().querySelectorAll('.section__title')].map((title) => title.textContent)).toEqual(['Issuer', 'Identifiers']);
+    expect(within(page()).getByText(/^Settings for the Issuer Metadata and the Type Metadata/)).toHaveClass('section__intro');
+    expect(within(page()).getAllByText(/./, { selector: 'label.field__label' }).map((label) => label.textContent)).toEqual([
       'Issuer name',
       'Issuer logo',
       'Issuer URL optional',
+      'Configuration id',
+      'Type key',
     ]);
-    expect(toggle()).toHaveAttribute('aria-expanded', 'false');
+    const preview = screen.getByRole('region', { name: 'Preview' });
+    expect(within(preview).getByRole('group', { name: 'Preview platform' })).toBeInTheDocument();
+    expect(preview.querySelector('.output-preview')).toHaveAttribute('data-view', 'details');
   });
 
   it('lists the issuer name per language, editing language first, empty ones highlighted', async () => {
     useStore.getState().setEditLang('fr-CH');
     const user = userEvent.setup();
-    render(<Inspector />);
+    render(<MetadataView />);
     const rows = [...field('Issuer name').querySelectorAll<HTMLElement>('.lang-row')];
     expect(rows.map((row) => row.querySelector('.lang-row__code')!.textContent)).toEqual(['fr-CH', 'de-CH']);
     expect(rows[0]).toHaveAttribute('data-editing');
@@ -74,7 +112,7 @@ describe('Issuer section', () => {
     suggestText(draft, { kind: 'issuerName' }, 'fr-CH', 'Canton de Berne', 'translation');
     useStore.getState().load(draft);
     const user = userEvent.setup();
-    render(<Inspector />);
+    render(<MetadataView />);
     const french = screen.getByLabelText('Issuer name (fr-CH)');
     const row = french.closest<HTMLElement>('.lang-row')!;
     expect(row).toHaveAttribute('data-review', 'translation');
@@ -87,7 +125,7 @@ describe('Issuer section', () => {
 
   it('stores a PNG or JPEG logo as a data URL and rejects other files', async () => {
     const user = userEvent.setup({ applyAccept: false });
-    const { container } = render(<Inspector />);
+    render(<MetadataView />);
     const input = field('Issuer logo').querySelector<HTMLInputElement>('input[type="file"]')!;
     expect(input).toHaveAttribute('accept', 'image/png,image/jpeg');
     expect(within(field('Issuer logo')).getByText(/^PNG or JPEG, one logo for all languages\./)).toBeInTheDocument();
@@ -104,10 +142,10 @@ describe('Issuer section', () => {
     await waitFor(() => expect(issuer().logo).toMatch(/^data:image\/jpeg;base64,/));
     // The branding logo is a separate field and stays empty.
     expect(project().branding['de-CH'].light.logo).toBeUndefined();
-    expect(container.querySelector('#field-credential-light-issuerLogo')).toBeInTheDocument();
   });
 
   it('shows an error for an Issuer URL that is not https, and none when it is empty', async () => {
+    useStore.getState().setArea('metadata');
     const user = userEvent.setup();
     render(<Workspace />);
     const url = screen.getByLabelText(/^Issuer URL/);
@@ -123,44 +161,10 @@ describe('Issuer section', () => {
     expect(issuer().url).toBeUndefined();
     expect(within(field(/^Issuer URL/)).queryByText(/must be an https URL/)).not.toBeInTheDocument();
   });
-});
 
-describe('Identifiers disclosure', () => {
-  it('is collapsed by default and remembers being opened across a reload', async () => {
+  it('shows the defaults from the credential name in empty identifiers and the Type Metadata path', async () => {
     const user = userEvent.setup();
-    render(<Inspector />);
-    expect(screen.queryByLabelText('Configuration id')).not.toBeInTheDocument();
-
-    await user.click(toggle());
-    expect(toggle()).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByLabelText('Configuration id')).toBeInTheDocument();
-    expect(localStorage.getItem(IDENTIFIERS_OPEN_KEY)).toBe('true');
-    expect(loadIdentifiersOpen()).toBe(true);
-
-    await user.click(toggle());
-    expect(screen.queryByLabelText('Configuration id')).not.toBeInTheDocument();
-    expect(loadIdentifiersOpen()).toBe(false);
-  });
-
-  it('reads as closed when storage holds nothing usable or throws', () => {
-    localStorage.setItem(IDENTIFIERS_OPEN_KEY, 'not json');
-    expect(loadIdentifiersOpen()).toBe(false);
-    const getItem = Storage.prototype.getItem;
-    Storage.prototype.getItem = () => {
-      throw new Error('blocked');
-    };
-    try {
-      expect(loadIdentifiersOpen()).toBe(false);
-      expect(() => setIdentifiersOpen(true)).not.toThrow();
-    } finally {
-      Storage.prototype.getItem = getItem;
-    }
-  });
-
-  it('shows the defaults from the credential name in empty inputs and the Type Metadata path', async () => {
-    setIdentifiersOpen(true);
-    const user = userEvent.setup();
-    render(<Inspector />);
+    render(<MetadataView />);
     const configurationId = screen.getByLabelText('Configuration id');
     const typeKey = screen.getByLabelText('Type key');
     expect(configurationId).toHaveValue('');
@@ -179,7 +183,7 @@ describe('Identifiers disclosure', () => {
   });
 
   it('shows an error on an identifier that is not lower-case letters, digits, _ and -', async () => {
-    setIdentifiersOpen(true);
+    useStore.getState().setArea('metadata');
     const user = userEvent.setup();
     render(<Workspace />);
     await user.type(screen.getByLabelText('Configuration id'), 'Lernfahrausweis SD');
@@ -209,16 +213,19 @@ describe('Issuer issues in the Issues panel', () => {
     [/^The Type key may only contain/, () => screen.getByLabelText('Type key')],
   ];
 
-  it.each(cases)('jumps to the field of "%s"', async (summary, target) => {
+  it.each(cases)('switches to the Metadata page and focuses the field of "%s"', async (summary, target) => {
     loadBroken();
-    useStore.getState().select({ kind: 'node', id: project().root.children[0].id });
+    const nodeId = project().root.children[0].id;
+    useStore.getState().select({ kind: 'node', id: nodeId });
+    useStore.getState().setView('translations');
     const user = userEvent.setup();
     render(<Workspace />);
-    expect(screen.queryByLabelText('Configuration id')).not.toBeInTheDocument();
 
     await user.click(within(issuesPanel()).getByRole('button', { name: summary }));
-    expect(useStore.getState().selection.kind).toBe('credential');
+    expect(useStore.getState().area).toBe('metadata');
     await waitFor(() => expect(target()).toHaveFocus());
+    // The OCA keeps its view and selection for when the user switches back.
+    expect(useStore.getState()).toMatchObject({ view: 'translations', selection: { kind: 'node', id: nodeId } });
   });
 
   it('jumps to the issuer name in the language that misses it', async () => {
@@ -227,6 +234,22 @@ describe('Issuer issues in the Issues panel', () => {
     render(<Workspace />);
     await user.click(within(issuesPanel()).getByRole('button', { name: /^The issuer name is missing\./ }));
     expect(useStore.getState().editLang).toBe('fr-CH');
+  });
+
+  it('places the issuer issues under Metadata, and an OCA issue switches back to the editor', async () => {
+    loadBroken();
+    const draft = structuredClone(project());
+    draft.root.children.push(newAttribute('broken', { source: [], labels: { 'de-CH': 'Kaputt', 'fr-CH': 'Cassé' } }));
+    useStore.getState().load(draft);
+    useStore.getState().setArea('metadata');
+    const user = userEvent.setup();
+    render(<Workspace />);
+    const row = (summary: RegExp) => within(issuesPanel()).getByRole('button', { name: summary }).closest('li')!;
+    expect(row(/^The Type key may only contain/)).toHaveTextContent('Metadata');
+
+    await user.click(within(issuesPanel()).getByRole('button', { name: /"broken" has no source path/ }));
+    expect(useStore.getState()).toMatchObject({ area: 'oca', view: 'editor' });
+    expect(screen.getByLabelText('Key')).toHaveValue('broken');
   });
 
   it('counts the issuer issues with the others, but leaves the bundle download open', async () => {
@@ -241,10 +264,9 @@ describe('Issuer issues in the Issues panel', () => {
 });
 
 describe('undo and redo', () => {
-  it('takes back and redoes each Issuer field edit', async () => {
-    setIdentifiersOpen(true);
+  it('takes back and redoes each Metadata field edit', async () => {
     const user = userEvent.setup();
-    render(<Inspector />);
+    render(<MetadataView />);
     const { undo, redo } = useStore.getState();
 
     await user.type(screen.getByLabelText('Issuer name'), 'Kanton Bern');

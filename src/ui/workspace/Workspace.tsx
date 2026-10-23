@@ -36,11 +36,13 @@ import { StructurePane } from './StructurePane';
 import { TopBar } from './TopBar';
 import { Tour } from './Tour';
 import { TranslationNotice } from './TranslationNotice';
+import { MetadataView } from './MetadataView';
 import { TranslationsView } from './TranslationsView';
 
 export function Workspace() {
   const project = useStore((state) => state.project);
   const view = useStore((state) => state.view);
+  const area = useStore((state) => state.area);
   const languagesOpen = useStore((state) => state.languagesOpen);
   const tourOpen = useStore((state) => state.tourOpen);
   const saveFailed = useStore((state) => state.draftSaveFailed);
@@ -125,7 +127,7 @@ export function Workspace() {
     }
     setIssuesFocus((count) => count + 1);
   };
-  const issuesPane = !wide && view === 'editor' && pane === 'issues';
+  const issuesPane = !wide && area === 'oca' && view === 'editor' && pane === 'issues';
   const canSave = useDrafts((state) => state.available);
   useCommandShortcuts();
   // The tour starts by itself until this browser has finished or skipped it once.
@@ -146,7 +148,9 @@ export function Workspace() {
         {canSave && saveFailed && <OutOfSpaceBanner />}
         <ReportBanner />
         <I14yMatchBanner onReview={() => setPane('inspector')} />
-        {view === 'translations' ? (
+        {area === 'metadata' ? (
+          <MetadataView />
+        ) : view === 'translations' ? (
           <TranslationsView />
         ) : (
           <>

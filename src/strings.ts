@@ -132,6 +132,9 @@ export const t = {
     untitled: 'Untitled credential',
     editor: 'Editor',
     translations: 'Translations',
+    /** The top bar's switch between the two sets of files the project produces. */
+    area: 'File',
+    areas: { oca: 'OCA', metadata: 'Metadata' },
     editingLanguage: 'Editing language',
     view: 'View',
     moreActions: 'More actions',
@@ -338,10 +341,12 @@ export const t = {
     passthrough: (types: string) => `Kept unchanged from the imported bundle: ${types}. These are not updated when keys change.`,
     editing: 'editing',
   },
-  /** The Issuer section of the credential's Edit pane: settings for the Issuer Metadata, never the bundle. */
-  issuerSection: {
-    title: 'Issuer',
-    intro: 'Goes into the Issuer Metadata, not the bundle. The wallet shows it as "Issued by".',
+  /** The Metadata page: the settings of the Issuer Metadata and the Type Metadata, never the bundle. */
+  metadata: {
+    title: 'Metadata',
+    intro: 'Settings for the Issuer Metadata and the Type Metadata the swiyu generic issuer serves. None of it goes into the OCA bundle.',
+    issuer: 'Issuer',
+    issuerIntro: 'The wallet shows the issuer as "Issued by".',
     name: 'Issuer name',
     logo: 'Issuer logo',
     logoHint: 'PNG or JPEG, one logo for all languages. The wallets only draw issuer logos embedded in the Issuer Metadata as PNG or JPEG data URLs, so the file is stored as one.',
@@ -350,9 +355,12 @@ export const t = {
     urlHint:
       'The value the generic issuer puts in place of ${external-url}. With it, the tool can compute the vct_metadata_uri#integrity value.',
     identifiers: 'Identifiers',
+    identifiersIntro: 'How the generic issuer names this credential. Empty fields use the default from the credential name.',
     configurationId: 'Configuration id',
-    configurationIdHint: 'Key under credential_configurations_supported. Empty: derived from the credential name.',
+    configurationIdHint: 'Key under credential_configurations_supported in the Issuer Metadata.',
     typeKey: 'Type key',
+    preview: 'Preview',
+    previewNote: 'The details screen in the editing language. The issuer name and logo show under "Issued by".',
   },
   /** The Edit pane when several nodes are selected. */
   selection: {
@@ -463,7 +471,7 @@ export const t = {
     /** The top-bar button's accessible name: what it does, then the counts its pills show. */
     showCounts: (counts: string[]) => `Show issues: ${counts.join(', ')}`,
     /** Where an issue sits when it is not about an attribute (attributes show their key path). */
-    locations: { credential: 'Credential', languages: 'Languages', hosting: 'Hosting' },
+    locations: { credential: 'Credential', languages: 'Languages', hosting: 'Hosting', metadata: 'Metadata' },
   },
   fixes: {
     fix: 'Fix',
@@ -613,10 +621,11 @@ export const t = {
       },
       topbar: {
         title: 'Top bar',
-        body: 'Language, view and download, for the whole project.',
+        body: 'File, language, view and download, for the whole project.',
         features: [
           'Switch the editing language. Add, remove or reorder languages from the ⋯ menu.',
-          'Switch between the Editor and the Translations view.',
+          'Switch between the OCA and its Metadata: the issuer name, logo and identifiers.',
+          'On the OCA, switch between the Editor and the Translations view.',
           'The badges count errors and warnings. Download bundle works once there are no errors.',
           'The ⋯ menu also starts a new project and replays this tour.',
         ],

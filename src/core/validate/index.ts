@@ -30,6 +30,9 @@ export type CredentialField =
   | 'issuerUrl'
   | 'issuerConfigurationId'
   | 'issuerTypeKey';
+/** The credential fields of the issuer settings, edited on the Metadata page rather than in the OCA editor. */
+export const ISSUER_FIELDS: readonly CredentialField[] = ['issuerName', 'issuerLogo', 'issuerUrl', 'issuerConfigurationId', 'issuerTypeKey'];
+
 export type NodeField = 'key' | 'type' | 'source' | 'label' | 'entries';
 
 export type IssueTarget =

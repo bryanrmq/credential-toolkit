@@ -1184,6 +1184,18 @@ kbd.palette__meta {
   text-overflow: ellipsis;
   min-width: 0;
 }
+/* The OCA / Metadata switch: which file the workspace edits, like tabs of a document. */
+.topbar__areas {
+  margin-left: 8px;
+}
+.topbar__areas .tabs {
+  border-bottom: none;
+}
+.topbar__areas .tabs__tab {
+  padding: 4px 6px;
+  font-size: 13px;
+  border-bottom-width: 1px;
+}
 .topbar__actions {
   display: flex;
   align-items: center;
@@ -2001,29 +2013,7 @@ button.tree__toggle:hover {
   font-weight: 400;
   color: var(--text-muted);
 }
-/* A row that shows or hides the fields below it, between 1px dividers. */
-.disclosure {
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 20px;
-}
-.disclosure__toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 10px 0;
-  border: 0;
-  background: none;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-strong);
-  cursor: pointer;
-}
-.disclosure__body {
-  padding-top: 6px;
-}
-/* Side by side when the Edit pane has room, stacked when it is narrow. */
+/* Side by side when the form has room, stacked when it is narrow. */
 .issuer-identifiers {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -3223,6 +3213,56 @@ button.changes__subject {
   text-align: center;
   color: var(--text-muted);
   padding: 32px 8px;
+}
+
+/* Metadata page: the form, and the wallet's details screen beside it (below it on narrow windows). */
+.metadata {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+}
+.metadata__form {
+  overflow: auto;
+  padding: 24px 32px 64px;
+}
+.metadata__column {
+  max-width: 640px;
+  margin: 0 auto;
+}
+.metadata__preview {
+  overflow: auto;
+  border-left: 1px solid var(--border);
+  background: var(--canvas);
+  padding: 16px 20px 32px;
+}
+.metadata__preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.metadata__preview .output-preview {
+  margin-top: 16px;
+}
+@media (max-width: 1000px) {
+  .metadata {
+    display: block;
+    overflow: auto;
+  }
+  .metadata__form,
+  .metadata__preview {
+    overflow: visible;
+  }
+  .metadata__form {
+    padding: 20px 16px 32px;
+  }
+  .metadata__preview {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding: 16px 16px 48px;
+  }
 }
 
 /* Translations */
