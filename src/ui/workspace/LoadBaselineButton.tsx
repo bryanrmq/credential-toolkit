@@ -9,8 +9,9 @@ import { chooseBaselineFile, hostingUrlOf, loadBaselineFromUrl } from '../lib/ba
 /**
  * "Load published bundle": a dropdown that replaces the open draft's baseline, from the hosting URL (offered
  * only for URL hosting with a URL set) or from a bundle file. The project itself never changes.
+ * The Changes tab shows it as a secondary button with nothing to compare with, and a ghost one in its footer.
  */
-export function LoadBaselineButton() {
+export function LoadBaselineButton({ variant = 'secondary' }: { variant?: 'secondary' | 'ghost' }) {
   const canFetch = useStore((state) => hostingUrlOf(state.project) !== null);
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; returnFocus: HTMLElement } | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
@@ -24,6 +25,7 @@ export function LoadBaselineButton() {
     <>
       <Button
         size="small"
+        variant={variant}
         aria-haspopup="menu"
         aria-expanded={menu !== null}
         onClick={(event) => {

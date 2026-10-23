@@ -2166,6 +2166,154 @@ button.tree__toggle:hover {
   margin-bottom: 12px;
 }
 
+/* Changes tab: what changed since the published bundle. */
+.tabs__count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--yellow-text);
+}
+.changes__prompt {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+}
+.changes__none {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  margin: 0;
+}
+.changes__none svg {
+  flex: none;
+  color: var(--green-text);
+}
+.changes__warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--yellow-bg);
+  color: var(--yellow-text);
+  border-radius: 6px;
+  padding: 9px 10px;
+  margin: 0 0 10px;
+}
+.changes__warning svg {
+  flex: none;
+  margin-top: 2px;
+}
+.changes__integrity {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+.changes__integrity-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+.changes__integrity-row dt {
+  flex: none;
+  width: 64px;
+  color: var(--text-muted);
+}
+.changes__integrity-row dd {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.changes__integrity-row code {
+  min-width: 0;
+  font-size: inherit;
+  word-break: break-all;
+  color: var(--text-muted);
+}
+.changes__integrity-row--current code {
+  color: var(--text-strong);
+}
+.changes__heading {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin: 12px 0 2px;
+}
+.changes__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.changes__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-height: 32px;
+  padding: 4px 8px;
+}
+.changes__row + .changes__row {
+  border-top: 1px solid var(--border);
+}
+.changes__row--link {
+  cursor: pointer;
+}
+.changes__row--link:hover {
+  background: var(--surface-muted);
+}
+.change-tag {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+.change-tag--added {
+  background: var(--green-bg);
+  color: var(--green-text);
+}
+.change-tag--removed {
+  background: var(--red-bg);
+  color: var(--red-text);
+}
+.change-tag--changed {
+  background: var(--blue-bg);
+  color: var(--blue-text);
+}
+.changes__subject {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-strong);
+}
+button.changes__subject {
+  border: none;
+  background: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.changes__detail {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.changes__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 /* Issues panel: full width under the panes, like an editor's Problems panel. */
 .issues-panel {
   position: relative;
