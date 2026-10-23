@@ -2,7 +2,6 @@ import { ArrowRightIcon } from '@phosphor-icons/react';
 import { useRef } from 'react';
 import { importBundle } from '../../core/import/bundle';
 import { EXAMPLES, summariseBundle } from '../../examples/examples';
-import { deleteDraft, selectResumeDraft, useDrafts } from '../../state/persistence';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { useReveal } from '../lib/reveal';
@@ -17,10 +16,7 @@ export function Examples() {
 
   const open = async (bundle: unknown) => {
     const result = await importBundle(bundle);
-    const replaced = selectResumeDraft(useDrafts.getState());
-    if (replaced && !window.confirm(t.start.confirmReplaceDraft)) return;
     load(result.project, result.report, { reviewI14y: true });
-    if (replaced) void deleteDraft(replaced.id);
   };
 
   return (

@@ -15,6 +15,21 @@ function Blocks() {
   );
 }
 
+/** Blocks that grow: the hook watches the ones added since when `count` changes. */
+function GrowingBlocks({ count }: { count: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useReveal(ref, count);
+  return (
+    <div ref={ref}>
+      {Array.from({ length: count }, (_, index) => (
+        <p key={index} className="reveal">
+          block {index}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe('useReveal', () => {
@@ -41,5 +56,13 @@ describe('useReveal', () => {
     report([{ isIntersecting: true, target: getByText('first') }]);
     expect(getByText('first')).toHaveClass('is-visible');
     expect(getByText('second')).not.toHaveClass('is-visible');
+  });
+
+  it('shows blocks added later once their content key changes', () => {
+    vi.stubGlobal('IntersectionObserver', undefined);
+    const { getByText, rerender } = render(<GrowingBlocks count={1} />);
+    expect(getByText('block 0')).toHaveClass('is-visible');
+    rerender(<GrowingBlocks count={2} />);
+    expect(getByText('block 1')).toHaveClass('is-visible');
   });
 });

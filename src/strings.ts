@@ -11,10 +11,22 @@ export const t = {
     intro:
       'Build the OCA bundle for an SD-JWT credential: names, labels, colours, logos and attribute order in every language. Digests and references are computed for you.',
     privacy: 'Everything stays in this browser. Nothing is uploaded.',
-    resumeTitle: 'Continue your draft',
-    resumeBody: (name: string) => `${name} — saved in this browser.`,
-    resumeAction: 'Open draft',
-    confirmReplaceDraft: 'Starting a new project replaces the draft saved in this browser. Continue?',
+    newTitle: 'Start a new one',
+    recent: {
+      title: 'Recent projects',
+      actions: (name: string) => `Actions for ${name}`,
+      rename: 'Rename',
+      renameInput: (name: string) => `Rename ${name}`,
+      download: 'Download project file',
+      delete: 'Delete',
+      deleted: (name: string) => `'${name}' deleted`,
+      unreadable: "This project couldn't be read from this browser.",
+      showAll: (count: number) => `Show all ${count}`,
+      justNow: 'Just now',
+      minutesAgo: (minutes: number) => `${minutes} min ago`,
+      hoursAgo: (hours: number) => `${hours} h ago`,
+      yesterday: 'Yesterday',
+    },
     footer: 'Follows the swiyu "Visualisation of Verifiable Credential with OCA 1.0" specification.',
     entries: {
       sample: {

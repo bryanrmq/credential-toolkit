@@ -52,4 +52,25 @@ describe('FixToast', () => {
     expect(screen.getByText("Couldn't fix: Convert to PNG")).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
   });
+
+  it('shows another action with its own Undo, which runs it and hides the toast', () => {
+    const undo = vi.fn();
+    useStore.getState().showUndoable("'Hundebewilligung' deleted", undo);
+    render(<FixToast />);
+    expect(screen.getByText("'Hundebewilligung' deleted").parentElement).toHaveClass('toast');
+    expect(screen.getByText("'Hundebewilligung' deleted").parentElement).not.toHaveClass('toast--error');
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(undo).toHaveBeenCalledOnce();
+    expect(screen.queryByText("'Hundebewilligung' deleted")).not.toBeInTheDocument();
+    expect(name()).toBe('Fixed');
+  });
+
+  it('lets another action go after a few seconds without undoing it', () => {
+    const undo = vi.fn();
+    useStore.getState().showUndoable("'Hundebewilligung' deleted", undo);
+    render(<FixToast />);
+    act(() => vi.advanceTimersByTime(TOAST_DURATION_MS));
+    expect(screen.queryByText("'Hundebewilligung' deleted")).not.toBeInTheDocument();
+    expect(undo).not.toHaveBeenCalled();
+  });
 });

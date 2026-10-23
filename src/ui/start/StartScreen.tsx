@@ -1,12 +1,12 @@
-import { ArrowRightIcon, BracketsCurlyIcon, FilePlusIcon, IdentificationCardIcon, ShieldCheckIcon, StackIcon } from '@phosphor-icons/react';
+import { BracketsCurlyIcon, FilePlusIcon, IdentificationCardIcon, ShieldCheckIcon, StackIcon } from '@phosphor-icons/react';
 import { type ReactNode, Suspense, lazy, useRef, useState } from 'react';
-import { draftDisplayName, openDraft, selectResumeDraft, useDrafts } from '../../state/persistence';
 import { t } from '../../strings';
 import { FixToast } from '../components/FixToast';
 import { useReveal } from '../lib/reveal';
 import { Wordmark } from '../Wordmark';
 import { CredentialSketch } from './CredentialSketch';
 import { ImportDialog, type ImportKind } from './ImportDialog';
+import { RecentProjects } from './RecentProjects';
 
 const Examples = lazy(() => import('./Examples').then((module) => ({ default: module.Examples })));
 
@@ -19,7 +19,6 @@ const ENTRIES: Array<{ kind: ImportKind; icon: ReactNode; tone: string; wide?: b
 
 export function StartScreen() {
   const [dialog, setDialog] = useState<ImportKind | null>(null);
-  const draft = useDrafts(selectResumeDraft);
   const innerRef = useRef<HTMLDivElement>(null);
   useReveal(innerRef);
 
@@ -41,34 +40,29 @@ export function StartScreen() {
             <CredentialSketch />
           </div>
         </section>
-        <div className="bento">
-          {draft && (
-            <button type="button" className="bento__card bento__card--resume reveal" onClick={() => void openDraft(draft.id)}>
-              <div className="grow">
-                <div className="bento__title">{t.start.resumeTitle}</div>
-                <p className="bento__body">{t.start.resumeBody(draftDisplayName(draft))}</p>
-              </div>
-              <span className="btn btn--primary">
-                {t.start.resumeAction} <ArrowRightIcon />
-              </span>
-            </button>
-          )}
-          {ENTRIES.map((entry, index) => (
-            <button
-              key={entry.kind}
-              type="button"
-              className={`bento__card reveal${entry.wide ? ' bento__card--wide' : ''}`}
-              style={{ ['--index' as string]: index + 3 }}
-              onClick={() => setDialog(entry.kind)}
-            >
-              <span className="bento__icon" style={{ background: entry.tone }}>
-                {entry.icon}
-              </span>
-              <span className="bento__title">{t.start.entries[entry.kind].title}</span>
-              <span className="bento__body">{t.start.entries[entry.kind].body}</span>
-            </button>
-          ))}
-        </div>
+        <RecentProjects />
+        <section aria-labelledby="start-new-title">
+          <h2 id="start-new-title" className="start__heading reveal" style={{ ['--index' as string]: 3 }}>
+            {t.start.newTitle}
+          </h2>
+          <div className="bento">
+            {ENTRIES.map((entry, index) => (
+              <button
+                key={entry.kind}
+                type="button"
+                className={`bento__card reveal${entry.wide ? ' bento__card--wide' : ''}`}
+                style={{ ['--index' as string]: index + 3 }}
+                onClick={() => setDialog(entry.kind)}
+              >
+                <span className="bento__icon" style={{ background: entry.tone }}>
+                  {entry.icon}
+                </span>
+                <span className="bento__title">{t.start.entries[entry.kind].title}</span>
+                <span className="bento__body">{t.start.entries[entry.kind].body}</span>
+              </button>
+            ))}
+          </div>
+        </section>
         <Suspense fallback={null}>
           <Examples />
         </Suspense>
