@@ -40,7 +40,9 @@ function load(configure?: (project: Project) => void) {
 const renderPreview = () => render(<EditPreview beside />);
 const phone = () => within(screen.getByRole('region', { name: 'iOS details screen' }));
 /** A claim row by its accessible name: label, value and, when sensitive, "Sensitive information". */
-const row = (name: string) => phone().getByRole('group', { name });
+const row = (name: string) => phone().getByRole('button', { name });
+/** A row for a sample claim no attribute maps to, which does not link to the editor. */
+const rawRow = (name: string) => phone().getByRole('group', { name });
 
 beforeEach(() => {
   localStorage.clear();
@@ -109,7 +111,7 @@ describe('DetailsPreview on iOS', () => {
       Object.assign(project.sample as object, { extra: 'x', more: 'y' });
     });
     renderPreview();
-    expect(row('["extra"], x')).toBeInTheDocument();
+    expect(rawRow('["extra"], x')).toBeInTheDocument();
     expect(screen.getByText(/wallet may list them in another order/)).toBeInTheDocument();
   });
 
@@ -175,7 +177,7 @@ describe('DetailsPreview on Android', () => {
   beforeEach(() => useStore.setState({ cardPlatform: 'android' }));
 
   const android = () => within(screen.getByRole('region', { name: 'Android details screen' }));
-  const androidRow = (name: string) => android().getByRole('group', { name });
+  const androidRow = (name: string) => android().getByRole('button', { name });
 
   it('draws the card, the sections with their rows, and the group titles', () => {
     renderPreview();

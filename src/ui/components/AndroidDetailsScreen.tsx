@@ -5,6 +5,8 @@ import { type FormattedValue, type ValueOptions, formatClaim } from '../../core/
 import { t } from '../../strings';
 import { CardLogo } from './cardParts';
 import { CredentialCard, type CredentialCardProps } from './CredentialCard';
+import { linkedProps, rowProps, useDetailsLink } from './detailsLink';
+import { GroupTitle } from './GroupTitle';
 
 /** The width of the phone screen the wallet is drawn on, in dp: the 380 dp card plus its 16 dp margins. */
 export const ANDROID_SCREEN_WIDTH = 412;
@@ -36,12 +38,14 @@ export interface AndroidDetailsScreenProps {
  * the app's.
  *
  * Every claim row and group carries `data-node-id` (the attribute or group link it comes from) and `data-path` (its
- * claims path), so other views can point at it.
+ * claims path), so other views can point at it. Inside a `DetailsLinkContext`, rows and group titles from a node pick
+ * it, and the rows or groups of the selected node are marked `data-linked`.
  */
 export function AndroidDetailsScreen({ label, theme, title, card, status, details, text, valueOptions, issuer, scale = 1 }: AndroidDetailsScreenProps) {
   const context: RowContext = { text, valueOptions };
+  const link = useDetailsLink();
   return (
-    <div className={`android-details android-details--${theme}`} role="region" aria-label={label} style={{ zoom: scale } as CSSProperties}>
+    <div className={`android-details android-details--${theme}`} role="region" aria-label={label} style={{ zoom: scale, '--details-zoom': scale } as CSSProperties}>
       <div className="android-details__bar" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="24" height="24">
           <path d={BACK_ICON} fill="currentColor" />
@@ -57,8 +61,8 @@ export function AndroidDetailsScreen({ label, theme, title, card, status, detail
         </div>
         <div className="android-details__clusters">
           {details.sections.map((section, index) => (
-            <section key={index} className="android-section" aria-label={section.title} data-node-id={section.nodeId}>
-              <Headline title={section.title} depth={0} />
+            <section key={index} className="android-section" aria-label={section.title} data-node-id={section.nodeId} {...linkedProps(link, section.nodeId)}>
+              <Headline title={section.title} depth={0} nodeId={section.nodeId} />
               <div className="android-section__card">
                 <Items rows={section.rows} depth={1} showKey context={context} />
               </div>
@@ -147,7 +151,7 @@ function Headline({ title, depth, nodeId }: { title?: string; depth: number; nod
   const Tag = depth === 0 ? 'h3' : depth === 1 ? 'h4' : 'h5';
   return (
     <Tag className={`android-headline android-headline--${level}`} data-node-id={nodeId}>
-      {title}
+      <GroupTitle nodeId={nodeId}>{title}</GroupTitle>
     </Tag>
   );
 }
@@ -173,8 +177,9 @@ function Items({ rows, depth, showKey, context }: { rows: DetailsRow[]; depth: n
 }
 
 function GroupItem({ group, depth, context }: { group: DetailsGroup; depth: number; context: RowContext }) {
+  const link = useDetailsLink();
   return (
-    <div className="android-group" data-node-id={group.nodeId} data-path={JSON.stringify(group.path)}>
+    <div className="android-group" data-node-id={group.nodeId} data-path={JSON.stringify(group.path)} {...linkedProps(link, group.nodeId)}>
       <Headline title={group.title} depth={depth} nodeId={group.nodeId} />
       <Items rows={group.rows} depth={depth + 1} showKey={!group.valuesOnly} context={context} />
     </div>
@@ -192,6 +197,7 @@ function accessibleName(claim: DetailsClaim, value: FormattedValue, text: Androi
 
 /** A Material list item: the label as overline, the value or image with the "Sensitive" pill on the right. */
 function ClaimRow({ claim, context, showKey, divider }: { claim: DetailsClaim; context: RowContext; showKey: boolean; divider: boolean }) {
+  const link = useDetailsLink();
   const value = formatClaim(claim, context.valueOptions);
   let content: ReactNode;
   switch (value.kind) {
@@ -215,7 +221,7 @@ function ClaimRow({ claim, context, showKey, divider }: { claim: DetailsClaim; c
   return (
     <div
       className="android-claim-row"
-      role="group"
+      {...rowProps(link, claim.attributeId)}
       aria-label={accessibleName(claim, value, context.text)}
       data-node-id={claim.attributeId}
       data-path={JSON.stringify(claim.path)}

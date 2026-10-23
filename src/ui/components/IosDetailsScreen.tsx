@@ -7,6 +7,8 @@ import type { Ink } from '../../core/card/profiles';
 import { t } from '../../strings';
 import { CardLogo } from './cardParts';
 import { CredentialCard, type CredentialCardProps } from './CredentialCard';
+import { linkedProps, rowProps, useDetailsLink } from './detailsLink';
+import { GroupTitle } from './GroupTitle';
 
 /** The width of the phone screen the wallet is drawn on, in points: the 361 pt card plus its 16 pt margins. */
 export const IOS_SCREEN_WIDTH = 393;
@@ -37,12 +39,13 @@ export interface IosDetailsScreenProps {
  * colours are the wallet's, in points; the wallet's ABC Diatype fonts are replaced by the app's.
  *
  * Every claim row and group carries `data-node-id` (the attribute or group link it comes from) and `data-path` (its
- * claims path), so other views can point at it.
+ * claims path), so other views can point at it. Inside a `DetailsLinkContext`, rows and group titles from a node pick
+ * it, and the rows or groups of the selected node are marked `data-linked`.
  */
 export function IosDetailsScreen({ label, theme, title, card, status, details, text, valueOptions, issuer, scale = 1 }: IosDetailsScreenProps) {
   const context: RowContext = { text, valueOptions };
   return (
-    <div className={`ios-details ios-details--${theme}`} role="region" aria-label={label} style={{ zoom: scale } as CSSProperties}>
+    <div className={`ios-details ios-details--${theme}`} role="region" aria-label={label} style={{ zoom: scale, '--details-zoom': scale } as CSSProperties}>
       <div className="ios-details__bar" aria-hidden="true">
         <DotsThreeIcon size={22} weight="bold" />
         <span className="ios-details__title">{title}</span>
@@ -118,9 +121,14 @@ function StatusBadge({ status, ink }: { status: IosDetailsScreenProps['status'];
 
 /** `SectionView`: an optional title above a white card with rounded corners. */
 function Section({ title, nodeId, children }: { title?: string; nodeId?: string; children: ReactNode }) {
+  const link = useDetailsLink();
   return (
-    <section className="ios-section" aria-label={title} data-node-id={nodeId}>
-      {title && <h3 className="ios-section__title">{title}</h3>}
+    <section className="ios-section" aria-label={title} data-node-id={nodeId} {...linkedProps(link, nodeId)}>
+      {title && (
+        <h3 className="ios-section__title">
+          <GroupTitle nodeId={nodeId}>{title}</GroupTitle>
+        </h3>
+      )}
       <div className="ios-section__body">{children}</div>
     </section>
   );
@@ -133,9 +141,10 @@ interface RowContext {
 
 /** `ClaimClusterList.sectionView`: each item is inset by 24 pt and gets the default stack spacing. */
 function SectionRows({ section, context }: { section: DetailsGroup; context: RowContext }) {
+  const link = useDetailsLink();
   const { rows } = section;
   return rows.map((row, index) => (
-    <div key={index} className="ios-section__item">
+    <div key={index} className="ios-section__item" {...(row.kind === 'group' ? linkedProps(link, row.nodeId) : {})}>
       {row.kind === 'claim' ? (
         <ClaimRow
           claim={row}
@@ -148,7 +157,7 @@ function SectionRows({ section, context }: { section: DetailsGroup; context: Row
         <>
           {row.title && (
             <h4 className="ios-group__title ios-group__title--level1" data-node-id={row.nodeId}>
-              {row.title}
+              <GroupTitle nodeId={row.nodeId}>{row.title}</GroupTitle>
             </h4>
           )}
           <ChildGroup
@@ -166,6 +175,7 @@ function SectionRows({ section, context }: { section: DetailsGroup; context: Row
 
 /** `ChildClusterView`: a group's rows in the same card, without indentation. */
 function ChildGroup({ group, context, showLastDivider, spaced }: { group: DetailsGroup; context: RowContext; showLastDivider: boolean; spaced: number }) {
+  const link = useDetailsLink();
   const { rows } = group;
   return (
     <div className="ios-group" data-node-id={group.nodeId} data-path={JSON.stringify(group.path)} style={spaced ? { paddingTop: spaced } : undefined}>
@@ -180,10 +190,10 @@ function ChildGroup({ group, context, showLastDivider, spaced }: { group: Detail
             afterGroup={index > 0 && rows[index - 1].kind === 'group'}
           />
         ) : (
-          <div key={index}>
+          <div key={index} {...linkedProps(link, row.nodeId)}>
             {row.title && (
               <h5 className="ios-group__title ios-group__title--nested" data-node-id={row.nodeId}>
-                {row.title}
+                <GroupTitle nodeId={row.nodeId}>{row.title}</GroupTitle>
               </h5>
             )}
             <ChildGroup group={row} context={context} showLastDivider={index < rows.length - 1 || showLastDivider} spaced={index > 0 && !group.title ? 24 : 0} />
@@ -217,6 +227,7 @@ function ClaimRow({
   divider: boolean;
   afterGroup: boolean;
 }) {
+  const link = useDetailsLink();
   const value = formatClaim(claim, context.valueOptions);
   let content: ReactNode;
   switch (value.kind) {
@@ -240,7 +251,7 @@ function ClaimRow({
   return (
     <div
       className="ios-claim-row"
-      role="group"
+      {...rowProps(link, claim.attributeId)}
       aria-label={accessibleName(claim, value, context.text)}
       data-node-id={claim.attributeId}
       data-path={JSON.stringify(claim.path)}

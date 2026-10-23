@@ -1,5 +1,5 @@
 import { CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react';
-import { useId, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
 import { loadEditPreviewOpen, saveEditPreviewOpen } from '../lib/paneLayout';
@@ -8,6 +8,20 @@ import { PreviewControls } from './PreviewControls';
 
 /** The Edit pane width from which the preview sits beside the form; keep in step with `src/ui/styles.css`. */
 export const PREVIEW_BESIDE_WIDTH = 840;
+
+/** Keeps `--edit-preview-header` on the preview at its header's height, for the scroll padding beside the form. */
+function useHeaderHeight() {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const header = ref.current;
+    if (!header?.parentElement || typeof ResizeObserver === 'undefined') return;
+    const section = header.parentElement;
+    const observer = new ResizeObserver(() => section.style.setProperty('--edit-preview-header', `${header.offsetHeight}px`));
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
+  return ref;
+}
 
 /**
  * The wallet preview in the Edit pane, for whatever is selected, drawn in the editing language. `beside` (a pane at
@@ -19,6 +33,7 @@ export function EditPreview({ beside }: { beside: boolean }) {
   const bodyId = useId();
   const [open, setOpen] = useState(loadEditPreviewOpen);
   const shown = beside || open;
+  const headerRef = useHeaderHeight();
 
   return (
     <section
@@ -26,7 +41,7 @@ export function EditPreview({ beside }: { beside: boolean }) {
       aria-labelledby={titleId}
       data-placement={beside ? 'beside' : 'below'}
     >
-      <div className="edit-preview__header">
+      <div ref={headerRef} className="edit-preview__header">
         <span className="pane__title" id={titleId}>
           {t.editPreview.title}
         </span>
