@@ -34,21 +34,21 @@ describe('detailsDifferences', () => {
   it('names where Android differs from iOS: unmapped claims last, empty groups, pill, values and null rows', () => {
     expect(detailsDifferences(project(), 'ios', options)).toEqual([
       { kind: 'unmapped', first: false },
-      { kind: 'group', title: 'Adresse', shown: false },
+      { kind: 'group', title: 'Adresse', shown: false, empty: true },
       { kind: 'value', label: 'Geboren', value: { kind: 'text', text: '02.01.2020' } },
       { kind: 'value', label: 'Geimpft', value: { kind: 'text', text: 'true' } },
       { kind: 'sensitive', label: 'Vorname', shown: true },
-      { kind: 'row', label: 'Notiz', shown: true },
+      { kind: 'row', label: 'Notiz', shown: true, empty: true },
     ]);
   });
 
   it('names where iOS differs from Android, the other way round', () => {
     expect(detailsDifferences(project(), 'android', options)).toEqual([
       { kind: 'unmapped', first: true },
-      { kind: 'group', title: 'Adresse', shown: true },
+      { kind: 'group', title: 'Adresse', shown: true, empty: true },
       { kind: 'value', label: 'Geboren', value: { kind: 'text', text: '02.01.20' } },
       { kind: 'value', label: 'Geimpft', value: { kind: 'text', text: '1' } },
-      { kind: 'row', label: 'Notiz', shown: false },
+      { kind: 'row', label: 'Notiz', shown: false, empty: true },
       { kind: 'sensitive', label: 'Vorname', shown: false },
     ]);
   });

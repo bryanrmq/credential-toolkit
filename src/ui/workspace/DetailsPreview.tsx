@@ -74,9 +74,11 @@ function describeDifference(difference: DetailsDifference, platform: string): st
     case 'sensitive':
       return text.sensitive(platform, difference.label, difference.shown);
     case 'row':
-      return difference.shown ? text.rowShown(platform, difference.label) : text.rowHidden(platform, difference.label);
+      return difference.shown ? text.rowShown(platform, difference.label, difference.empty) : text.rowHidden(platform, difference.label);
     case 'group':
-      return difference.shown ? text.groupShown(platform, difference.title) : text.groupHidden(platform, difference.title);
+      return difference.shown
+        ? text.groupShown(platform, difference.title, difference.empty)
+        : text.groupHidden(platform, difference.title, difference.empty);
     case 'title':
       return text.title(platform, difference.title, difference.other);
   }
@@ -110,7 +112,10 @@ export function DetailsPreview() {
 
   const profile = CARD_PROFILES[platform];
   const { languages, valueOptions } = detailsDevice(platform, [lang]);
-  const details = useMemo(() => credentialDetails(project, { languages: detailsDevice(platform, [lang]).languages, platform }), [project, lang, platform]);
+  const details = useMemo(() => {
+    const device = detailsDevice(platform, [lang]);
+    return credentialDetails(project, { languages: device.languages, valueOptions: device.valueOptions, platform });
+  }, [project, lang, platform]);
   const differences = useMemo(() => detailsDifferences(project, platform, { deviceLanguages: [lang] }), [project, platform, lang]);
   const { branding } = selectBranding(project, lang, theme);
   const background = profile.parseBackground(branding.primaryBackgroundColor) ?? profile.fallbackBackground;
@@ -164,6 +169,7 @@ export function DetailsPreview() {
       {details.noSample && <p className="note">{t.cardPreview.noSample}</p>}
       {details.orderUndefined && <p className="note">{t.detailsPreview.orderUndefined}</p>}
       {invalidImage && <p className="note">{t.detailsPreview.invalidImageNote}</p>}
+      {details.undecodableImage && <p className="note">{t.detailsPreview.undecodableImageNote}</p>}
       <p className="note">{t.detailsPreview.issuer}</p>
       {differences.length > 0 && (
         <ul className="card-preview__differences" aria-label={t.detailsPreview.differencesLabel(otherName)}>

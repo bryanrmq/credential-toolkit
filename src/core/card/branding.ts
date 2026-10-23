@@ -14,3 +14,11 @@ export function selectBranding(
   if (theme === 'dark' && pair.dark) return { branding: pair.dark, lightShownForDark: false };
   return { branding: pair.light, lightShownForDark: theme === 'dark' };
 }
+
+/** The only logos both wallets can decode and Android accepts. */
+const DRAWABLE_LOGO = /^data:image\/(?:png|jpeg);base64,/;
+
+/** Whether the wallets can draw `logo`: a PNG or JPEG data URL. */
+export function isDrawableLogo(logo: string | undefined): logo is string {
+  return logo !== undefined && DRAWABLE_LOGO.test(logo);
+}

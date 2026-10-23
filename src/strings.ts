@@ -371,6 +371,7 @@ export const t = {
     invalidImage: 'Image the wallet rejects',
     orderUndefined: 'Some rows share an order value, usually because there is no Order overlay, so the wallet may list them in another order.',
     invalidImageNote: 'An image does not match its format, so the wallet refuses the whole credential.',
+    undecodableImageNote: "Android accepts an image here that it cannot decode, so it leaves out the other rows of that image's group too.",
     issuer: "The wallet takes the issuer's name and logo from the issuer metadata, not the OCA bundle. The preview shows the card logo.",
     caption: (platform: string) => `Approximation of the ${platform} wallet's details screen. Uses this app's font and leaves out Latest Activities.`,
     differencesLabel: (platform: string) => `Where ${platform} differs`,
@@ -384,10 +385,12 @@ export const t = {
       image: 'an image',
       rejected: 'an image it rejects, so it refuses the whole credential',
       sensitive: (platform: string, label: string, shown: boolean) => `${platform}: "${label}" ${shown ? 'has' : 'has no'} Sensitive pill`,
-      rowShown: (platform: string, label: string) => `${platform}: also lists "${label}", with an empty value`,
+      rowShown: (platform: string, label: string, empty: boolean) => `${platform}: also lists "${label}"${empty ? ', with an empty value' : ''}`,
       rowHidden: (platform: string, label: string) => `${platform}: leaves out "${label}"`,
-      groupShown: (platform: string, title?: string) => `${platform}: shows the empty group ${title ? `"${title}"` : 'without a title'}`,
-      groupHidden: (platform: string, title?: string) => `${platform}: leaves out the empty group ${title ? `"${title}"` : 'without a title'}`,
+      groupShown: (platform: string, title: string | undefined, empty: boolean) =>
+        `${platform}: shows the ${empty ? 'empty ' : ''}group ${title ? `"${title}"` : 'without a title'}`,
+      groupHidden: (platform: string, title: string | undefined, empty: boolean) =>
+        `${platform}: leaves out the ${empty ? 'empty ' : ''}group ${title ? `"${title}"` : 'without a title'}`,
       title: (platform: string, title: string, other: string) => `${platform}: group "${title}" is titled "${other}"`,
     },
   },

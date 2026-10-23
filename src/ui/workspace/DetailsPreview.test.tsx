@@ -71,6 +71,15 @@ describe('DetailsPreview on iOS', () => {
     expect(phone().getByRole('heading', { name: 'Halter' })).toHaveAttribute('data-node-id', owner.id);
   });
 
+  it('fills the templates in a group title with claim values', () => {
+    load((project) => {
+      const owner = project.root.children[2];
+      owner.labels[DE] = 'Halter {{owner.given_name}}{{unknown}}';
+    });
+    renderPreview();
+    expect(phone().getByRole('heading', { level: 4, name: 'Halter Anna' })).toBeInTheDocument();
+  });
+
   it('puts the Sensitive pill on sensitive rows only, without masking the value', () => {
     renderPreview();
     expect(row('Geboren, 2020, Sensitive information')).toHaveTextContent(/2020Sensibel$/);
@@ -122,6 +131,13 @@ describe('DetailsPreview on iOS', () => {
     expect(issuer.querySelector('.ios-details__issuer-logo img')).toHaveAttribute('src', useStore.getState().project!.branding[DE].light.logo);
     expect(issuer).toHaveTextContent('AusstellungsartStandard');
     expect(screen.getByText(/name and logo from the issuer metadata/)).toBeInTheDocument();
+  });
+
+  it("draws the wallet's unknown icon in the logo circle without a logo", () => {
+    load((project) => delete project.branding[DE].light.logo);
+    renderPreview();
+    const logo = phone().getByRole('region', { name: 'Ausgestellt von' }).querySelector('.ios-details__issuer-logo img');
+    expect(logo?.getAttribute('src')).toMatch(/^data:image\/png;base64,iVBORw0KGgo/);
   });
 
   it('shows Valid by default and the status picked above the preview', async () => {
@@ -215,6 +231,20 @@ describe('DetailsPreview on Android', () => {
     expect(within(screen.getByRole('list', { name: 'Where iOS differs' })).getByText('iOS: "Vorname" has no Sensitive pill')).toBeInTheDocument();
   });
 
+  it("leaves out a group's rows when Android cannot decode its image, and says why", () => {
+    load((project) => {
+      project.root.children.push(newAttribute('photo', { source: ['photo'], standard: 'urn:ietf:rfc:2397', labels: { [DE]: 'Foto' } }));
+      Object.assign(project.sample as object, { photo: 'data:image/png;base64,iVBORw0KGgo\nAAAAN' });
+    });
+    useStore.setState({ cardPlatform: 'android' });
+    renderPreview();
+    expect(android().queryByRole('button', { name: /^Name, Rex/ })).not.toBeInTheDocument();
+    expect(androidRow('Vorname, Anna')).toBeInTheDocument();
+    expect(screen.getByText(/cannot decode, so it leaves out the other rows/)).toBeInTheDocument();
+    const differences = within(screen.getByRole('list', { name: 'Where iOS differs' }));
+    expect(differences.getByText('iOS: also lists "Name"')).toBeInTheDocument();
+  });
+
   it('lists a null claim as –, and drops a group without claims, unlike iOS', () => {
     load((project) => {
       project.root.children.push(newAttribute('note', { source: ['note'], labels: { [DE]: 'Notiz' } }));
@@ -233,8 +263,19 @@ describe('DetailsPreview on Android', () => {
     renderPreview();
     const issuer = android().getByRole('region', { name: 'Ausgestellt von' });
     expect(within(issuer).getByText('Issuer name')).toHaveClass('android-details__placeholder');
-    expect(issuer.querySelector('.android-details__avatar img')).toHaveAttribute('src', useStore.getState().project!.branding[DE].light.logo);
+    // The logo's alpha, tinted with onSurface.
+    const logo = issuer.querySelector<HTMLElement>('.android-details__avatar-logo')!;
+    expect(logo.style.getPropertyValue('--logo')).toBe(`url("${useStore.getState().project!.branding[DE].light.logo}")`);
     expect(issuer).toHaveTextContent('AusstellungsartStandard');
+  });
+
+  it("draws the wallet's default actor icon in the avatar without a logo", () => {
+    load((project) => delete project.branding[DE].light.logo);
+    useStore.setState({ cardPlatform: 'android' });
+    renderPreview();
+    const issuer = android().getByRole('region', { name: 'Ausgestellt von' });
+    expect(issuer.querySelector('.android-details__avatar-logo')).toBeNull();
+    expect(issuer.querySelector('.android-details__avatar svg path')).toBeInTheDocument();
   });
 
   it("shows the status in Android's badge and words", async () => {

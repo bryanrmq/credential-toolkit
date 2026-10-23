@@ -2131,6 +2131,9 @@ button.tree__toggle:hover {
   --ios-separator: rgba(60, 60, 67, 0.29);
   --ios-sensitive: #f8d8fa;
   --ios-sensitive-label: #500a5a;
+  /* `navigationAccent`, the bar's tint, and `AccentColor`, the app tint (`BITAppearance.swift` L41). */
+  --ios-navigation-accent: #334254;
+  --ios-accent: #334254;
   width: 393px;
   padding-bottom: 32px;
   background: var(--ios-page);
@@ -2148,6 +2151,8 @@ button.tree__toggle:hover {
   --ios-separator: rgba(84, 84, 88, 0.6);
   --ios-sensitive: #64236e;
   --ios-sensitive-label: #f8d8fa;
+  --ios-navigation-accent: #feffff;
+  --ios-accent: #ffffff;
 }
 .ios-details__bar {
   display: grid;
@@ -2156,11 +2161,12 @@ button.tree__toggle:hover {
   justify-items: center;
   height: 44px;
   padding: 0 8px;
-  color: var(--ios-label);
+  color: var(--ios-navigation-accent);
 }
 .ios-details__title {
   font-size: 17px;
   font-weight: 600;
+  color: var(--ios-label);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2286,7 +2292,7 @@ button.tree__toggle:hover {
   font-size: 17px;
   overflow-wrap: anywhere;
 }
-/* Fitted into 120 × 120 pt, at least 60 pt tall, on the left. */
+/* Resizable and fitted into 120 × 120 pt, so a smaller image is scaled up; at least 60 pt tall, on the left. */
 .ios-claim__image {
   display: flex;
   align-items: center;
@@ -2294,9 +2300,11 @@ button.tree__toggle:hover {
   max-width: 120px;
 }
 .ios-claim__image img {
-  max-width: 120px;
+  width: 120px;
+  height: auto;
   max-height: 120px;
   object-fit: contain;
+  object-position: left center;
 }
 .ios-details__placeholder {
   color: var(--ios-label-secondary);
@@ -2326,13 +2334,19 @@ button.tree__toggle:hover {
   background: var(--ios-page);
 }
 .ios-details__issuer-logo img {
-  max-width: 18px;
-  max-height: 18px;
+  width: 18px;
+  height: 18px;
   object-fit: contain;
 }
+/* A plain `KeyValueCell` in a button: no 60 pt minimum, and the chevron takes the app tint. */
 .ios-claim--trailing {
   gap: 8px;
+  min-height: 0;
   margin-left: 24px;
+}
+.ios-claim--trailing > svg {
+  flex: none;
+  color: var(--ios-accent);
 }
 /*
  * The Android credential details screen (eidch-android-wallet v1.19.0), in dp. Colours are the wallet's light and dark
@@ -2351,10 +2365,12 @@ button.tree__toggle:hover {
   --android-avatar: #dde3ea;
   --android-sensitive: #f8d8fa;
   --android-on-sensitive: #64236e;
+  --android-on-secondary-container: #41484d;
   width: 412px;
   background: var(--android-page);
   color: var(--android-on-surface);
   font-family: var(--font-sans);
+  hyphens: auto;
 }
 .android-details--dark {
   --android-page: #161c21;
@@ -2366,6 +2382,7 @@ button.tree__toggle:hover {
   --android-avatar: #30363c;
   --android-sensitive: #500a5a;
   --android-on-sensitive: #f8d8fa;
+  --android-on-secondary-container: #dde3ea;
 }
 .android-details__bar {
   display: grid;
@@ -2374,17 +2391,19 @@ button.tree__toggle:hover {
   justify-items: center;
   height: 64px;
   padding: 0 4px;
-  color: var(--android-on-surface);
+  /* `CustomTopBarButton`: the icons take `onSecondaryContainer` (`WalletTopBar.kt` L369-376). */
+  color: var(--android-on-secondary-container);
 }
+/* No line limit (`TopBarState.titleMaxLines`): a long name wraps, and the 64 dp bar clips what does not fit. */
 .android-details__title {
   justify-self: start;
   max-width: 100%;
+  max-height: 64px;
   padding-left: 4px;
+  overflow: hidden;
+  color: var(--android-on-surface);
   font-size: 22px;
   line-height: 28px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .android-details__content {
   padding: 16px 0;
@@ -2398,7 +2417,8 @@ button.tree__toggle:hover {
 .android-details__clusters {
   margin-top: 40px;
 }
-.android-section + .android-section {
+.android-section + .android-section,
+.android-section--issuer {
   margin-top: 24px;
 }
 .android-section__card {
@@ -2421,7 +2441,13 @@ button.tree__toggle:hover {
 .android-section--issuer .android-headline--section {
   margin-bottom: 8px;
 }
+/* `TitleLargeEmphasized`: at most 3 lines, then an ellipsis. */
 .android-headline--level1 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
   padding: 24px 16px 0;
   font-size: 22px;
   line-height: 28px;
@@ -2529,10 +2555,22 @@ button.tree__toggle:hover {
   border-radius: 50%;
   background: var(--android-avatar);
 }
-.android-details__avatar img {
-  max-width: 18px;
-  max-height: 18px;
-  object-fit: contain;
+/* The logo's alpha, fitted into 18 dp and tinted with onSurface. */
+.android-details__avatar-logo {
+  width: 18px;
+  height: 18px;
+  background: var(--android-on-surface);
+  mask-image: var(--logo);
+  -webkit-mask-image: var(--logo);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+.android-details__avatar svg {
+  color: var(--android-on-surface);
 }
 .android-badge {
   display: inline-flex;

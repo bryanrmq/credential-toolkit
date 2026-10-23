@@ -13,6 +13,9 @@
  *
  * Android (`platform: 'android'`) follows swiyu-admin-ch/eidch-android-wallet v1.19.0 (commit c29a6f3); see
  * `formatAndroidValue` for where it differs. Android's ICU and the browser's `Intl` share CLDR, so nothing is pinned.
+ *
+ * Both are the wallets' latest tags (iOS v1.19.0 has no GitHub release yet; v1.18.0 is the latest one). Every rule was
+ * re-checked against them, file by file, in #113 (2026-10-23).
  */
 
 import type { ClaimFormat, DetailsClaim, DetailsValue } from './details.ts';
@@ -92,6 +95,17 @@ export function formatClaimValue(value: DetailsValue, format: ClaimFormat | unde
   if (date) return { kind: 'text', text: truncate(formatDate(date, options)) };
   if (format?.type === 'Numeric') return { kind: 'text', text: truncate(formatNumber(text, options.locale)) };
   return { kind: 'text', text: truncate(text) };
+}
+
+/**
+ * The text iOS matches entry codes against (`OcaClaimGenerator.generate` L28-36): a DateTime value that parses is
+ * replaced by its ISO 8601 form (`2024-01-05T00:00:00Z`) first, unless the attribute is a data URL.
+ */
+export function iosEntryText(text: string, format: ClaimFormat | undefined): string {
+  if (format?.type !== 'DateTime' || isStandard(format.standard, DATA_URL_STANDARD)) return text;
+  const date = EPOCH_STANDARDS.some((standard) => isStandard(format.standard, standard)) ? parseEpoch(text) : parseIsoDate(text);
+  // `ISO8601DateFormatter`: whole seconds, `Z` for GMT.
+  return date ? date.date.toISOString().replace(/\.\d{3}Z$/, 'Z') : text;
 }
 
 /**
@@ -212,15 +226,19 @@ const PATTERN_TOKENS: Record<string, string> = {
   ss: String.raw`(?<second>\d+)`,
   SSS: String.raw`\d+`,
   Z: ZONE,
-  "'T'": 'T',
-  '-': '-',
-  ':': ':',
+  // ICU's lenient parsing skips spaces before a number.
+  "'T'": String.raw`T\s*`,
+  // Between date fields: the `-` itself, then spaces; or a run of `-`, `,`, `.`, `/` and spaces that starts with
+  // another of them (`2024/01/05`, `2024.01.05`, `2024 01 05`). A second `-` would be the number's minus sign.
+  '-': String.raw`(?:-\s*|[,./\s][-,./\s]*)`,
+  // Between time fields, the same with `:` (`10:30`, `10.30`, `10-30`, `10 : 30`); `,` and `/` are not skipped here.
+  ':': String.raw`(?::\s*|[-.\s][-.:\s]*)`,
   '.': String.raw`\.`,
 };
 
 /**
- * The patterns as regular expressions, with the leniency ICU's parser shows: fields of any length (`2024-1-5`), and
- * whitespace around the value and before the zone.
+ * The patterns as regular expressions, with the leniency ICU's parser shows (run with Foundation on macOS 27): fields
+ * of any length (`2024-1-5`), other separators between fields, and whitespace around the value and before the zone.
  */
 const DATE_PARSERS = DATE_PATTERNS.map((pattern) => ({
   pattern,
@@ -349,12 +367,14 @@ function formatNumber(text: string, localeTag: string): string {
   const locale = supportedLocale(localeTag);
   const symbols = numberSymbols(locale);
   const decimal = escapeRegExp(symbols.decimal);
-  if (!new RegExp(String.raw`^-?(?:\d+(?:${decimal}\d*)?|${decimal}\d+)(?:[eE][+-]?\d+)?$`).test(text)) return text;
-  const value = Number(text.replace(symbols.decimal, '.'));
+  // `NumberFormatter` skips spaces and tabs around the number, not line breaks.
+  const number = text.replace(/^[ \t]+|[ \t]+$/g, '');
+  if (!new RegExp(String.raw`^-?(?:\d+(?:${decimal}\d*)?|${decimal}\d+)(?:[eE][+-]?\d+)?$`).test(number)) return text;
+  const value = Number(number.replace(symbols.decimal, '.'));
   if (!Number.isFinite(value)) return text;
-  if (!/e/i.test(text)) return decimalText(String(value), locale, symbols, true);
-  const integerDigits = /^[+-]?(\d+)(?:\.\d+)?(?:[eE][+-]?\d+)?$/.exec(text)?.[1]?.length ?? 0;
-  return scientificText(value, Math.max(1, integerDigits), text.includes('E') ? 'E' : 'e', locale, symbols);
+  if (!/e/i.test(number)) return decimalText(String(value), locale, symbols, true);
+  const integerDigits = /^[+-]?(\d+)(?:\.\d+)?(?:[eE][+-]?\d+)?$/.exec(number)?.[1]?.length ?? 0;
+  return scientificText(value, Math.max(1, integerDigits), number.includes('E') ? 'E' : 'e', locale, symbols);
 }
 
 function numberSymbols(locale: string): { decimal: string; group: string } {
@@ -433,8 +453,12 @@ function formatAndroidValue(value: DetailsValue, format: ClaimFormat | undefined
   switch (value.kind) {
     case 'placeholder':
       return { kind: 'placeholder', type: value.type };
-    case 'null':
+    case 'null': {
+      // `ValidateImageImpl.kt` L21-27 checks a Binary image's type before it looks at the value.
+      const mediaType = androidBinaryImageType(format);
+      if (mediaType && !isImageType(mediaType)) return { kind: 'invalidImage', mediaType, reason: 'unsupportedFormat' };
       return { kind: 'text', text: NULL_VALUE };
+    }
     case 'entry':
     case 'raw':
       break;
@@ -539,7 +563,9 @@ function parseAndroidIso(text: string): AndroidDate | undefined {
     const minute = field('minute', 0);
     const second = field('second', 0);
     let day = field('day', 1);
-    if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59 || second > 59) continue;
+    // `ResolverStyle.SMART` reads `24:00` (and only that) as midnight at the end of the day.
+    const endOfDay = hour === 24 && minute === 0 && second === 0 && !/[1-9]/.test(fields.fraction ?? '');
+    if (month < 1 || month > 12 || day < 1 || day > 31 || (hour > 23 && !endOfDay) || minute > 59 || second > 59) continue;
     day = Math.min(day, new Date(Date.UTC(2000, month, 0)).getUTCDate() - (month === 2 && !isLeapYear(year) ? 1 : 0));
     const offset = fields.zone === undefined ? 0 : (zoneOffset(fields.zone.toUpperCase()) ?? 0);
     const local = new Date(0);

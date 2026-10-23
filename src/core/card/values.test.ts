@@ -129,6 +129,13 @@ describe('numbers', () => {
     for (const value of ['abc', '1,5', '1 000', '+5', '1e400', 'NaN', '0x1A']) expect(text(value, NUMERIC)).toBe(value);
   });
 
+  it('skips spaces and tabs around a number, but not line breaks or a space after the sign', () => {
+    expect(text(' 5', NUMERIC)).toBe('5');
+    expect(text('\t1.5 ', NUMERIC)).toBe('1.5');
+    expect(text('1e3 ', NUMERIC)).toBe('1e3');
+    for (const value of ['5\n', '- 5', '1 5']) expect(text(value, NUMERIC)).toBe(value);
+  });
+
   it("uses Foundation's separators for the wallet locales, including the point in fr-CH", () => {
     expect(text('1234567.891', NUMERIC, { locale: 'en' })).toBe('1,234,567.891');
     expect(text('1234567.891', NUMERIC, { locale: 'fr-CH' })).toBe("1'234'567.891");
@@ -188,6 +195,22 @@ describe('dates', () => {
     expect(text('2024-12-31T24:00', DATE)).toBe('01.01.25, 00:00');
     expect(text(' 2024-12-31 ', DATE)).toBe('31.12.24');
     expect(text('2024-12-31T23:30:15.123456Z', DATE)).toBe('01.01.25, 00:30:15');
+  });
+
+  it("skips ICU's other separators between fields: , . / and spaces in dates, . - and spaces in times", () => {
+    for (const value of ['2024/01/05', '2024.01.05', '2024 01 05', '2024,01,05', '2024..01..05', '2024/-01/05', ' 2024 / 01 / 05 ']) {
+      expect(text(value, DATE)).toBe('05.01.24');
+    }
+    expect(text('2024/01/05T10.30.15', DATE)).toBe('05.01.24, 10:30:15');
+    expect(text('2024-01-05T 10:30', DATE)).toBe('05.01.24, 10:30');
+    expect(text('2024/01', DATE)).toBe('Januar 2024');
+    for (const value of ['10.30', '10-30', '10 30', '10-:30']) expect(text(value, DATE)).toBe('10:30');
+    // A short number reads as a time first.
+    expect(text('1.5', DATE)).toBe('01:05');
+    // A second `-` or `:` is a minus sign, `,` and `/` are not skipped in times, and the `T` takes no space before it.
+    for (const value of ['2024--01-05', '2024-/01/05', '10::30', '10,30', '10/30', '2024-01-05 T10:30', '2024-01-05T10:30:15,123Z']) {
+      expect(text(value, DATE)).toBe(value);
+    }
   });
 
   it('shows a value that does not parse as written', () => {
@@ -400,7 +423,11 @@ describe('on Android', () => {
   it('parses strict ISO only, moving a day past the month end to its last day', () => {
     expect(androidText('2024-02-30', DATE)).toBe('29.02.2024');
     expect(androidText('2023-02-29', DATE)).toBe('28.02.2023');
-    for (const value of ['2024-1-5', ' 2024-12-31', '2024-12-31T24:00', '2024-13-01', '10:00+0100x']) expect(androidText(value, DATE)).toBe(value);
+    for (const value of ['2024-1-5', ' 2024-12-31', '2024-12-31T24:30', '2024-13-01', '10:00+0100x']) expect(androidText(value, DATE)).toBe(value);
+    // `ResolverStyle.SMART` reads exactly 24:00 as midnight at the end of the day (JDK `Parsed.resolveTime`).
+    expect(androidText('2024-12-31T24:00', DATE)).toBe('01.01.2025, 00:00');
+    expect(androidText('2024-12-31T24:00:00.000Z', DATE, { ...ANDROID, timeZone: 'UTC' })).toBe('01.01.2025, 00:00:00.000');
+    expect(androidText('24:00', DATE)).toBe('00:00');
     // The date-only offset must be written with a colon (ISO_OFFSET_DATE); the converted day can move.
     expect(androidText('2024-12-31+05:00', DATE)).toBe('30.12.2024');
     expect(androidText('2024-12-31+0500', DATE)).toBe('2024-12-31+0500');
@@ -436,5 +463,11 @@ describe('on Android', () => {
     expect(android(PNG, typed('Binary', { format: 'image/webp', characterEncoding: 'base64' }))).toMatchObject({ reason: 'unsupportedFormat' });
     expect(android('data:image/png,abc', DATA_URL)).toEqual({ kind: 'text', text: 'data:image/png,abc' });
     expect(android(PNG, typed('Binary', { format: 'image/png', characterEncoding: 'utf-8' }))).toEqual({ kind: 'text', text: PNG });
+  });
+
+  it('refuses a null for an image type other than PNG or JPEG, as the type is checked first', () => {
+    const webp = typed('Binary', { format: 'image/webp', characterEncoding: 'base64' });
+    expect(formatClaimValue({ kind: 'null' }, webp, ANDROID)).toEqual({ kind: 'invalidImage', mediaType: 'image/webp', reason: 'unsupportedFormat' });
+    expect(formatClaimValue({ kind: 'null' }, PNG_BINARY, ANDROID)).toEqual({ kind: 'text', text: NULL_VALUE });
   });
 });
