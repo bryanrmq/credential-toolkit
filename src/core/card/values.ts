@@ -10,28 +10,35 @@
  *
  * The browser's `Intl` stands in for Foundation's formatters, so a browser with older locale data can differ slightly.
  * Number separators are pinned for the wallet's own locales, where Foundation and `Intl` disagree (`fr-CH`).
+ *
+ * Android (`platform: 'android'`) follows swiyu-admin-ch/eidch-android-wallet v1.19.0 (commit c29a6f3); see
+ * `formatAndroidValue` for where it differs. Android's ICU and the browser's `Intl` share CLDR, so nothing is pinned.
  */
 
 import type { ClaimFormat, DetailsClaim, DetailsValue } from './details';
 import type { PrimitiveType } from '../model';
+import type { CardPlatform } from './profiles';
 
 export interface ValueOptions {
-  /** The display locale, the device's first preferred language (see `walletLocale`). */
+  /** iOS: the device's first preferred language (see `walletLocale`). Android: the app locale (`androidAppLocale`). */
   locale: string;
   /** The device's IANA time zone. Defaults to the browser's. */
   timeZone?: string;
+  /** Defaults to iOS. */
+  platform?: CardPlatform;
 }
 
 export type ImageType = 'image/png' | 'image/jpeg';
 
 /**
- * What the row shows: text; an image, which iOS draws under the label fitted into 120×120 points and left-aligned; an
- * image the wallet rejects, which makes it refuse the whole credential; or, without a sample, the attribute's type.
+ * What the row shows: text; an image, which iOS draws under the label fitted into 120×120 points and left-aligned
+ * (Android: at most 160 dp tall); an image the wallet rejects, which makes it refuse the whole credential; or, without
+ * a sample, the attribute's type. Only Android rejects other image types (`unsupportedFormat`).
  */
 export type FormattedValue =
   | { kind: 'text'; text: string }
   | { kind: 'image'; mediaType: ImageType; base64: string; src: string }
-  | { kind: 'invalidImage'; mediaType: ImageType; reason: 'invalidData' | 'mismatchingFormat' }
+  | { kind: 'invalidImage'; mediaType: string; reason: 'invalidData' | 'mismatchingFormat' | 'unsupportedFormat' }
   | { kind: 'placeholder'; type: PrimitiveType };
 
 /** The largest box iOS fits a claim image into, in points (`ClaimCell.Defaults`). */
@@ -39,6 +46,12 @@ export const IOS_CLAIM_IMAGE_SIZE = 120;
 
 /** Longer values are cut and end with `…`, "size of A4 document" (`CredentialClaim.localizedValue`). */
 export const MAX_VALUE_LENGTH = 1800;
+
+/** The tallest Android draws a claim image, in dp (`Sizes.claimImageMaxHeight`). */
+export const ANDROID_CLAIM_IMAGE_MAX_HEIGHT = 160;
+
+/** What both wallets show for a value that is null (`localizedValue`; `CredentialElements.kt`). */
+export const NULL_VALUE = '–';
 
 /** The locale iOS formats values with: the first device language as is, else English (`CredentialClaim.currentLocale`). */
 export function walletLocale(deviceLanguages: readonly string[]): string {
@@ -52,11 +65,14 @@ export function formatClaim(claim: DetailsClaim, options: ValueOptions): Formatt
 
 /** A value as the wallet shows it. Without `format` (no OCA attribute for the row), the value is plain text. */
 export function formatClaimValue(value: DetailsValue, format: ClaimFormat | undefined, options: ValueOptions): FormattedValue {
+  if (options.platform === 'android') return formatAndroidValue(value, format, options);
   switch (value.kind) {
     case 'placeholder':
       return { kind: 'placeholder', type: value.type };
     case 'entry':
       return { kind: 'text', text: truncate(value.label) };
+    case 'null':
+      return { kind: 'text', text: NULL_VALUE };
     case 'raw':
       break;
   }
@@ -393,4 +409,196 @@ function roundHalfEven(digits: string, count: number): string {
 
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Android.
+
+/**
+ * A value as the Android wallet shows it: `GenerateOcaClaimDisplaysImpl` (value type, images, dates), then
+ * `MapToCredentialClaimDataImpl` (formatting), under `app/src/main/java/ch/admin/foitt/wallet/platform/`. Where it
+ * differs from iOS:
+ * - JSON booleans show `true` and `false`; numbers show as written in the JSON (here: as JavaScript writes them).
+ * - Numbers keep the digits they are written with: as many fraction digits and leading zeros, no rounding, and an
+ *   exponent copied as written (`1.50` stays `1.50`, `1.5e3` stays `1.5e3`).
+ * - Dates use the locale's best pattern for a fixed skeleton: a four-digit year, two-digit day and month, 24-hour
+ *   time, seconds and milliseconds when the source has them (`31.12.2024, 14:30`). Epoch seconds must be a whole
+ *   number and show no seconds. Parsing is strict ISO, except that a day past the month's end becomes its last day.
+ * - Entry labels replace codes for text, booleans and numbers only, and are not cut. Dates and numbers are not cut.
+ * - Text over 1800 UTF-16 units is cut (Swift counts characters).
+ * - Any `image/…` data URL or Binary format is an image; types other than PNG and JPEG make the wallet refuse the
+ *   credential. Images are checked by their base64 prefix only.
+ * - A JSON `null` shows `–`.
+ */
+function formatAndroidValue(value: DetailsValue, format: ClaimFormat | undefined, options: ValueOptions): FormattedValue {
+  switch (value.kind) {
+    case 'placeholder':
+      return { kind: 'placeholder', type: value.type };
+    case 'null':
+      return { kind: 'text', text: NULL_VALUE };
+    case 'entry':
+    case 'raw':
+      break;
+  }
+  const raw = value.kind === 'entry' ? value.code : String(value.value);
+  let text = raw;
+  let mediaType: string | undefined;
+  let date: AndroidDate | undefined;
+  if (isStandard(format?.standard, DATA_URL_STANDARD)) {
+    const match = /^data:(image\/[^;]{1,121});base64,/.exec(raw);
+    if (match) {
+      text = raw.slice(raw.indexOf(';base64,') + ';base64,'.length);
+      mediaType = match[1];
+    }
+  } else if (format?.type === 'DateTime') {
+    date = EPOCH_STANDARDS.some((standard) => isStandard(format.standard, standard)) ? parseAndroidEpoch(raw) : parseAndroidIso(raw);
+  }
+  mediaType ??= androidBinaryImageType(format);
+  if (mediaType) return androidImage(text, mediaType);
+  if (format?.type === 'DateTime') return { kind: 'text', text: date ? formatAndroidDate(date, options) : raw };
+  if (value.kind === 'entry') return { kind: 'text', text: value.label };
+  if (format?.type === 'Numeric') return { kind: 'text', text: formatAndroidNumber(raw, options.locale) };
+  return { kind: 'text', text: raw.length > MAX_VALUE_LENGTH ? `${raw.slice(0, MAX_VALUE_LENGTH)}…` : raw };
+}
+
+/** `getValueTypeForBinary`: base64 with a format starting `image/`. */
+function androidBinaryImageType(format: ClaimFormat | undefined): string | undefined {
+  if (format?.type !== 'Binary' || format.characterEncoding?.toLowerCase() !== 'base64') return undefined;
+  return format.format?.startsWith('image/') ? format.format : undefined;
+}
+
+/** `ImageType`'s magic numbers, base64-encoded. */
+const ANDROID_IMAGE_PREFIXES: Record<ImageType, string> = { 'image/png': 'iVBORw0KGgo', 'image/jpeg': '/9j/' };
+
+/**
+ * `ValidateImageImpl`: only PNG and JPEG, starting with their magic number. The details screen then decodes the data
+ * with Java's basic base64 decoder, which fails on anything else.
+ */
+function androidImage(data: string, mediaType: string): FormattedValue {
+  if (!isImageType(mediaType)) return { kind: 'invalidImage', mediaType, reason: 'unsupportedFormat' };
+  const afterComma = data.includes(',') ? data.slice(data.indexOf(',') + 1) : data;
+  if (!afterComma.startsWith(ANDROID_IMAGE_PREFIXES[mediaType])) return { kind: 'invalidImage', mediaType, reason: 'mismatchingFormat' };
+  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}(?:==)?|[A-Za-z0-9+/]{3}=?)?$/.test(data)) {
+    return { kind: 'invalidImage', mediaType, reason: 'invalidData' };
+  }
+  const padded = data.padEnd(Math.ceil(data.length / 4) * 4, '=');
+  return { kind: 'image', mediaType, base64: data, src: `data:${mediaType};base64,${padded}` };
+}
+
+/** `DateTimePattern`: which fields the formatted value has, and whether the source had a zone. */
+type AndroidDatePattern = 'dateTime' | 'date' | 'time' | 'yearMonth' | 'year';
+
+interface AndroidDate {
+  date: Date;
+  pattern: AndroidDatePattern;
+  seconds: boolean;
+  fraction: boolean;
+  zone: boolean;
+}
+
+const HM = String.raw`(?<hour>\d{2}):(?<minute>\d{2})`;
+const HMS = String.raw`${HM}:(?<second>\d{2})`;
+const HMSF = String.raw`${HMS}\.(?<fraction>\d{1,9})`;
+const ISO_DATE = String.raw`(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})`;
+/** `parseLenient().appendOffsetId()`: hours, then optional minutes and seconds, with colons. */
+const LENIENT_OFFSET = String.raw`(?<zone>Z|[+-]\d{2}(?::\d{2}(?::\d{2})?)?)`;
+/** `ISO_OFFSET_DATE`'s strict offset. */
+const STRICT_OFFSET = String.raw`(?<zone>Z|[+-]\d{2}:\d{2}(?::\d{2})?)`;
+
+/** `parseIso8601`'s parsers in the order it tries them. All but `HH:mmZ` ignore case. */
+const ANDROID_DATE_PARSERS: { regex: RegExp; pattern: AndroidDatePattern }[] = [
+  { regex: /^(?<year>-?\d{1,9})$/, pattern: 'year' },
+  { regex: /^(?<year>-?\d{1,9})-(?<month>\d+)$/, pattern: 'yearMonth' },
+  { regex: new RegExp(`^${HM}${LENIENT_OFFSET}$`), pattern: 'time' },
+  { regex: new RegExp(`^${HMS}${LENIENT_OFFSET}$`, 'i'), pattern: 'time' },
+  { regex: new RegExp(`^${HMSF}${LENIENT_OFFSET}$`, 'i'), pattern: 'time' },
+  { regex: new RegExp(`^${HMSF}$`, 'i'), pattern: 'time' },
+  { regex: new RegExp(`^${HMS}$`, 'i'), pattern: 'time' },
+  { regex: new RegExp(`^${HM}$`, 'i'), pattern: 'time' },
+  { regex: new RegExp(`^${ISO_DATE}T${HM}${LENIENT_OFFSET}$`, 'i'), pattern: 'dateTime' },
+  { regex: new RegExp(`^${ISO_DATE}T${HMS}${LENIENT_OFFSET}$`, 'i'), pattern: 'dateTime' },
+  { regex: new RegExp(`^${ISO_DATE}T${HMSF}${LENIENT_OFFSET}$`, 'i'), pattern: 'dateTime' },
+  { regex: new RegExp(`^${ISO_DATE}T${HM}$`, 'i'), pattern: 'dateTime' },
+  { regex: new RegExp(`^${ISO_DATE}T${HMS}$`, 'i'), pattern: 'dateTime' },
+  { regex: new RegExp(`^${ISO_DATE}T${HMSF}$`, 'i'), pattern: 'dateTime' },
+  { regex: new RegExp(`^${ISO_DATE}${STRICT_OFFSET}$`, 'i'), pattern: 'date' },
+  { regex: new RegExp(`^${ISO_DATE}$`, 'i'), pattern: 'date' },
+];
+
+/**
+ * `DateTimeHelper.parseIso8601`. Fields are checked against their ranges, and a day past the month's end becomes the
+ * month's last day (`ResolverStyle.SMART`). A time without a date falls on 1 January of year 0.
+ */
+function parseAndroidIso(text: string): AndroidDate | undefined {
+  for (const { regex, pattern } of ANDROID_DATE_PARSERS) {
+    const fields = regex.exec(text)?.groups;
+    if (!fields) continue;
+    const field = (name: string, fallback: number) => (fields[name] === undefined ? fallback : Number(fields[name]));
+    const year = field('year', 0);
+    const month = field('month', 1);
+    const hour = field('hour', 0);
+    const minute = field('minute', 0);
+    const second = field('second', 0);
+    let day = field('day', 1);
+    if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59 || second > 59) continue;
+    day = Math.min(day, new Date(Date.UTC(2000, month, 0)).getUTCDate() - (month === 2 && !isLeapYear(year) ? 1 : 0));
+    const offset = fields.zone === undefined ? 0 : (zoneOffset(fields.zone.toUpperCase()) ?? 0);
+    const local = new Date(0);
+    local.setUTCFullYear(year, month - 1, day);
+    local.setUTCHours(hour, minute, second, Number((fields.fraction ?? '0').padEnd(3, '0').slice(0, 3)));
+    const date = new Date(local.getTime() - Math.trunc(offset * 60) * 1000);
+    if (Number.isNaN(date.getTime())) return undefined;
+    return { date, pattern, seconds: fields.second !== undefined, fraction: fields.fraction !== undefined, zone: fields.zone !== undefined };
+  }
+  return undefined;
+}
+
+function isLeapYear(year: number): boolean {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+/** `parseUnixTime`: whole seconds only (`String.toLong`), shown with date, hours and minutes in the device's zone. */
+function parseAndroidEpoch(text: string): AndroidDate | undefined {
+  if (!/^[+-]?\d{1,19}$/.test(text)) return undefined;
+  const date = new Date(Number(text) * 1000);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return { date, pattern: 'dateTime', seconds: false, fraction: false, zone: true };
+}
+
+/**
+ * `localizeDateTime`: `DateFormat.getBestDateTimePattern` for `yyyy-MM-dd, HH:mm[:ss[.SSS]]`, `yyyy-MM-dd`,
+ * `HH:mm[:ss[.SSS]]`, `yyyy-MMMM` or `yyyy`. The device's zone when the source had one, otherwise UTC.
+ */
+function formatAndroidDate({ date, pattern, seconds, fraction, zone }: AndroidDate, options: ValueOptions): string {
+  const locale = supportedLocale(options.locale);
+  if (pattern === 'year') return eraYear(date);
+  const timeZone = zone ? supportedTimeZone(options.timeZone) : 'UTC';
+  if (pattern === 'yearMonth') return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long', timeZone }).format(date);
+  const hasDate = pattern !== 'time';
+  const hasTime = pattern !== 'date';
+  return new Intl.DateTimeFormat(locale, {
+    ...(hasDate ? { year: 'numeric', month: '2-digit', day: '2-digit' } : {}),
+    ...(hasTime
+      ? { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', ...(seconds ? { second: '2-digit' } : {}), ...(fraction ? { fractionalSecondDigits: 3 } : {}) }
+      : {}),
+    timeZone,
+  } as Intl.DateTimeFormatOptions).format(date);
+}
+
+/**
+ * `localizeNumber`: `-?digits(.digits)?([eE][+-]?digits)?`, else as written. The number is grouped, keeps exactly its
+ * integer and fraction digit counts, gets its sign in front and its exponent copied after.
+ */
+function formatAndroidNumber(text: string, localeTag: string): string {
+  const match = /^(-?)(\d+)(?:\.(\d+))?([eE][+-]?\d+)?$/.exec(text);
+  if (!match) return text;
+  const [, sign, integer, fraction = '', exponent = ''] = match;
+  const digits = String(Number(fraction ? `${integer}.${fraction}` : integer));
+  const formatted = new Intl.NumberFormat(supportedLocale(localeTag), {
+    useGrouping: true,
+    minimumIntegerDigits: Math.min(integer.length, 21),
+    minimumFractionDigits: Math.min(fraction.length, 100),
+    maximumFractionDigits: Math.min(fraction.length, 100),
+    roundingMode: 'halfEven',
+  }).format(digits as `${number}`);
+  return `${sign}${formatted}${exponent}`;
 }

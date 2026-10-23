@@ -85,7 +85,7 @@ describe('CardPreview in the Output preview', () => {
     expect(useStore.getState().cardVariant).toBe('detail');
   });
 
-  it('shows the iOS details screen in the Details view, without the card notes', async () => {
+  it('shows the details screen of the picked platform in the Details view, without the card notes', async () => {
     const user = userEvent.setup();
     renderPreview();
     await user.click(control('Preview view', 'Details'));
@@ -96,7 +96,7 @@ describe('CardPreview in the Output preview', () => {
     expect(screen.queryByText(/Approximation of the swiyu wallets/)).not.toBeInTheDocument();
 
     await user.click(control('Preview platform', 'Android'));
-    expect(screen.getByText('No details preview for Android here yet.')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Android details screen' })).toBeInTheDocument();
     expect(screen.queryByRole('group', { name: 'Preview card' })).not.toBeInTheDocument();
 
     await user.click(control('Preview view', 'Card'));

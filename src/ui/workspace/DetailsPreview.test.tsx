@@ -159,10 +159,99 @@ describe('DetailsPreview on iOS', () => {
     expect(screen.getByRole('region', { name: 'iOS details screen' })).toHaveClass('ios-details--dark');
   });
 
-  it('keeps an empty state for Android', () => {
+  it('lists where Android would show the details differently, under the preview', () => {
+    load((project) => {
+      project.root.children.push(newAttribute('vaccinated', { type: 'Boolean', source: ['vaccinated'], labels: { [DE]: 'Geimpft' } }));
+      (project.sample as Record<string, unknown>).vaccinated = true;
+    });
+    renderPreview();
+    expect(row('Geimpft, 1')).toBeInTheDocument();
+    const differences = screen.getByRole('list', { name: 'Where Android differs' });
+    expect(within(differences).getByText('Android: "Geimpft" shows "true"')).toBeInTheDocument();
+  });
+});
+
+describe('DetailsPreview on Android', () => {
+  beforeEach(() => useStore.setState({ cardPlatform: 'android' }));
+
+  const android = () => within(screen.getByRole('region', { name: 'Android details screen' }));
+  const androidRow = (name: string) => android().getByRole('group', { name });
+
+  it('draws the card, the sections with their rows, and the group titles', () => {
+    renderPreview();
+    expect(android().getByRole('figure', { name: 'Android card' })).toHaveTextContent('Hundebewilligung');
+    expect(androidRow('Name, Rex')).toHaveTextContent(/^NameRex$/);
+    expect(androidRow('Vorname, Anna')).toBeInTheDocument();
+    expect(androidRow('Ort, Bern')).toBeInTheDocument();
+    expect(android().getByRole('heading', { level: 4, name: 'Halter' })).toBeInTheDocument();
+    expect(android().getByRole('heading', { level: 5, name: 'Adresse' })).toBeInTheDocument();
+    // The root section has no title, so only "Issued by" is a section heading.
+    expect(android().getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual(['Ausgestellt von']);
+    expect(screen.getByText(/Approximation of the Android wallet's details screen/)).toBeInTheDocument();
+  });
+
+  it('links each row and group to its node and claims path', () => {
+    renderPreview();
+    const project = useStore.getState().project!;
+    expect(androidRow('Name, Rex')).toHaveAttribute('data-node-id', project.root.children[0].id);
+    expect(androidRow('Ort, Bern')).toHaveAttribute('data-path', '["owner","address","city"]');
+    expect(android().getByRole('heading', { name: 'Halter' })).toHaveAttribute('data-node-id', project.root.children[2].id);
+  });
+
+  it("marks every row below a sensitive group, with Android's pill and words, without masking", () => {
+    load((project) => {
+      const owner = project.root.children[2];
+      if (owner.kind === 'group') owner.sensitive = true;
+    });
     useStore.setState({ cardPlatform: 'android' });
     renderPreview();
-    expect(screen.queryByRole('region', { name: /details screen/ })).not.toBeInTheDocument();
-    expect(screen.getByText('No details preview for Android here yet.')).toBeInTheDocument();
+    expect(androidRow('Geboren, 2020, Sensible Information')).toHaveTextContent(/2020Sensibel$/);
+    expect(androidRow('Vorname, Anna, Sensible Information')).toBeInTheDocument();
+    expect(androidRow('Ort, Bern, Sensible Information')).toBeInTheDocument();
+    expect(within(androidRow('Name, Rex')).queryByText('Sensibel')).not.toBeInTheDocument();
+    // iOS marks only the address rows here, which the differences name.
+    expect(within(screen.getByRole('list', { name: 'Where iOS differs' })).getByText('iOS: "Vorname" has no Sensitive pill')).toBeInTheDocument();
+  });
+
+  it('lists a null claim as –, and drops a group without claims, unlike iOS', () => {
+    load((project) => {
+      project.root.children.push(newAttribute('note', { source: ['note'], labels: { [DE]: 'Notiz' } }));
+      Object.assign(project.sample as object, { note: null, owner: { given_name: 'Anna' } });
+    });
+    useStore.setState({ cardPlatform: 'android' });
+    renderPreview();
+    expect(androidRow('Notiz, –')).toHaveTextContent(/^Notiz–$/);
+    expect(android().queryByRole('heading', { name: 'Adresse' })).not.toBeInTheDocument();
+    const differences = within(screen.getByRole('list', { name: 'Where iOS differs' }));
+    expect(differences.getByText('iOS: leaves out "Notiz"')).toBeInTheDocument();
+    expect(differences.getByText('iOS: shows the empty group "Adresse"')).toBeInTheDocument();
+  });
+
+  it('draws "Issued by" with a placeholder name, the card logo in the avatar, and the issuance type', () => {
+    renderPreview();
+    const issuer = android().getByRole('region', { name: 'Ausgestellt von' });
+    expect(within(issuer).getByText('Issuer name')).toHaveClass('android-details__placeholder');
+    expect(issuer.querySelector('.android-details__avatar img')).toHaveAttribute('src', useStore.getState().project!.branding[DE].light.logo);
+    expect(issuer).toHaveTextContent('AusstellungsartStandard');
+  });
+
+  it("shows the status in Android's badge and words", async () => {
+    const user = userEvent.setup();
+    renderPreview();
+    const badge = () => android().getByRole('figure', { name: 'Android card' }).querySelector('.android-badge')!;
+    expect(badge()).toHaveTextContent('Gültig');
+    expect(badge()).toHaveClass('android-badge--outline');
+    await user.selectOptions(screen.getByLabelText('Card status'), 'Revoked');
+    expect(badge()).toHaveTextContent('Widerrufen');
+    expect(badge()).toHaveClass('android-badge--error');
+    // Translated on Android, unlike iOS.
+    await user.selectOptions(screen.getByLabelText('Card status'), 'Not yet valid');
+    expect(badge()).toHaveTextContent(/^gültig ab \d\d\.\d\d\.\d{4}$/);
+  });
+
+  it('follows the dark theme', () => {
+    useStore.setState({ brandingTheme: 'dark' });
+    renderPreview();
+    expect(screen.getByRole('region', { name: 'Android details screen' })).toHaveClass('android-details--dark');
   });
 });
