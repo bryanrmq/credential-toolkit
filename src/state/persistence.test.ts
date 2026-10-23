@@ -4,6 +4,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Baseline } from '../core/baseline';
 import { type Project, emptyProject } from '../core/model';
+import { reviewMarks, suggestText } from '../core/review';
 import {
   DRAFT_KEY,
   OPEN_DRAFT_KEY,
@@ -162,6 +163,20 @@ describe('autosave', () => {
     await vi.waitFor(async () => expect((await getDraft(first))?.project.meta['de-CH'].name).toBe('First, edited'));
     await vi.waitFor(() => expect(ids()).toHaveLength(2));
     expect(ids()).toContain(second);
+  });
+
+  it('keeps the review marks of suggested texts across a reload', async () => {
+    stop = startAutosave();
+    const id = createDraft(project('Card'));
+    useStore.getState().update((draft) => void suggestText(draft, { kind: 'meta', field: 'description' }, 'de-CH', 'Für Halter', 'i14y'));
+    expect(await saveOpenDraft()).toBe(true);
+    useStore.getState().close();
+
+    await initDrafts();
+    expect(await openDraft(id)).toBe(true);
+    expect(reviewMarks(useStore.getState().project!)).toEqual([
+      { place: { kind: 'meta', field: 'description' }, lang: 'de-CH', source: 'i14y', text: 'Für Halter' },
+    ]);
   });
 
   it('saves the open draft on request', async () => {

@@ -1,6 +1,7 @@
 import { DownloadSimpleIcon, MagnifyingGlassIcon, SidebarSimpleIcon } from '@phosphor-icons/react';
 import type { Ref } from 'react';
 import { BUNDLE_FILE_NAME } from '../../core/export/outputs';
+import { hasUnreviewed } from '../../core/review';
 import { useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
@@ -138,6 +139,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
           label={t.workspace.moreActions}
           items={[
             { label: t.workspace.manageLanguages, onSelect: () => setLanguagesOpen(true) },
+            // Only while some suggested text waits for review.
+            ...(hasUnreviewed(project) ? [commandItem('workspace.confirmSuggestions')] : []),
             { label: t.workspace.editorView, className: 'narrow-only', onSelect: () => setView('editor') },
             { label: t.workspace.translationsView, className: 'narrow-only', onSelect: () => setView('translations') },
             { label: t.tour.start, onSelect: () => setTourOpen(true) },

@@ -1,9 +1,8 @@
 import { DotsThreeIcon, WarningCircleIcon, WarningIcon } from '@phosphor-icons/react';
 import { type ButtonHTMLAttributes, Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
 import type { Issue } from '../../core/validate';
-import { fixesFor } from '../../core/validate/fixes';
 import { useStore } from '../../state/store';
-import { FIX_TOOLS, type IssueGroup, groupFixes, groupIssues, useFieldIssues, useIssues } from '../issues';
+import { type IssueGroup, groupFixes, groupIssues, issueFixes, useFieldIssues, useIssues } from '../issues';
 import { withKeys } from './keys';
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -73,7 +72,7 @@ export function InlineIssueFixes({ issue }: { issue: Issue }) {
   const project = useStore((state) => state.project);
   const group = groupIssues(useIssues()).find((candidate) => candidate.issues.includes(issue));
   // The buttons fix the whole group, but only show where this issue itself can be fixed.
-  if (!group || !project || fixesFor(issue, project, FIX_TOOLS).length === 0) return null;
+  if (!group || !project || issueFixes(issue, project).length === 0) return null;
   return <IssueFixes group={group} />;
 }
 

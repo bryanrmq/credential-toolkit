@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProject, newAttribute } from '../core/model';
 import { insertNode, removeLanguage, removeNode, renameLanguage } from '../core/operations';
+import { reviewMarkAt, suggestText } from '../core/review';
 import type { Fix } from '../core/validate/fixes';
 import { oneNode } from './selection';
 import { HISTORY_LIMIT, TYPING_PAUSE_MS, endTyping, useStore } from './store';
@@ -297,5 +298,42 @@ describe('history', () => {
     useStore.getState().setEditLang('en-GB');
     useStore.getState().redo();
     expect(useStore.getState().editLang).toBe('de-CH');
+  });
+});
+
+describe('suggested texts', () => {
+  const NAME = { kind: 'meta', field: 'name' } as const;
+  const mark = () => reviewMarkAt(useStore.getState().project!, NAME, 'en-GB');
+  const suggest = () => useStore.getState().update((draft) => void suggestText(draft, NAME, 'en-GB', 'Permit', 'translation'), { field: 'fill' });
+
+  it('fills and marks a text in one undo step', () => {
+    suggest();
+    expect(mark()?.source).toBe('translation');
+    expect(useStore.getState().past).toHaveLength(1);
+    useStore.getState().undo();
+    expect(mark()).toBeUndefined();
+    expect(useStore.getState().project?.meta['en-GB'].name).toBe('');
+  });
+
+  it('clears the mark when the text is edited, and undo brings it back', () => {
+    suggest();
+    useStore.getState().update((draft) => void (draft.meta['en-GB'].name = 'Permits'), { field: 'typing' });
+    expect(mark()).toBeUndefined();
+    expect(useStore.getState().project?.review).toBeUndefined();
+    useStore.getState().undo();
+    expect(mark()?.text).toBe('Permit');
+  });
+
+  it('keeps the mark through edits elsewhere', () => {
+    suggest();
+    useStore.getState().update((draft) => void (draft.meta['de-CH'].name = 'Bewilligung'), { field: 'other' });
+    expect(mark()?.text).toBe('Permit');
+  });
+
+  it('drops marks that no longer hold when a project opens', () => {
+    const project = emptyProject(['de-CH']);
+    project.review = [{ place: NAME, lang: 'de-CH', source: 'i14y', text: 'Edited elsewhere' }];
+    useStore.getState().load(project);
+    expect(useStore.getState().project?.review).toBeUndefined();
   });
 });

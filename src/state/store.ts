@@ -3,6 +3,7 @@ import type { Baseline } from '../core/baseline';
 import type { CardPlatform, CardVariant } from '../core/card/profiles';
 import type { ReportNote } from '../core/import/report';
 import { type LangTag, type Project, newId } from '../core/model';
+import { pruneReview } from '../core/review';
 import type { Fix } from '../core/validate/fixes';
 import { CREDENTIAL, type Selection, type SelectionRequest, normalizeSelection, selectionIn } from './selection';
 import { loadCollapsed, revealSelection, saveCollapsed, selectionOnCollapse } from './treeView';
@@ -93,6 +94,7 @@ export interface AppState {
    * Applies `recipe` to a copy of the project, so every change produces a new object, and records the
    * project before it as an undo step. Updates typed in the same `field` (by default the focused text
    * field) merge into one step until the field loses focus or typing pauses for `TYPING_PAUSE_MS`.
+   * A suggested text whose text changed loses its "needs review" mark in the same step (`pruneReview`).
    */
   update: (recipe: (draft: Project) => void, options?: { field?: string | Element }) => void;
   undo: () => void;
@@ -216,8 +218,9 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
   future: [],
   fixNotice: null,
   fixing: false,
-  load: (project, report, options) => {
+  load: (opened, report, options) => {
     typing = null;
+    const project = pruneReview(opened);
     set({
       project,
       draftId: options?.draftId ?? newId(),
@@ -260,8 +263,9 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
   update: (recipe, options) => {
     const { project: current, selection, past } = get();
     if (!current) return;
-    const next = structuredClone(current);
-    recipe(next);
+    const draft = structuredClone(current);
+    recipe(draft);
+    const next = pruneReview(draft);
     const editLang = next.languages.includes(get().editLang) ? get().editLang : (next.languages[0] ?? '');
     const field = options?.field ?? focusedTextField();
     const now = Date.now();
@@ -310,7 +314,7 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
     const before = get().project;
     if (!before || get().fixing || groups.length === 0) return;
     set({ fixing: true });
-    const draft = structuredClone(before);
+    let draft = structuredClone(before);
     let fixed = 0;
     for (const fixes of groups) {
       let ok = true;
@@ -323,6 +327,7 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
       }
       if (ok) fixed++;
     }
+    draft = pruneReview(draft);
     if (get().project !== before) {
       set({ fixing: false, fixNotice: { kind: 'stale' } });
     } else if (fixed === 0) {

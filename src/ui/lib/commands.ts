@@ -3,6 +3,7 @@ import {
   ArrowCounterClockwiseIcon,
   ArrowDownIcon,
   ArrowUpIcon,
+  ChecksIcon,
   ClipboardTextIcon,
   CopyIcon,
   CopySimpleIcon,
@@ -23,6 +24,7 @@ import {
   TrashIcon,
 } from '@phosphor-icons/react';
 import { type RefObject, useEffect, useLayoutEffect } from 'react';
+import { confirmReview, hasUnreviewed } from '../../core/review';
 import { selectedIds } from '../../state/selection';
 import { endTyping, useStore } from '../../state/store';
 import { t } from '../../strings';
@@ -77,6 +79,7 @@ export type CommandId =
   | 'workspace.toggleOutput'
   | 'workspace.saveProjectFile'
   | 'workspace.openProjectFile'
+  | 'workspace.confirmSuggestions'
   | 'workspace.palette';
 
 /** Where a command's keys work: on a row of the Structure tree (`tree`), or anywhere in the workspace, text fields included. */
@@ -405,6 +408,23 @@ export const COMMANDS: readonly Command[] = [
     scope: 'workspace',
     appliesWhen: always,
     run: openProjectFile,
+  },
+  {
+    id: 'workspace.confirmSuggestions',
+    label: t.review.confirmAll,
+    icon: ChecksIcon,
+    scope: 'workspace',
+    // Offered only while some suggested text waits for review.
+    available: () => {
+      const project = useStore.getState().project;
+      return project !== null && hasUnreviewed(project);
+    },
+    appliesWhen: always,
+    // Every mark at once, as one undo step.
+    run: () => {
+      endTyping();
+      useStore.getState().update((draft) => void confirmReview(draft));
+    },
   },
   {
     id: 'workspace.palette',
