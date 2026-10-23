@@ -395,6 +395,10 @@ input[type='checkbox'] {
   padding: 32px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
 }
+.dialog--notice {
+  width: min(440px, 100%);
+  padding: 24px;
+}
 .dialog__title {
   font-size: 20px;
   font-weight: 600;
@@ -1824,8 +1828,12 @@ button.tree__toggle:hover {
   color: var(--blue-text);
   white-space: nowrap;
 }
-.review-confirm svg {
+.review-confirm svg,
+.lang-row__suggest svg {
   flex: none;
+}
+.lang-row__suggest {
+  white-space: nowrap;
 }
 .inspector__header {
   margin: 16px 0 28px;

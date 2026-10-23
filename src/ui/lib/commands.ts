@@ -21,6 +21,7 @@ import {
   SidebarSimpleIcon,
   StackIcon,
   TextboxIcon,
+  TranslateIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
 import { type RefObject, useEffect, useLayoutEffect } from 'react';
@@ -30,6 +31,8 @@ import { endTyping, useStore } from '../../state/store';
 import { t } from '../../strings';
 import { usesCommandKey } from './platform';
 import { openProjectFile, saveProjectFile } from './projectFile';
+import { missingTexts, translateMissing } from './translate';
+import { hasTranslator } from './translator';
 import {
   type NodePlace,
   addNode,
@@ -79,6 +82,7 @@ export type CommandId =
   | 'workspace.toggleOutput'
   | 'workspace.saveProjectFile'
   | 'workspace.openProjectFile'
+  | 'workspace.translateMissing'
   | 'workspace.confirmSuggestions'
   | 'workspace.palette';
 
@@ -408,6 +412,26 @@ export const COMMANDS: readonly Command[] = [
     scope: 'workspace',
     appliesWhen: always,
     run: openProjectFile,
+  },
+  {
+    id: 'workspace.translateMissing',
+    label: t.translate.missing,
+    icon: TranslateIcon,
+    scope: 'workspace',
+    // Only in browsers with the on-device Translator API, and with another language to fill.
+    available: () => {
+      const project = useStore.getState().project;
+      return hasTranslator() && project !== null && project.languages.length > 1;
+    },
+    appliesWhen: () => {
+      const { project, editLang } = useStore.getState();
+      return project !== null && missingTexts(project, editLang).length > 0;
+    },
+    // Every empty text in every other language, from the editing language, as one undo step.
+    run: () => {
+      endTyping();
+      void translateMissing();
+    },
   },
   {
     id: 'workspace.confirmSuggestions',

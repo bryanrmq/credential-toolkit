@@ -1,6 +1,11 @@
 /** The shortcut keys the tour shows, labelled for the platform: ⌘G on a Mac, Ctrl+G elsewhere. */
 export type TourKeys = Record<'add' | 'delete' | 'group' | 'moveUp' | 'moveDown' | 'filter' | 'undo' | 'output', string>;
 
+/** `a`, `a and b`, `a, b and c`. */
+function listOf(items: string[]): string {
+  return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
+}
+
 /** Every piece of interface copy, in one place so the tool can be translated later. */
 export const t = {
   appName: 'OCA Generator',
@@ -456,6 +461,26 @@ export const t = {
     issue: 'Suggested text needs review.',
     issueIn: (lang: string) => `Suggested text needs review in ${lang}.`,
     confirmAll: 'Confirm all suggested texts',
+  },
+  /** Suggested translations by the browser's on-device translator. */
+  translate: {
+    missing: 'Translate missing languages',
+    /** On an empty language row: translate it from the editing language. */
+    suggestFrom: (lang: string) => `Suggest from ${lang}`,
+    suggestText: (label: string, lang: string, from: string) => `Suggest the ${label} (${lang}) from ${from}`,
+    pair: (from: string, to: string) => `${from} to ${to}`,
+    noticeTitle: 'Download a translation model?',
+    notice: (pairs: string[]) =>
+      `Your browser will download ${pairs.length === 1 ? 'a translation model' : 'translation models'} for ${listOf(pairs)} once. The text never leaves this device.`,
+    download: 'Download and translate',
+    cancel: 'Cancel',
+    downloading: (percent: number) => `Downloading the translation model… ${percent}%`,
+    translating: 'Translating…',
+    translated: (count: number) => `Translated ${count} ${count === 1 ? 'text' : 'texts'}, marked for review`,
+    unavailable: (languages: string[]) => `${listOf(languages)} ${languages.length === 1 ? "isn't" : "aren't"} available in this browser's translator`,
+    /** The toast: what was translated, then what was skipped. */
+    report: (notes: string[]) => notes.join('. '),
+    failed: "Couldn't translate. Try again.",
   },
   sample: {
     none: 'No sample credential attached. Attach one to check that every source path exists.',

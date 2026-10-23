@@ -37,6 +37,7 @@ import { ReportBanner } from './ReportBanner';
 import { StructurePane } from './StructurePane';
 import { TopBar } from './TopBar';
 import { Tour } from './Tour';
+import { TranslationNotice } from './TranslationNotice';
 import { TranslationsView } from './TranslationsView';
 
 export function Workspace() {
@@ -210,6 +211,7 @@ export function Workspace() {
         {languagesOpen && <LanguagesDialog />}
         {tourOpen && <Tour pane={pane} onPane={setPane} />}
         {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onReveal={reveal} />}
+        <TranslationNotice />
         <FixToast />
       </div>
     </IssuesContext.Provider>

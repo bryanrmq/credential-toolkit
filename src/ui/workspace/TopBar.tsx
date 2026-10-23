@@ -8,7 +8,7 @@ import { t } from '../../strings';
 import { Badge, Button, Menu, type MenuItem, Segmented } from '../components/controls';
 import { groupIssues, useIssues } from '../issues';
 import { setDownloadedBaseline } from '../lib/baseline';
-import { type CommandId, ariaKeyShortcuts, commandLabel, runCommand, shortcutLabel } from '../lib/commands';
+import { type CommandId, applies, ariaKeyShortcuts, commandLabel, runCommand, shortcutLabel } from '../lib/commands';
 import { downloadText } from '../lib/download';
 import { useWideWindow } from '../lib/wideWindow';
 import { Wordmark } from '../Wordmark';
@@ -139,6 +139,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
           label={t.workspace.moreActions}
           items={[
             { label: t.workspace.manageLanguages, onSelect: () => setLanguagesOpen(true) },
+            // Only with the browser's on-device translator and some text to fill.
+            ...(applies('workspace.translateMissing') ? [commandItem('workspace.translateMissing')] : []),
             // Only while some suggested text waits for review.
             ...(hasUnreviewed(project) ? [commandItem('workspace.confirmSuggestions')] : []),
             { label: t.workspace.editorView, className: 'narrow-only', onSelect: () => setView('editor') },

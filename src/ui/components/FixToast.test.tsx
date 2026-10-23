@@ -46,6 +46,17 @@ describe('FixToast', () => {
     expect(screen.queryByText('Fixed 2 issues')).not.toBeInTheDocument();
   });
 
+  it('keeps progress until the next notice, and a plain note goes like a fix', () => {
+    useStore.getState().showProgress('Downloading the translation model… 40%');
+    render(<FixToast />);
+    act(() => vi.advanceTimersByTime(TOAST_DURATION_MS * 3));
+    expect(screen.getByText('Downloading the translation model… 40%').parentElement).toHaveClass('toast');
+    act(() => useStore.getState().showInfo("Romansh isn't available in this browser's translator"));
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(TOAST_DURATION_MS));
+    expect(screen.queryByText(/Romansh/)).not.toBeInTheDocument();
+  });
+
   it('shows a failure without Undo', () => {
     useStore.setState({ fixNotice: { kind: 'failed', label: 'Convert to PNG' } });
     render(<FixToast />);

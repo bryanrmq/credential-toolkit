@@ -20,14 +20,17 @@ export type OutputHalves = Record<OutputHalf, boolean>;
 /**
  * What the toast reports: how many issues a fix fixed, that it failed, or that the project changed meanwhile;
  * an error of another action, such as a project file that could not be opened (`error`); or another action
- * that its Undo button takes back, such as deleting a draft from the start screen (`undoable`).
+ * that its Undo button takes back, such as deleting a draft from the start screen (`undoable`); a plain note (`info`);
+ * or a long action's progress, which stays until the next notice replaces it (`progress`).
  */
 export type FixNotice =
   | { kind: 'fixed'; fixed: number; total: number }
   | { kind: 'failed'; label?: string }
   | { kind: 'stale' }
   | { kind: 'error'; message: string }
-  | { kind: 'undoable'; message: string; undo: () => void };
+  | { kind: 'undoable'; message: string; undo: () => void }
+  | { kind: 'info'; message: string }
+  | { kind: 'progress'; message: string };
 
 /** One undo or redo step: the project and the selection to go back to. */
 export interface HistoryStep {
@@ -128,6 +131,10 @@ export interface AppState {
   showError: (message: string) => void;
   /** Shows `message` in the toast with an Undo button that runs `undo`. */
   showUndoable: (message: string, undo: () => void) => void;
+  /** Shows `message` in the toast. */
+  showInfo: (message: string) => void;
+  /** Shows a long action's progress in the toast, until another notice replaces it. */
+  showProgress: (message: string) => void;
 }
 
 /** The language to keep editing after `before` became `after`: the same tag, else the tag now at its place (a rename), else the first. */
@@ -348,6 +355,8 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
   dismissFixNotice: () => set({ fixNotice: null }),
   showError: (message) => set({ fixNotice: { kind: 'error', message } }),
   showUndoable: (message, undo) => set({ fixNotice: { kind: 'undoable', message, undo } }),
+  showInfo: (message) => set({ fixNotice: { kind: 'info', message } }),
+  showProgress: (message) => set({ fixNotice: { kind: 'progress', message } }),
 })));
 
 // The project's collapsed groups are saved whenever they change, however they changed.
