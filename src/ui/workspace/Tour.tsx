@@ -1,11 +1,22 @@
-import { CompassIcon, PackageIcon, PencilSimpleIcon, SlidersHorizontalIcon, TranslateIcon, TreeStructureIcon } from '@phosphor-icons/react';
+import {
+  CompassIcon,
+  PackageIcon,
+  PencilSimpleIcon,
+  SlidersHorizontalIcon,
+  TranslateIcon,
+  TreeStructureIcon,
+  WarningCircleIcon,
+} from '@phosphor-icons/react';
 import { type KeyboardEvent, type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { type View, useStore } from '../../state/store';
-import { t } from '../../strings';
+import { type TourKeys, t } from '../../strings';
 import { Button } from '../components/controls';
 import { withKeys } from '../components/keys';
+import { undoShortcutLabel } from '../lib/historyShortcuts';
+import { outputShortcutLabel } from '../lib/outputShortcut';
 import type { WorkspacePane } from '../lib/paneLayout';
 import { type Box, type Size, placeCard, saveTourSeen, spotlightBox } from '../lib/tour';
+import { treeShortcutLabel } from '../lib/treeShortcuts';
 
 interface TourStep {
   id: keyof typeof t.tour.steps;
@@ -23,9 +34,23 @@ const STEPS: TourStep[] = [
   { id: 'structure', icon: <TreeStructureIcon />, tone: 'var(--blue-bg)', target: 'structure', view: 'editor', pane: 'structure' },
   { id: 'edit', icon: <PencilSimpleIcon />, tone: 'var(--yellow-bg)', target: 'edit', view: 'editor', pane: 'inspector' },
   { id: 'output', icon: <PackageIcon />, tone: 'var(--green-bg)', target: 'output', view: 'editor', pane: 'output' },
+  { id: 'issues', icon: <WarningCircleIcon />, tone: 'var(--red-bg)', target: 'issues', view: 'editor', pane: 'issues' },
   { id: 'topbar', icon: <SlidersHorizontalIcon />, tone: 'var(--surface-muted)', target: 'topbar', view: 'editor' },
   { id: 'translations', icon: <TranslateIcon />, tone: 'var(--blue-bg)', target: 'translations', view: 'translations' },
 ];
+
+function tourKeys(): TourKeys {
+  return {
+    add: treeShortcutLabel('add'),
+    delete: treeShortcutLabel('delete'),
+    group: treeShortcutLabel('group'),
+    moveUp: treeShortcutLabel('moveUp'),
+    moveDown: treeShortcutLabel('moveDown'),
+    filter: treeShortcutLabel('filter'),
+    undo: undoShortcutLabel(),
+    output: outputShortcutLabel(),
+  };
+}
 
 const sameBox = (a: Box | null, b: Box | null) =>
   a === b || (a !== null && b !== null && a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height);
@@ -94,6 +119,7 @@ export function Tour({ pane, onPane }: { pane: WorkspacePane; onPane: (pane: Wor
   const [index, setIndex] = useState(0);
   const step = STEPS[index];
   const copy = t.tour.steps[step.id];
+  const features = typeof copy.features === 'function' ? copy.features(tourKeys()) : copy.features;
   const last = index === STEPS.length - 1;
   const target = useTargetBox(step.target);
   const viewport = useViewport();
@@ -174,7 +200,7 @@ export function Tour({ pane, onPane }: { pane: WorkspacePane; onPane: (pane: Wor
             </div>
             <p className="tour__body">{copy.body}</p>
             <ul className="tour__features">
-              {copy.features.map((feature) => (
+              {features.map((feature) => (
                 <li key={feature}>{withKeys(feature)}</li>
               ))}
             </ul>

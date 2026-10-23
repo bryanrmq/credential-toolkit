@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useStore } from '../../state/store';
+import { usesCommandKey } from './platform';
 import { isWideWindow } from './wideWindow';
 
 /**
@@ -16,6 +17,11 @@ export function isOutputToggle(event: KeyboardEvent): boolean {
     event.code === 'KeyB' &&
     !event.getModifierState?.('AltGraph')
   );
+}
+
+/** How copy shows the Output key: ⌥⌘B on Apple platforms, Ctrl+Alt+B elsewhere. */
+export function outputShortcutLabel(apple = usesCommandKey()): string {
+  return apple ? '⌥⌘B' : 'Ctrl+Alt+B';
 }
 
 /**

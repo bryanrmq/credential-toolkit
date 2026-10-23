@@ -59,7 +59,7 @@ export function IssuesPanel({
   };
 
   return (
-    <section className={docked ? 'issues-panel' : 'issues-panel issues-panel--pane'} aria-label={t.issues.title} ref={panelRef}>
+    <section className={docked ? 'issues-panel' : 'issues-panel issues-panel--pane'} aria-label={t.issues.title} ref={panelRef} data-tour="issues">
       {docked && open && (
         <PaneResizer
           label={t.issues.resize}

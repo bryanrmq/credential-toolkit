@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProject } from '../../core/model';
 import { useStore } from '../../state/store';
 import { TOUR_SEEN_KEY, loadTourSeen } from '../lib/tour';
@@ -10,6 +10,24 @@ import { Workspace } from './Workspace';
 const tour = () => screen.getByRole('dialog', { name: 'Workspace tour' });
 const heading = () => within(tour()).getByRole('heading').textContent;
 const shownPane = () => within(screen.getByRole('tablist', { name: 'Panes' })).getByRole('tab', { selected: true }).textContent;
+const features = () => within(tour()).getAllByRole('listitem').map((item) => item.textContent);
+const keys = () => within(tour()).queryAllByRole('listitem').flatMap((item) => [...item.querySelectorAll('kbd')].map((key) => key.textContent));
+async function next(user: ReturnType<typeof userEvent.setup>, times = 1) {
+  for (let step = 0; step < times; step++) await user.click(within(tour()).getByRole('button', { name: 'Next' }));
+}
+
+/** Makes the window narrower than 1000 px, where the workspace shows one pane at a time. */
+function narrowWindow() {
+  vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
+}
+
+/** Gives the area marked `data-tour={target}` a size on screen, which jsdom leaves at zero. */
+function layOut(target: string) {
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+    const size = this.dataset.tour === target ? { width: 800, height: 200 } : { width: 0, height: 0 };
+    return { top: 500, left: 0, right: size.width, bottom: 500 + size.height, x: 0, y: 500, ...size, toJSON: () => ({}) };
+  });
+}
 
 beforeEach(() => {
   localStorage.clear();
@@ -17,22 +35,27 @@ beforeEach(() => {
   useStore.getState().load(emptyProject(['de-CH', 'en-GB']));
 });
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
 describe('Tour', () => {
   it('opens by itself and walks through every area of the workspace', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
     expect(heading()).toBe('Welcome to the workspace');
-    expect(within(tour()).getByText('1 of 6')).toBeInTheDocument();
+    expect(within(tour()).getByText('1 of 7')).toBeInTheDocument();
     expect(within(tour()).queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
     expect(within(tour()).getByRole('button', { name: 'Next' })).toHaveFocus();
 
     const visited = [];
-    for (let step = 0; step < 5; step++) {
+    for (let step = 0; step < 6; step++) {
       await user.click(within(tour()).getByRole('button', { name: 'Next' }));
       visited.push(heading());
     }
-    expect(visited).toEqual(['Structure', 'Edit', 'Output', 'Top bar', 'Translations view']);
-    expect(within(tour()).getByText('6 of 6')).toBeInTheDocument();
+    expect(visited).toEqual(['Structure', 'Edit', 'Output', 'Issues', 'Top bar', 'Translations view']);
+    expect(within(tour()).getByText('7 of 7')).toBeInTheDocument();
     expect(within(tour()).queryByRole('button', { name: 'Skip tour' })).not.toBeInTheDocument();
 
     await user.click(within(tour()).getByRole('button', { name: 'Done' }));
@@ -43,13 +66,69 @@ describe('Tour', () => {
   it('lists what each area can do', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
-    await user.click(within(tour()).getByRole('button', { name: 'Next' }));
-    const features = within(tour()).getAllByRole('listitem').map((item) => item.textContent);
-    expect(features).toContain(
-      'Drag the handle beside an item to reorder it, or drop it on the middle of a group to move it inside. Dragging a selected item moves the whole selection.',
+    await next(user);
+    expect(features()).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^Add an attribute, a group or a list of objects from the Add menu/),
+        expect.stringMatching(/^Right-click an item/),
+        'Drag the handle beside an item to reorder it, or drop it on the middle of a group to move it inside. Dragging a selected item moves the whole selection.',
+        'On a selected item, N adds, Del deletes, Ctrl+G groups and Alt+↑ Alt+↓ move it. Ctrl+Z undoes any change.',
+      ]),
     );
-    await user.click(within(tour()).getByRole('button', { name: 'Next' }));
+    expect(keys()).toEqual(['N', 'Del', 'Ctrl+G', 'Alt+↑', 'Alt+↓', 'Ctrl+Z', 'Ctrl+F']);
+    await next(user);
     expect(within(tour()).getByText('{{', { selector: 'kbd' })).toBeInTheDocument();
+
+    // Output gives what to publish; the issues have a step of their own.
+    await next(user);
+    expect(features().join(' ')).not.toMatch(/issue/i);
+    expect(keys()).toEqual(['Ctrl+Alt+B']);
+    await next(user);
+    expect(heading()).toBe('Issues');
+    expect(features()).toContain('Click an issue to jump to its field.');
+  });
+
+  it('shows the shortcut keys with ⌘ and ⌥ on a Mac', async () => {
+    vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel');
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await next(user);
+    expect(keys()).toEqual(['N', '⌫', '⌘G', '⌥↑', '⌥↓', '⌘Z', '⌘F']);
+    await next(user, 2);
+    expect(keys()).toEqual(['⌥⌘B']);
+  });
+
+  it('lights up the Issues panel along the bottom for its step', async () => {
+    layOut('issues');
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await next(user, 3);
+    expect(document.querySelector('.tour__spotlight')).not.toBeInTheDocument();
+    await next(user);
+    expect(heading()).toBe('Issues');
+    expect(screen.getByRole('region', { name: 'Issues' })).toHaveAttribute('data-tour', 'issues');
+    expect(document.querySelector('.tour__spotlight')).toBeInTheDocument();
+  });
+
+  it('switches a narrow window to the Issues tab for its step and back when done', async () => {
+    narrowWindow();
+    const user = userEvent.setup();
+    render(<Workspace />);
+    expect(shownPane()).toBe('Edit');
+    expect(screen.queryByRole('region', { name: 'Issues' })).not.toBeInTheDocument();
+    await next(user, 3);
+    expect(shownPane()).toBe('Output');
+    await next(user);
+    expect(heading()).toBe('Issues');
+    expect(shownPane()).toBe('Issues');
+    expect(screen.getByRole('region', { name: 'Issues' })).toBeInTheDocument();
+
+    await user.click(within(tour()).getByRole('button', { name: 'Back' }));
+    expect(shownPane()).toBe('Output');
+    await next(user);
+    await user.click(within(tour()).getByRole('button', { name: 'Skip tour' }));
+    expect(shownPane()).toBe('Edit');
+    expect(screen.queryByRole('region', { name: 'Issues' })).not.toBeInTheDocument();
   });
 
   it('shows the translations table for its step and puts the view and pane back when done', async () => {
@@ -61,8 +140,7 @@ describe('Tour', () => {
     await user.click(within(tour()).getByRole('button', { name: 'Next' }));
     await user.click(within(tour()).getByRole('button', { name: 'Next' }));
     expect(shownPane()).toBe('Output');
-    await user.click(within(tour()).getByRole('button', { name: 'Next' }));
-    await user.click(within(tour()).getByRole('button', { name: 'Next' }));
+    await next(user, 3);
     expect(useStore.getState().view).toBe('translations');
     expect(screen.getByRole('table')).toBeInTheDocument();
 
@@ -79,7 +157,16 @@ describe('Tour', () => {
     const user = userEvent.setup();
     render(<Workspace />);
     expect(screen.queryByRole('region', { name: 'Output' })).not.toBeInTheDocument();
-    for (let step = 0; step < 3; step++) await user.click(within(tour()).getByRole('button', { name: 'Next' }));
+    await next(user, 3);
+    expect(heading()).toBe('Output');
+    expect(screen.getByRole('region', { name: 'Output' })).toBeInTheDocument();
+    expect(localStorage.getItem('oca-generator:output-open')).toBe('true');
+
+    // Hidden again during the tour (by the shortcut, say), coming back to the step shows it again.
+    act(() => useStore.getState().setOutputOpen(false));
+    expect(screen.queryByRole('region', { name: 'Output' })).not.toBeInTheDocument();
+    await next(user);
+    await user.click(within(tour()).getByRole('button', { name: 'Back' }));
     expect(heading()).toBe('Output');
     expect(screen.getByRole('region', { name: 'Output' })).toBeInTheDocument();
   });
