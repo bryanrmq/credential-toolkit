@@ -21,3 +21,20 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+
+  # The npm package (packages/oca-generator) must load and build a bundle in plain Node,
+  # on the oldest supported version and the current one.
+  package:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 24]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build:lib
+      - run: node packages/oca-generator/test/smoke.mjs > /dev/null

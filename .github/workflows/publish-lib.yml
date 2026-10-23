@@ -1,0 +1,57 @@
+name: Publish library
+
+# Publishes packages/oca-generator to npm as @bryanrmq/oca-generator, with npm provenance.
+# Runs when a lib-v* tag is pushed (the tag must name the version in the package's
+# package.json, e.g. lib-v0.1.0), or by hand from main. Needs the NPM_TOKEN repository
+# secret: an npm automation or granular token that can publish the package.
+# A prerelease version (one with a "-") is published under the "next" dist-tag.
+on:
+  push:
+    tags: ['lib-v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build and pack without publishing
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-lib
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Check the tag names the package version
+        if: github.ref_type == 'tag'
+        run: |
+          version="$(node -p "require('./packages/oca-generator/package.json').version")"
+          if [[ "$GITHUB_REF_NAME" != "lib-v$version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the package version $version (expected lib-v$version)."
+            exit 1
+          fi
+      - name: Publish
+        working-directory: packages/oca-generator
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          args=(--provenance --access public)
+          [[ "$version" == *-* ]] && args+=(--tag next)
+          [[ "$DRY_RUN" == true ]] && args+=(--dry-run)
+          npm publish "${args[@]}"
