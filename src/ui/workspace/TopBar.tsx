@@ -1,6 +1,7 @@
 import { DownloadSimpleIcon, MagnifyingGlassIcon, SidebarSimpleIcon } from '@phosphor-icons/react';
 import type { Ref } from 'react';
 import { BUNDLE_FILE_NAME } from '../../core/export/outputs';
+import { canFillFromI14y } from '../../core/import/i14y';
 import { hasUnreviewed } from '../../core/review';
 import { useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
@@ -139,6 +140,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
           label={t.workspace.moreActions}
           items={[
             { label: t.workspace.manageLanguages, onSelect: () => setLanguagesOpen(true) },
+            // Only when a linked attribute lacks a text its I14Y concept may have.
+            ...(canFillFromI14y(project) ? [commandItem('workspace.fillFromI14y')] : []),
             // Only while some suggested text waits for review.
             ...(hasUnreviewed(project) ? [commandItem('workspace.confirmSuggestions')] : []),
             { label: t.workspace.editorView, className: 'narrow-only', onSelect: () => setView('editor') },

@@ -83,6 +83,7 @@ describe('the command list', () => {
         'workspace.toggleOutput',
         'workspace.saveProjectFile',
         'workspace.openProjectFile',
+        'workspace.fillFromI14y',
         'workspace.confirmSuggestions',
         'workspace.palette',
       ].sort(),

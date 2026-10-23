@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
-import { I14Y_API, type I14yConcept, type I14yHit, type I14yLanguage, linkConcept, parseCatalogue, parseConcept, parseSearchResults } from '../../core/import/i14y';
-import { useStore } from '../../state/store';
+import {
+  I14Y_API,
+  type I14yConcept,
+  type I14yHit,
+  type I14yLanguage,
+  conceptsToLoad,
+  fillFromI14y,
+  linkConcept,
+  parseCatalogue,
+  parseConcept,
+  parseSearchResults,
+} from '../../core/import/i14y';
+import { endTyping, useStore } from '../../state/store';
 import { t } from '../../strings';
 
 /** I14Y answers every search in full; the dialog lists this many at most. */
@@ -135,5 +146,38 @@ export async function linkToI14y(links: { nodeId: string; conceptId: string }[])
     update((draft) => links.forEach((link, index) => linkConcept(draft, link.nodeId, concepts[index])));
   } catch {
     setReport([{ level: 'warning', message: t.i14y.unreachable }]);
+  }
+}
+
+let filling = false;
+
+/**
+ * Fills the empty labels and value labels of linked attributes from their I14Y concepts, each marked for review,
+ * as one undo step, and says how many in the toast with Undo. Concepts whose link carries no texts are fetched
+ * first, as linking does; the toast names those that could not be loaded.
+ */
+export async function fillMissingFromI14y(): Promise<void> {
+  const start = useStore.getState().project;
+  if (filling || !start) return;
+  filling = true;
+  try {
+    const toLoad = conceptsToLoad(start);
+    const results = await Promise.allSettled(toLoad.map((concept) => fetchConcept(concept.conceptId)));
+    const concepts = results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+    const failed = toLoad.filter((_, index) => results[index].status === 'rejected').map((concept) => concept.identifier);
+    // The project may have changed while the concepts loaded: fill the one open now.
+    const { project, update, showUndoable, showError } = useStore.getState();
+    if (!project) return;
+    const filled = fillFromI14y(structuredClone(project), concepts);
+    if (filled === 0) {
+      showError(t.i14yFill.nothing(failed));
+      return;
+    }
+    endTyping();
+    update((draft) => void fillFromI14y(draft, concepts));
+    endTyping();
+    showUndoable(t.i14yFill.filled(filled, failed), () => useStore.getState().undo());
+  } finally {
+    filling = false;
   }
 }

@@ -1,5 +1,20 @@
-import { type AttrType, type AttributeNode, type Entries, type Group, type I14yLink, type LangTag, type Project, KNOWN_STANDARDS, findGroup, findNode, newAttribute } from '../model.ts';
+import {
+  type AttrType,
+  type AttributeNode,
+  type Entries,
+  type Group,
+  type I14yLink,
+  type LangTag,
+  type Project,
+  type TextPlace,
+  KNOWN_STANDARDS,
+  findGroup,
+  findNode,
+  newAttribute,
+  walkNodes,
+} from '../model.ts';
 import { PLACEHOLDER_KEY, insertNode, renameNode, sourcePrefixFor, uniqueKey } from '../operations.ts';
+import { suggestText } from '../review.ts';
 import { FORBIDDEN_KEY_CHARACTERS } from '../validate/index.ts';
 import { ImportError, type ReportNote, isPlainObject } from './report.ts';
 
@@ -358,6 +373,68 @@ export function clearLink(node: AttributeNode, catalogue: I14yHit[], languages: 
 export function linkConcept(project: Project, nodeId: string, concept: I14yConcept): void {
   const node = findNode(project.root, nodeId)?.node;
   if (node?.kind === 'attribute') node.i14y = linkFor(concept);
+}
+
+/** A text a linked attribute lacks and its I14Y concept has: an empty label or value label in a project language. */
+export interface I14yFill {
+  place: TextPlace;
+  lang: LangTag;
+  text: string;
+}
+
+/** The empty labels and value labels of linked attributes that their concept has a text for, in structure order. */
+export function i14yFills(project: Project): I14yFill[] {
+  const fills: I14yFill[] = [];
+  for (const { node } of walkNodes(project.root)) {
+    if (node.kind !== 'attribute' || !node.i14y) continue;
+    for (const lang of project.languages) {
+      const label = i14yLabel(node, lang);
+      if (label && !node.labels[lang]) fills.push({ place: { kind: 'label', nodeId: node.id }, lang, text: label });
+      for (const code of node.entries?.codes ?? []) {
+        const value = i14yValueLabel(node, lang, code);
+        if (value && !node.entries?.labels[lang]?.[code]) fills.push({ place: { kind: 'entry', nodeId: node.id, code }, lang, text: value });
+      }
+    }
+  }
+  return fills;
+}
+
+/** Whether a link carries its concept's texts. Links made here always do; one from a file written elsewhere may not. */
+function hasTexts(link: I14yLink): boolean {
+  return Object.values(link.name ?? {}).some(Boolean);
+}
+
+/**
+ * The concepts to fetch before filling missing languages: those of linked attributes that lack a label or value
+ * label in a project language while their link carries no texts to fill it from. Each concept once.
+ */
+export function conceptsToLoad(project: Project): { conceptId: string; identifier: string }[] {
+  const concepts = new Map<string, string>();
+  for (const { node } of walkNodes(project.root)) {
+    if (node.kind !== 'attribute' || !node.i14y || hasTexts(node.i14y) || concepts.has(node.i14y.conceptId)) continue;
+    if (emptyLanguages(node, project.languages).length) concepts.set(node.i14y.conceptId, node.i14y.identifier);
+  }
+  return [...concepts].map(([conceptId, identifier]) => ({ conceptId, identifier }));
+}
+
+/** Whether filling missing languages from I14Y may fill something: a text to fill, or a concept to fetch first. */
+export function canFillFromI14y(project: Project): boolean {
+  return i14yFills(project).length > 0 || conceptsToLoad(project).length > 0;
+}
+
+/**
+ * Fills the empty labels and value labels of linked attributes with their concept's texts (`i14yFills`) and marks
+ * each one "needs review" from I14Y; text the issuer wrote stays. `concepts`, freshly fetched, first replace the
+ * links to them. Returns how many texts were filled. Call it inside one `update`, so the fill is one undo step.
+ */
+export function fillFromI14y(project: Project, concepts: I14yConcept[] = []): number {
+  for (const { node } of walkNodes(project.root)) {
+    if (node.kind !== 'attribute' || !node.i14y) continue;
+    const { conceptId } = node.i14y;
+    const concept = concepts.find((candidate) => candidate.id === conceptId);
+    if (concept) node.i14y = linkFor(concept);
+  }
+  return i14yFills(project).filter((fill) => suggestText(project, fill.place, fill.lang, fill.text, 'i14y')).length;
 }
 
 /** An unlinked attribute that looks like one or more I14Y concepts, waiting for the issuer to link it or not. */
