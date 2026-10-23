@@ -2086,6 +2086,14 @@ button.tree__toggle:hover {
   text-decoration: underline dotted;
   text-underline-offset: 3px;
 }
+/* Android's fallback pattern: a 180 × 180 tile repeated from the centre, under the shading layers. */
+.card-pattern {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-repeat: repeat;
+  background-position: center;
+}
 /* A wallet's shading layer, drawn over the card colour and under the content. */
 .card-gradient {
   position: absolute;

@@ -2,7 +2,7 @@ import { CaretRightIcon } from '@phosphor-icons/react';
 import type { CSSProperties } from 'react';
 import { type HomeRowLayout, type Ink, type Rgba, formatRgba } from '../../core/card/profiles';
 import type { SummarySegment } from '../../core/card/summary';
-import { CardLogo, GradientLayers, SummaryText } from './cardParts';
+import { CardLogo, FallbackPatternLayer, GradientLayers, SummaryText } from './cardParts';
 
 export interface CredentialHomeRowProps {
   /** Accessible name, e.g. "iOS home row". */
@@ -10,6 +10,8 @@ export interface CredentialHomeRowProps {
   layout: HomeRowLayout;
   theme: 'light' | 'dark';
   background: Rgba;
+  /** The background is the wallet's default colour, so a thumbnail with a fallback pattern draws it. */
+  defaultBackground?: boolean;
   ink: Ink;
   /** Null draws no name line. */
   name: string | null;
@@ -20,7 +22,7 @@ export interface CredentialHomeRowProps {
 }
 
 /** One wallet's home list row: a logo-only card thumbnail, then the name and summary in the list colours. */
-export function CredentialHomeRow({ label, layout, theme, background, ink, name, summary, logo, scale = 1 }: CredentialHomeRowProps) {
+export function CredentialHomeRow({ label, layout, theme, background, defaultBackground = false, ink, name, summary, logo, scale = 1 }: CredentialHomeRowProps) {
   const colours = layout.colours[theme];
   const { thumbnail } = layout;
   const style = {
@@ -41,6 +43,7 @@ export function CredentialHomeRow({ label, layout, theme, background, ink, name,
         className="home-row__thumbnail"
         style={{ width: `${thumbnail.width}px`, height: `${thumbnail.height}px`, borderRadius: `${thumbnail.radius}px`, background: formatRgba(background) }}
       >
+        {defaultBackground && thumbnail.fallbackPattern && <FallbackPatternLayer pattern={thumbnail.fallbackPattern} />}
         <GradientLayers gradients={thumbnail.gradients} width={thumbnail.width} height={thumbnail.height} />
         <CardLogo logo={logo} ink={ink} className="home-row__logo" />
       </span>

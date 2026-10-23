@@ -113,7 +113,7 @@ describe('CardPreview in the wallet preview', () => {
       screen.getByText('No dark branding: both wallets show the light card in dark mode.'),
       screen.getByText("Attach a sample credential under the Output pane's Bundle tab to see real values."),
       screen.getByText('Android: white text'),
-      screen.getByText("Approximation of the swiyu wallets. Uses this app's font and leaves out patterns and badges."),
+      screen.getByText("Approximation of the swiyu wallets. Uses this app's font and leaves out the demo issuer pattern and badges."),
     ];
     for (const note of notes) expect(card().compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -205,6 +205,40 @@ describe('CardPreview in the wallet preview', () => {
     await user.click(control('Preview platform', 'Android'));
     expect(card()).not.toHaveTextContent('Bello');
     expect(screen.getByText('iOS: summary "Bello"')).toBeInTheDocument();
+  });
+
+  it("draws Android's fallback pattern on the detail card, offer card and home thumbnail when there is no colour", async () => {
+    const user = userEvent.setup();
+    load((project) => {
+      delete project.branding['de-CH'].light.primaryBackgroundColor;
+    });
+    useStore.setState({ cardPlatform: 'android' });
+    renderPreview();
+    expect(card().style.background).toBe('rgb(240, 237, 229)');
+    expect(card().querySelector('.card-pattern')).toHaveAttribute('data-pattern', 'large');
+
+    await user.click(control('Preview card', 'Offer'));
+    expect(card().querySelector('.card-pattern')).toHaveAttribute('data-pattern', 'large');
+
+    await user.click(control('Preview view', 'Home'));
+    expect(card().querySelector('.home-row__thumbnail > .card-pattern')).toHaveAttribute('data-pattern', 'small');
+
+    await user.click(control('Preview platform', 'iOS'));
+    expect(card().querySelector('.card-pattern')).toBeNull();
+  });
+
+  it('draws the pattern when the issuer picks the default colour, and not on other colours', () => {
+    useStore.setState({ cardPlatform: 'android' });
+    const { unmount } = renderPreview();
+    expect(card().querySelector('.card-pattern')).toBeNull();
+    unmount();
+
+    load((project) => {
+      project.branding['de-CH'].light.primaryBackgroundColor = '#f0ede5';
+    });
+    useStore.setState({ cardPlatform: 'android' });
+    renderPreview();
+    expect(card().querySelector('.card-pattern')).toHaveAttribute('data-pattern', 'large');
   });
 
   it('says when the other wallet rejects the colour', () => {
