@@ -1,6 +1,6 @@
-import { type Baseline, isBaseline } from './baseline';
-import { isPlainObject } from './import/report';
-import type { Project } from './model';
+import { type Baseline, isBaseline } from './baseline.ts';
+import { isPlainObject } from './import/report.ts';
+import type { Project } from './model.ts';
 
 /**
  * Project files: a whole project, sample credential and I14Y links included, saved outside the browser as

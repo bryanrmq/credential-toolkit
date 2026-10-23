@@ -22,6 +22,35 @@ npm run build      # static site in dist/
 The OCA logic lives in `src/core` and has no UI dependencies. Test fixtures in
 `src/test/fixtures` come from the swiyu wallet and issuer repositories.
 
+## npm package
+
+The core is also published as [`@bryanrmq/oca-generator`](packages/oca-generator), to build and
+check bundles from project files in your own tools and in CI. It runs in Node 20 or later.
+
+```bash
+npm install @bryanrmq/oca-generator
+```
+
+```js
+import { exportProject, parseProjectFile } from '@bryanrmq/oca-generator';
+
+const file = parseProjectFile(text); // a *.oca-project.json saved by the app
+const result = file.ok && (await exportProject(file.project));
+// result.issues, and when there is no error: result.outputs.json, result.outputs.integrity, result.vct
+```
+
+Its entry point is `src/core/index.ts`, which lists the public API; the
+[package README](packages/oca-generator/README.md) documents it. `packages/oca-generator` compiles
+`src/core` with `tsc` (`npm run build:lib`) against Node's types only, so browser globals can't slip
+in. That's also why relative imports in `src/core` name their `.ts` file. An `oca` command line
+([#47](https://github.com/bryanrmq/oca-generator/issues/47)) is planned for the same package.
+
+To release it, set `version` in `packages/oca-generator/package.json`, merge, then push a
+`lib-v<version>` tag (`git tag lib-v0.1.0 && git push origin lib-v0.1.0`).
+`.github/workflows/publish-lib.yml` checks the tag against the version, runs the tests and
+publishes with npm provenance, using the `NPM_TOKEN` repository secret. It can also run by hand,
+with a dry-run option. App releases (`v*` tags) are separate.
+
 ## Deployment
 
 Vercel's GitHub integration deploys `main` to production and gives every pull request a

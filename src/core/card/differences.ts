@@ -1,4 +1,4 @@
-import { CARD_PROFILES, type CardPlatform, type CardProfile, type CardVariant, type Ink, formatHex } from './profiles';
+import { CARD_PROFILES, type CardPlatform, type CardProfile, type CardVariant, type Ink, formatHex } from './profiles.ts';
 
 /** How the other platform's card would differ; every variant describes that other platform. */
 export type CardDifference =

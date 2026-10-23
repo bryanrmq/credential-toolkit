@@ -1,4 +1,4 @@
-import type { LangTag } from './model';
+import type { LangTag } from './model.ts';
 
 /** The swiyu Android wallet rejects any overlay language that fails this pattern. */
 export const LANGUAGE_TAG_REGEX = /^[a-z]{2}(-[A-Z]{2})?$/;

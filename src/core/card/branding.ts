@@ -1,4 +1,4 @@
-import type { Branding, LangTag, Project } from '../model';
+import type { Branding, LangTag, Project } from '../model.ts';
 
 /**
  * The branding the wallets show for a language in light or dark mode. In dark mode without a dark variant

@@ -8,8 +8,8 @@ import {
   ensureLanguageSlots,
   newAttribute,
   newGroupLink,
-} from '../model';
-import { ImportError, type ImportResult, type ReportNote, isPlainObject } from './report';
+} from '../model.ts';
+import { ImportError, type ImportResult, type ReportNote, isPlainObject } from './report.ts';
 
 export interface CredentialConfigurationChoice {
   id: string;

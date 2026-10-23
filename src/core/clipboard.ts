@@ -1,4 +1,4 @@
-import { isPlainObject } from './import/report';
+import { isPlainObject } from './import/report.ts';
 import {
   type AttrType,
   type ClaimsPath,
@@ -14,9 +14,9 @@ import {
   findGroup,
   findNode,
   walkNodes,
-} from './model';
-import { cloneNode, outermostIds, uniqueKey } from './operations';
-import { listExpressions, resolveEditorPath, retargetTemplate } from './templates';
+} from './model.ts';
+import { cloneNode, outermostIds, uniqueKey } from './operations.ts';
+import { listExpressions, resolveEditorPath, retargetTemplate } from './templates.ts';
 
 /*
  * Nodes on the system clipboard, as JSON text:

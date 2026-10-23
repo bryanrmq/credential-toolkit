@@ -9,8 +9,8 @@ import {
   emptyProject,
   newAttribute,
   newGroupLink,
-} from '../model';
-import { ImportError, type ImportResult, type ReportNote, isPlainObject, parseJsonText } from './report';
+} from '../model.ts';
+import { ImportError, type ImportResult, type ReportNote, isPlainObject, parseJsonText } from './report.ts';
 
 /** SD-JWT VC claims that carry protocol data rather than credential content. */
 export const TECHNICAL_CLAIMS = ['iss', 'iat', 'exp', 'nbf', 'vct', 'vct#integrity', 'cnf', 'status', 'sub', '_sd', '_sd_alg'];

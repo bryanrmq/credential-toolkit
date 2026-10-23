@@ -20,8 +20,8 @@
  * from the payload still shows its title, with no rows when none of its claims are found.
  */
 
-import { attributeOrders } from '../export/bundle';
-import { isPlainObject } from '../import/report';
+import { attributeOrders } from '../export/bundle.ts';
+import { isPlainObject } from '../import/report.ts';
 import {
   type AttrType,
   type AttributeNode,
@@ -33,9 +33,9 @@ import {
   type Project,
   isArrayType,
   walkNodes,
-} from '../model';
-import type { CardPlatform } from './profiles';
-import { walletText } from './values';
+} from '../model.ts';
+import type { CardPlatform } from './profiles.ts';
+import { walletText } from './values.ts';
 
 /** Claims the iOS wallet never lists, as they carry protocol data (`VcSdJWSDecoder.nonSelectivelyDisclosableClaims`). */
 export const IOS_TECHNICAL_CLAIMS: readonly string[] = [

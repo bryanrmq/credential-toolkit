@@ -1,6 +1,6 @@
-import { sriSha256, toBase64, utf8 } from '../cesr';
-import type { Hosting, Project } from '../model';
-import { type BundleJson, serializeBundle } from './bundle';
+import { sriSha256, toBase64, utf8 } from '../cesr.ts';
+import type { Hosting, Project } from '../model.ts';
+import { type BundleJson, serializeBundle } from './bundle.ts';
 
 export const BUNDLE_FILE_NAME = 'oca-bundle.json';
 export const PROFILE_VERSION = 'swiss-profile-vc:1.0.0';
@@ -26,6 +26,7 @@ export function bundleIntegrity(json: string, hosting: Hosting): Promise<string>
   return sriSha256(utf8(hosting.mode === 'dataUrl' ? bundleDataUrl(json) : json));
 }
 
+/** The bundle text, its data URL, the `uri` for the VCT and its `#integrity`, for `project` and its built `bundle`. */
 export async function buildOutputs(project: Project, bundle: BundleJson): Promise<ExportOutputs> {
   const json = serializeBundle(bundle);
   const dataUrl = bundleDataUrl(json);

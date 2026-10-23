@@ -1,7 +1,7 @@
-import { bundleIntegrity } from './export/outputs';
-import { importBundle } from './import/bundle';
-import { isPlainObject, parseJsonText } from './import/report';
-import type { Hosting } from './model';
+import { bundleIntegrity } from './export/outputs.ts';
+import { importBundle } from './import/bundle.ts';
+import { isPlainObject, parseJsonText } from './import/report.ts';
+import type { Hosting } from './model.ts';
 
 /**
  * A draft's published baseline: the bundle it was last published as, which the Changes tab compares the

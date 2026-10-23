@@ -4,7 +4,7 @@
  * compared row by row (matched by claims path), so every difference names the row it is about.
  */
 
-import { otherPlatform } from './differences';
+import { otherPlatform } from './differences.ts';
 import {
   type CredentialDetails,
   type DetailsClaim,
@@ -15,10 +15,10 @@ import {
   androidAppLocale,
   credentialDetails,
   iosLanguageCodes,
-} from './details';
-import type { CardPlatform } from './profiles';
-import { type FormattedValue, type ValueOptions, formatClaim, walletLocale } from './values';
-import type { Project } from '../model';
+} from './details.ts';
+import type { CardPlatform } from './profiles.ts';
+import { type FormattedValue, type ValueOptions, formatClaim, walletLocale } from './values.ts';
+import type { Project } from '../model.ts';
 
 /** What a device set to these languages uses on each platform: label languages and value formatting. */
 export interface DetailsDevice {
