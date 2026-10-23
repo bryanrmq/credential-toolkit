@@ -21,6 +21,7 @@ export type {
   GroupLink,
   Hosting,
   I14yLink,
+  IssuerSettings,
   LangTag,
   Meta,
   Node,
@@ -28,6 +29,10 @@ export type {
   PrimitiveType,
   Project,
 } from './model.ts';
+
+// Issuer settings (`project.issuer`): defaults and checks shared by the Type Metadata and Issuer Metadata files.
+export { FALLBACK_IDENTIFIER_BASE, IDENTIFIER_PATTERN, defaultIdentifiers, isIssuerLogo, isIssuerUrl, issuerIdentifiers, issuerOf } from './issuer.ts';
+export type { IssuerIdentifiers } from './issuer.ts';
 
 // Project files (`*.oca-project.json`), as the app saves and opens them.
 export {

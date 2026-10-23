@@ -8,6 +8,7 @@ import {
   confirmReview,
   hasUnreviewed,
   markSuggested,
+  placeOrder,
   pruneReview,
   reviewMarkAt,
   reviewMarks,
@@ -32,6 +33,7 @@ function sample(): { project: Project; sex: AttributeNode } {
 const label = (sex: AttributeNode): TextPlace => ({ kind: 'label', nodeId: sex.id });
 const entry = (sex: AttributeNode, code: string): TextPlace => ({ kind: 'entry', nodeId: sex.id, code });
 const NAME: TextPlace = { kind: 'meta', field: 'name' };
+const ISSUER: TextPlace = { kind: 'issuerName' };
 
 describe('texts by place', () => {
   it('reads and writes every kind of translatable text', () => {
@@ -89,6 +91,54 @@ describe('marking suggested texts', () => {
     expect(project.review).toBeUndefined();
     // The texts stay as they were.
     expect(textAt(project, label(sex), 'fr-CH')).toBe('Sexe');
+  });
+});
+
+describe('the issuer name', () => {
+  it('is a text per language like the credential name, also in a project saved before the issuer settings', () => {
+    const { project } = sample();
+    expect(textAt(project, ISSUER, 'fr-CH')).toBe('');
+    setTextAt(project, ISSUER, 'fr-CH', 'Canton de Berne');
+    expect(textAt(project, ISSUER, 'fr-CH')).toBe('Canton de Berne');
+    expect(project.issuer?.name).toEqual({ 'de-CH': '', 'fr-CH': 'Canton de Berne' });
+    expect(textAt(project, ISSUER, 'it-CH')).toBeUndefined();
+
+    delete project.issuer;
+    expect(textAt(project, ISSUER, 'de-CH')).toBe('');
+    setTextAt(project, ISSUER, 'de-CH', 'Kanton Bern');
+    expect(project.issuer).toEqual({ name: { 'de-CH': 'Kanton Bern', 'fr-CH': '' } });
+  });
+
+  it('takes a review mark that holds until the name is edited, its language removed or renamed', () => {
+    const { project } = sample();
+    expect(suggestText(project, ISSUER, 'fr-CH', 'Canton de Berne', 'translation')).toBe(true);
+    expect(reviewMarkAt(project, ISSUER, 'fr-CH')).toEqual({ place: ISSUER, lang: 'fr-CH', source: 'translation', text: 'Canton de Berne' });
+    expect(reviewMarkAt(project, NAME, 'fr-CH')).toBeUndefined();
+    expect(hasUnreviewed(project)).toBe(true);
+
+    renameLanguage(project, 'fr-CH', 'fr');
+    expect(reviewMarkAt(project, ISSUER, 'fr')?.text).toBe('Canton de Berne');
+    setTextAt(project, ISSUER, 'fr', 'Canton de Berne (BE)');
+    expect(reviewMarks(pruneReview(project))).toEqual([]);
+
+    suggestText(project, ISSUER, 'fr', 'Canton de Berne', 'i14y');
+    removeLanguage(project, 'fr');
+    expect(reviewMarks(project)).toEqual([]);
+  });
+
+  it('marks nothing while empty, and its marks survive a project file', () => {
+    const { project } = sample();
+    expect(markSuggested(project, ISSUER, 'de-CH', 'translation')).toBe(false);
+    suggestText(project, ISSUER, 'de-CH', 'Kanton Bern', 'translation');
+    const parsed = parseProjectFile(serializeProjectFile(project));
+    expect(parsed.ok && reviewMarks(parsed.project)).toEqual([{ place: ISSUER, lang: 'de-CH', source: 'translation', text: 'Kanton Bern' }]);
+  });
+
+  it('is listed after the credential fields and before the attributes', () => {
+    const { project, sex } = sample();
+    const order = placeOrder(project);
+    const places: TextPlace[] = [label(sex), ISSUER, { kind: 'primaryField', theme: 'dark' }, NAME];
+    expect(places.sort((a, b) => order(a) - order(b))).toEqual([NAME, { kind: 'primaryField', theme: 'dark' }, ISSUER, label(sex)]);
   });
 });
 

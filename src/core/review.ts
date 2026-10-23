@@ -1,5 +1,5 @@
 import { isPlainObject } from './import/report';
-import { type LangTag, type Project, type ReviewMark, type SuggestionSource, type TextPlace, findNode, walkNodes } from './model';
+import { type LangTag, type Project, type ReviewMark, type SuggestionSource, type TextPlace, ensureIssuer, findNode, walkNodes } from './model';
 
 /*
  * "Needs review" marks on suggested texts: texts the app filled in (from I14Y, or by the browser's on-device
@@ -22,6 +22,8 @@ export function textAt(project: Project, place: TextPlace, lang: LangTag): strin
   switch (place.kind) {
     case 'meta':
       return project.meta[lang]?.[place.field] ?? '';
+    case 'issuerName':
+      return project.issuer?.name?.[lang] ?? '';
     case 'primaryField': {
       const pair = project.branding[lang];
       if (place.theme === 'dark') return pair?.dark ? (pair.dark.primaryField ?? '') : undefined;
@@ -44,6 +46,9 @@ export function setTextAt(project: Project, place: TextPlace, lang: LangTag, val
   switch (place.kind) {
     case 'meta':
       project.meta[lang] = { ...(project.meta[lang] ?? { name: '', description: '' }), [place.field]: value };
+      return;
+    case 'issuerName':
+      ensureIssuer(project).name[lang] = value;
       return;
     case 'primaryField': {
       const pair = (project.branding[lang] ??= { light: {} });
@@ -74,6 +79,8 @@ export function samePlace(a: TextPlace, b: TextPlace): boolean {
   switch (a.kind) {
     case 'meta':
       return a.field === (b as typeof a).field;
+    case 'issuerName':
+      return true;
     case 'primaryField':
       return a.theme === (b as typeof a).theme;
     case 'label':
@@ -88,6 +95,8 @@ function isPlace(value: unknown): value is TextPlace {
   switch (value.kind) {
     case 'meta':
       return value.field === 'name' || value.field === 'description';
+    case 'issuerName':
+      return true;
     case 'primaryField':
       return value.theme === 'light' || value.theme === 'dark';
     case 'label':
@@ -173,15 +182,16 @@ export function pruneReview(project: Project): Project {
 
 /**
  * Where a place sits in the project, for listing marks in the order of the form: the credential's name,
- * description and primary fields first, then the tree depth-first.
+ * description, primary fields and issuer name first, then the tree depth-first.
  */
 export function placeOrder(project: Project): (place: TextPlace) => number {
   const nodes = new Map<string, number>();
   for (const { node } of walkNodes(project.root)) nodes.set(node.id, nodes.size);
-  const credential = { name: 0, description: 1, light: 2, dark: 3 };
+  const credential = { name: 0, description: 1, light: 2, dark: 3, issuerName: 4 };
   return (place) => {
     if (place.kind === 'meta') return credential[place.field];
     if (place.kind === 'primaryField') return credential[place.theme];
-    return 4 + (nodes.get(place.nodeId) ?? nodes.size);
+    if (place.kind === 'issuerName') return credential.issuerName;
+    return 5 + (nodes.get(place.nodeId) ?? nodes.size);
   };
 }

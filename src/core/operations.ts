@@ -297,6 +297,7 @@ export function removeLanguage(project: Project, lang: LangTag): void {
   project.languages = project.languages.filter((tag) => tag !== lang);
   delete project.meta[lang];
   delete project.branding[lang];
+  if (project.issuer) delete project.issuer.name[lang];
   for (const { node } of walkNodes(project.root)) {
     delete node.labels[lang];
     if (node.kind === 'attribute' && node.entries) delete node.entries.labels[lang];
@@ -320,6 +321,7 @@ export function renameLanguage(project: Project, from: LangTag, to: LangTag): vo
   };
   move(project.meta);
   move(project.branding);
+  if (project.issuer) move(project.issuer.name);
   for (const { node } of walkNodes(project.root)) {
     move(node.labels);
     if (node.kind === 'attribute' && node.entries) move(node.entries.labels);

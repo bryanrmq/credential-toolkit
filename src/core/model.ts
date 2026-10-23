@@ -89,7 +89,8 @@ export type TextPlace =
   | { kind: 'label'; nodeId: string }
   | { kind: 'entry'; nodeId: string; code: string }
   | { kind: 'meta'; field: 'name' | 'description' }
-  | { kind: 'primaryField'; theme: 'light' | 'dark' };
+  | { kind: 'primaryField'; theme: 'light' | 'dark' }
+  | { kind: 'issuerName' };
 
 /** Who suggested a text: I14Y's texts for a concept, or the browser's on-device translation. */
 export type SuggestionSource = 'i14y' | 'translation';
@@ -105,6 +106,28 @@ export interface ReviewMark {
   text: string;
 }
 
+/**
+ * Who issues the credential, and the identifiers the swiyu generic issuer files use. Editor-only as far as the
+ * bundle goes (like `i14y` links and review marks): drafts and project files keep it, the OCA bundle never has
+ * it. It feeds the generated `vct.json` (Type Metadata) and `issuer_metadata.json` (Credential Issuer Metadata),
+ * and the preview's "Issued by" row: the wallets take the issuer's name and logo from the Issuer Metadata.
+ */
+export interface IssuerSettings {
+  /** Issuer name per project language: the Issuer Metadata's top-level `display[].name`. */
+  name: Record<LangTag, string>;
+  /** One logo for all languages, a `data:image/png;base64,…` or `data:image/jpeg;base64,…` URL (`isIssuerLogo`). */
+  logo?: string;
+  /**
+   * The real value the generic issuer puts in place of `${external-url}`, e.g. `https://issuer.example.ch`.
+   * Optional: with it, the tool can compute `vct_metadata_uri#integrity`.
+   */
+  url?: string;
+  /** Key under `credential_configurations_supported`. Unset or empty: derived from the credential name (`issuerIdentifiers`). */
+  configurationId?: string;
+  /** The `<type key>` in `${external-url}/oid4vci/vct/<type key>`. Unset or empty: derived from the credential name. */
+  typeKey?: string;
+}
+
 export type Hosting = { mode: 'url'; url: string } | { mode: 'dataUrl' };
 
 export interface Project {
@@ -118,6 +141,11 @@ export interface Project {
   bundleExtras: Record<string, unknown>;
   /** Suggested texts waiting for review. Editor-only, like `i14y` links: kept in drafts and project files, never in the bundle. */
   review?: ReviewMark[];
+  /**
+   * Issuer and Issuer Metadata settings (`IssuerSettings`). New projects have it; projects saved before it was
+   * added do not, so read it through `issuerOf` (`core/issuer.ts`) and write it through `ensureIssuer`.
+   */
+  issuer?: IssuerSettings;
 }
 
 export function newId(): string {
@@ -145,15 +173,24 @@ export function emptyProject(languages: LangTag[]): Project {
     root: emptyGroup(),
     hosting: { mode: 'url', url: '' },
     bundleExtras: {},
+    issuer: { name: {} },
   };
   for (const lang of languages) ensureLanguageSlots(project, lang);
   return project;
 }
 
-/** Makes sure meta and branding exist for a language. */
+/** Makes sure meta, branding and the issuer name exist for a language. */
 export function ensureLanguageSlots(project: Project, lang: LangTag): void {
   project.meta[lang] ??= { name: '', description: '' };
   project.branding[lang] ??= { light: {} };
+  ensureIssuer(project).name[lang] ??= '';
+}
+
+/** The project's issuer settings, created when missing (projects saved before they existed), with a name slot for every language. */
+export function ensureIssuer(project: Project): IssuerSettings {
+  const issuer = (project.issuer ??= { name: {} });
+  for (const lang of project.languages) issuer.name[lang] ??= '';
+  return issuer;
 }
 
 export function isArrayType(type: AttrType): type is { array: PrimitiveType } {
