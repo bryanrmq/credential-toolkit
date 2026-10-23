@@ -559,6 +559,9 @@ kbd.palette__meta {
   font-size: 12px;
   color: var(--text-muted);
 }
+.topbar__palette kbd {
+  color: var(--text-muted);
+}
 
 /* Fix toast */
 .toast-region {
