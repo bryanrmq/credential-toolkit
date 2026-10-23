@@ -1,6 +1,11 @@
 /** The shortcut keys the tour shows, labelled for the platform: ⌘G on a Mac, Ctrl+G elsewhere. */
 export type TourKeys = Record<'add' | 'delete' | 'group' | 'moveUp' | 'moveDown' | 'filter' | 'undo' | 'output', string>;
 
+/** `a`, `a and b`, `a, b and c`. */
+function listOf(items: string[]): string {
+  return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
+}
+
 /** Every piece of interface copy, in one place so the tool can be translated later. */
 export const t = {
   appName: 'OCA Generator',
@@ -461,6 +466,31 @@ export const t = {
     issueIn: (lang: string) => `Suggested text needs review in ${lang}.`,
     confirmAll: 'Confirm all suggested texts',
   },
+  /** Suggested translations by the browser's on-device translator. */
+  translate: {
+    missing: 'Translate missing languages',
+    /** On an empty language row: translate it from the editing language. */
+    suggestFrom: (lang: string) => `Suggest from ${lang}`,
+    suggestText: (label: string, lang: string, from: string) => `Suggest the ${label} (${lang}) from ${from}`,
+    pair: (from: string, to: string) => `${from} to ${to}`,
+    noticeTitle: 'Download a translation model?',
+    notice: (pairs: string[]) =>
+      `Your browser will download ${pairs.length === 1 ? 'a translation model' : 'translation models'} for ${listOf(pairs)} once. The text never leaves this device.`,
+    download: 'Download and translate',
+    cancel: 'Cancel',
+    downloading: (count: number) => (count === 1 ? 'Downloading translation model' : 'Downloading translation models'),
+    /** The language pairs in the progress toast, as `de-CH → fr-CH, it-CH`. */
+    direction: (from: string, to: string[]) => `${from} → ${to.join(', ')}`,
+    percent: (percent: number) => `${percent}%`,
+    translating: (count: number) => `Translating ${count} ${count === 1 ? 'text' : 'texts'}`,
+    translated: (count: number) => `Translated ${count} ${count === 1 ? 'text' : 'texts'}, marked for review`,
+    unavailable: (languages: string[]) => `${listOf(languages)} ${languages.length === 1 ? "isn't" : "aren't"} available in this browser's translator`,
+    /** The toast: what was translated, then what was skipped. */
+    report: (notes: string[]) => notes.join('. '),
+    failed: "Couldn't translate. Try again.",
+    checking: "Checking the browser's translator",
+    noAnswer: "The browser's translator didn't answer. Try again in a moment.",
+  },
   sample: {
     none: 'No sample credential attached. Attach one to check that every source path exists.',
     attached: 'Sample credential attached: source paths are checked against it. It is never exported.',
@@ -507,7 +537,7 @@ export const t = {
     steps: {
       welcome: {
         title: 'Welcome to the workspace',
-        body: 'You build the bundle in three areas: list the attributes in Structure, write their texts and branding in Edit, then check and download the result in Output.',
+        body: 'You build the bundle in three areas: list the attributes in Structure, write their texts and branding in Edit while the wallet preview follows, then copy and download the bundle in Output.',
         features: [
           'The draft is saved in this browser as you type. Nothing is uploaded.',
           'Replay this tour any time from the ⋯ menu in the top bar.',
@@ -528,22 +558,22 @@ export const t = {
       },
       edit: {
         title: 'Edit',
-        body: 'Edits what you selected in Structure, in the editing language.',
+        body: 'Edits what you selected in Structure and previews it in the wallet as you type.',
         features: [
-          'Credential: name, description, logo, background colour and primary field. Output previews the card as you type.',
+          'Credential: name, description, logo, background colour and primary field.',
           'Attribute: key, label, type, source path, value translations and the sensitive flag. A group has a headline instead of a label.',
+          'With several languages, each text lists every language, the editing language first. Empty ones are yellow.',
+          'Texts filled in for you, from I14Y for example, are marked for review until you confirm or edit them.',
           'Type [[{{]] in the primary field or a list headline to insert an attribute value.',
-          'With several languages, the Translations panel beside the form shows the item in each one. Click a language to edit in it.',
+          'The preview shows the card, the details screen or the home list row, for iOS or Android. It sits beside the form, or below it on a narrow pane, where its header collapses it.',
         ],
       },
       output: {
         title: 'Output',
-        body: 'Previews the credential in the wallets and gives you what to publish.',
+        body: 'What you publish: the bundle, the display entries for your type metadata and what changed.',
         features: (keys: TourKeys) => [
-          'Preview on top: the card, the details screen or the home list row, for iOS or Android, with the notes on how the other wallet differs.',
-          'Drag the divider to share the space with the bundle, or collapse either half to its header.',
-          'Bundle: copy the JSON and its uri#integrity value. The gear holds where the bundle will be hosted.',
-          'The gear also attaches a sample credential to check that every source path exists. It is never exported.',
+          'Bundle: copy the JSON and its uri#integrity value. Above it, choose where the bundle will be hosted.',
+          'Attach a sample credential there too, to check that every source path exists. It is never exported.',
           'VCT snippet: the display entries to add to your SD-JWT VC Type Metadata.',
           'Changes: what changed since the published bundle and whether uri#integrity changed. Click a change to jump to its field.',
           `On a wide window, [[${keys.output}]] or the button in its header hides it to give Edit more room. The top bar shows it again.`,

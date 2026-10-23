@@ -33,6 +33,8 @@ import { t } from '../../strings';
 import { fillMissingFromI14y } from './i14y';
 import { usesCommandKey } from './platform';
 import { openProjectFile, saveProjectFile } from './projectFile';
+import { missingTexts, translateMissing, useTranslationState } from './translate';
+import { hasTranslator } from './translator';
 import {
   type NodePlace,
   addNode,
@@ -83,6 +85,7 @@ export type CommandId =
   | 'workspace.saveProjectFile'
   | 'workspace.openProjectFile'
   | 'workspace.fillFromI14y'
+  | 'workspace.translateMissing'
   | 'workspace.confirmSuggestions'
   | 'workspace.palette';
 
@@ -426,6 +429,27 @@ export const COMMANDS: readonly Command[] = [
     appliesWhen: always,
     // Every text at once, as one undo step.
     run: () => void fillMissingFromI14y(),
+  },
+  {
+    id: 'workspace.translateMissing',
+    label: t.translate.missing,
+    icon: TranslateIcon,
+    scope: 'workspace',
+    // Only in browsers with the on-device Translator API, and with another language to fill.
+    available: () => {
+      const project = useStore.getState().project;
+      return hasTranslator() && project !== null && project.languages.length > 1;
+    },
+    // Not while a translation runs: one at a time.
+    appliesWhen: () => {
+      const { project, editLang } = useStore.getState();
+      return project !== null && !useTranslationState.getState().running && missingTexts(project, editLang).length > 0;
+    },
+    // Every empty text in every other language, from the editing language, as one undo step.
+    run: () => {
+      endTyping();
+      void translateMissing();
+    },
   },
   {
     id: 'workspace.confirmSuggestions',

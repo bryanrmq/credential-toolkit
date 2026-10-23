@@ -78,14 +78,21 @@ describe('Tour', () => {
     expect(keys()).toEqual(['N', 'Del', 'Ctrl+G', 'Alt+↑', 'Alt+↓', 'Ctrl+Z', 'Ctrl+F']);
     await next(user);
     expect(within(tour()).getByText('{{', { selector: 'kbd' })).toBeInTheDocument();
-    // The card preview lives in Output now.
-    expect(features().join(' ')).not.toMatch(/card preview/i);
-
-    // Output gives what to publish; the issues have a step of their own.
-    await next(user);
-    expect(features().join(' ')).not.toMatch(/issue/i);
+    // The translations and the wallet preview live in the Edit pane now.
+    expect(features().join(' ')).not.toMatch(/Translations panel/);
     expect(features()).toEqual(
-      expect.arrayContaining([expect.stringMatching(/^Preview on top: the card, the details screen or the home list row, for iOS or Android/), expect.stringMatching(/The gear holds where the bundle will be hosted/)]),
+      expect.arrayContaining([
+        'With several languages, each text lists every language, the editing language first. Empty ones are yellow.',
+        expect.stringMatching(/^Texts filled in for you, from I14Y for example, are marked for review/),
+        expect.stringMatching(/^The preview shows the card, the details screen or the home list row, for iOS or Android. It sits beside the form/),
+      ]),
+    );
+
+    // Output gives the bundle to publish; the issues have a step of their own.
+    await next(user);
+    expect(features().join(' ')).not.toMatch(/issue|preview|divider|gear/i);
+    expect(features()).toEqual(
+      expect.arrayContaining([expect.stringMatching(/Above it, choose where the bundle will be hosted/), expect.stringMatching(/^Attach a sample credential there too/)]),
     );
     expect(keys()).toEqual(['Ctrl+Alt+B']);
     await next(user);
@@ -101,6 +108,35 @@ describe('Tour', () => {
     expect(keys()).toEqual(['N', '⌫', '⌘G', '⌥↑', '⌥↓', '⌘Z', '⌘F']);
     await next(user, 2);
     expect(keys()).toEqual(['⌥⌘B']);
+  });
+
+  it('lights up the form and the wallet preview beside it for the Edit step', async () => {
+    layOut('edit');
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await next(user);
+    expect(document.querySelector('.tour__spotlight')).not.toBeInTheDocument();
+    await next(user);
+    expect(heading()).toBe('Edit');
+    const edit = screen.getByRole('region', { name: 'Edit' });
+    expect(edit).toHaveAttribute('data-tour', 'edit');
+    expect(within(edit).getByLabelText('Name')).toBeInTheDocument();
+    expect(within(edit).getByRole('region', { name: 'Preview' })).toBeInTheDocument();
+    expect(document.querySelector('.tour__spotlight')).toBeInTheDocument();
+  });
+
+  it('switches a narrow window to the Edit tab for its step, with the form and the preview', async () => {
+    narrowWindow();
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await next(user);
+    expect(shownPane()).toBe('Structure');
+    await next(user);
+    expect(heading()).toBe('Edit');
+    expect(shownPane()).toBe('Edit');
+    const edit = screen.getByRole('region', { name: 'Edit' });
+    expect(within(edit).getByLabelText('Name')).toBeInTheDocument();
+    expect(within(edit).getByRole('region', { name: 'Preview' })).toBeInTheDocument();
   });
 
   it('lights up the Issues panel along the bottom for its step', async () => {
