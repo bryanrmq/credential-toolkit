@@ -81,6 +81,8 @@ describe('the command list', () => {
         'workspace.undo',
         'workspace.redo',
         'workspace.toggleOutput',
+        'workspace.saveProjectFile',
+        'workspace.openProjectFile',
       ].sort(),
     );
     for (const entry of COMMANDS) {
@@ -171,6 +173,14 @@ describe('applies when', () => {
     expect(appliesNow('workspace.redo')).toBe(false);
     useStore.getState().undo();
     expect(appliesNow('workspace.redo')).toBe(true);
+  });
+
+  it('saves a project file with a project open, and opens one any time', () => {
+    expect(appliesNow('workspace.saveProjectFile')).toBe(true);
+    expect(appliesNow('workspace.openProjectFile')).toBe(true);
+    useStore.getState().close();
+    expect(appliesNow('workspace.saveProjectFile')).toBe(false);
+    expect(appliesNow('workspace.openProjectFile')).toBe(true);
   });
 
   it('lists the commands that apply now: tree ones only while the Structure pane shows', () => {
@@ -264,6 +274,8 @@ describe('keys', () => {
     expect(shortcutLabel('workspace.redo', true)).toBe('⇧⌘Z');
     expect(shortcutLabel('workspace.toggleOutput', true)).toBe('⌥⌘B');
     expect(shortcutLabel('workspace.toggleOutput', false)).toBe('Ctrl+Alt+B');
+    expect(shortcutLabel('workspace.saveProjectFile', true)).toBe('⌘S');
+    expect(shortcutLabel('workspace.openProjectFile', false)).toBe('Ctrl+O');
   });
 });
 

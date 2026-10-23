@@ -6,6 +6,8 @@ import {
   ClipboardTextIcon,
   CopyIcon,
   CopySimpleIcon,
+  FloppyDiskIcon,
+  FolderOpenIcon,
   FolderSimpleDashedIcon,
   FolderSimpleIcon,
   FolderSimplePlusIcon,
@@ -25,6 +27,7 @@ import { selectedIds } from '../../state/selection';
 import { endTyping, useStore } from '../../state/store';
 import { t } from '../../strings';
 import { usesCommandKey } from './platform';
+import { openProjectFile, saveProjectFile } from './projectFile';
 import {
   type NodePlace,
   addNode,
@@ -49,7 +52,7 @@ import { isWideWindow } from './wideWindow';
  * Every command of the workspace that has a shortcut or a menu entry, defined once: its label, icon,
  * keys, where its keys work, when it applies and what it does. Menus, the Edit pane's buttons, the
  * tour and the one keyboard handler (`useCommandShortcuts`) read from here. The actions themselves
- * live in `treeActions.ts`, `treeClipboard.ts` and the store.
+ * live in `treeActions.ts`, `treeClipboard.ts`, `projectFile.ts` and the store.
  */
 
 export type CommandId =
@@ -71,7 +74,9 @@ export type CommandId =
   | 'tree.paste'
   | 'workspace.undo'
   | 'workspace.redo'
-  | 'workspace.toggleOutput';
+  | 'workspace.toggleOutput'
+  | 'workspace.saveProjectFile'
+  | 'workspace.openProjectFile';
 
 /** Where a command's keys work: on a row of the Structure tree (`tree`), or anywhere in the workspace, text fields included. */
 export type CommandScope = 'tree' | 'workspace';
@@ -377,6 +382,26 @@ export const COMMANDS: readonly Command[] = [
     available: () => isWideWindow() && hosts.workspace !== undefined,
     appliesWhen: always,
     run: () => hosts.workspace?.toggleOutput(),
+  },
+  {
+    id: 'workspace.saveProjectFile',
+    label: t.projectFile.save,
+    icon: FloppyDiskIcon,
+    // Instead of the browser's Save Page As.
+    keys: mod('s'),
+    scope: 'workspace',
+    appliesWhen: () => useStore.getState().project !== null,
+    run: saveProjectFile,
+  },
+  {
+    id: 'workspace.openProjectFile',
+    label: t.projectFile.open,
+    icon: FolderOpenIcon,
+    // Instead of the browser's Open File.
+    keys: mod('o'),
+    scope: 'workspace',
+    appliesWhen: always,
+    run: openProjectFile,
   },
 ];
 

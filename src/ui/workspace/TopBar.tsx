@@ -4,11 +4,17 @@ import { BUNDLE_FILE_NAME } from '../../core/export/outputs';
 import { useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
-import { Badge, Button, Menu, Segmented } from '../components/controls';
+import { Badge, Button, Menu, type MenuItem, Segmented } from '../components/controls';
 import { groupIssues, useIssues } from '../issues';
+import { type CommandId, ariaKeyShortcuts, commandLabel, runCommand, shortcutLabel } from '../lib/commands';
 import { downloadText } from '../lib/download';
 import { useWideWindow } from '../lib/wideWindow';
 import { Wordmark } from '../Wordmark';
+
+/** A menu item that runs command `id`, with its keys. */
+function commandItem(id: CommandId): MenuItem {
+  return { label: commandLabel(id), shortcut: shortcutLabel(id), ariaKeyShortcuts: ariaKeyShortcuts(id), onSelect: () => runCommand(id) };
+}
 
 /**
  * One row at every width: names on the left, actions on the right. Below 960 px the language
@@ -115,6 +121,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
             { label: t.workspace.editorView, className: 'narrow-only', onSelect: () => setView('editor') },
             { label: t.workspace.translationsView, className: 'narrow-only', onSelect: () => setView('translations') },
             { label: t.tour.start, onSelect: () => setTourOpen(true) },
+            { ...commandItem('workspace.saveProjectFile'), separatorBefore: true },
+            commandItem('workspace.openProjectFile'),
             {
               label: t.workspace.newProject,
               onSelect: close,

@@ -14,8 +14,9 @@
  * - `saveOpenDraft()`: saves the open draft now instead of after the autosave delay.
  */
 import { create } from 'zustand';
-import { type ReportNote, isPlainObject } from '../core/import/report';
+import type { ReportNote } from '../core/import/report';
 import { type LangTag, type Project, newId } from '../core/model';
+import { isProject } from '../core/projectFile';
 import { t } from '../strings';
 import { DRAFTS_STORE, SUMMARIES_STORE, openDatabase, transact } from './idb';
 import { useStore } from './store';
@@ -65,18 +66,6 @@ export function selectResumeDraft(state: DraftsState): DraftSummary | null {
 /** The draft's custom name, else the credential name, else "Untitled credential". */
 export function draftDisplayName(draft: Pick<DraftSummary, 'customName' | 'credentialName'>): string {
   return draft.customName || draft.credentialName || t.drafts.untitled;
-}
-
-function isProject(value: unknown): value is Project {
-  return (
-    isPlainObject(value) &&
-    value.version === 1 &&
-    Array.isArray(value.languages) &&
-    isPlainObject(value.root) &&
-    Array.isArray(value.root.children) &&
-    isPlainObject(value.meta) &&
-    isPlainObject(value.branding)
-  );
 }
 
 function summaryOf({ id, customName, updatedAt, project }: DraftRecord): DraftSummary {

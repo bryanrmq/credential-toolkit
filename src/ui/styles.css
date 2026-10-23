@@ -860,7 +860,16 @@ input[type='checkbox'] {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
   display: grid;
 }
+.menu__separator {
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
+}
 .menu__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  white-space: nowrap;
   text-align: left;
   border: none;
   background: none;
@@ -968,7 +977,7 @@ input[type='checkbox'] {
     display: initial;
   }
   .menu__item.narrow-only {
-    display: block;
+    display: flex;
   }
 }
 @media (max-width: 720px) {

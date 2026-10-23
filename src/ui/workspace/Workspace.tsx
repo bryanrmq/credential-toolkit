@@ -134,7 +134,7 @@ export function Workspace() {
             {t.workspace.storageUnavailable}
           </p>
         )}
-        {canSave && saveFailed && <OutOfSpaceBanner exportState={exportState} />}
+        {canSave && saveFailed && <OutOfSpaceBanner />}
         <ReportBanner />
         <I14yMatchBanner onReview={() => setPane('inspector')} />
         {view === 'translations' ? (

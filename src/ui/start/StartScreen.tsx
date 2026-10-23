@@ -2,6 +2,7 @@ import { ArrowRightIcon, BracketsCurlyIcon, FilePlusIcon, IdentificationCardIcon
 import { type ReactNode, Suspense, lazy, useRef, useState } from 'react';
 import { draftDisplayName, openDraft, selectResumeDraft, useDrafts } from '../../state/persistence';
 import { t } from '../../strings';
+import { FixToast } from '../components/FixToast';
 import { useReveal } from '../lib/reveal';
 import { Wordmark } from '../Wordmark';
 import { CredentialSketch } from './CredentialSketch';
@@ -79,6 +80,8 @@ export function StartScreen() {
         </footer>
       </div>
       {dialog && <ImportDialog kind={dialog} onClose={() => setDialog(null)} />}
+      {/* Reports a project file that could not be opened. */}
+      <FixToast />
     </main>
   );
 }

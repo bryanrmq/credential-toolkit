@@ -9,10 +9,11 @@ export const TOAST_DURATION_MS = 6000;
 function noticeText(notice: FixNotice): string {
   if (notice.kind === 'fixed') return t.fixes.fixed(notice.fixed, notice.total);
   if (notice.kind === 'failed') return t.fixes.failed(notice.label);
+  if (notice.kind === 'error') return notice.message;
   return t.fixes.stale;
 }
 
-/** Reports the last fix and offers to undo it until it goes away or the project is edited. */
+/** Reports the last fix and offers to undo it until it goes away or the project is edited; also shows other actions' errors. */
 export function FixToast() {
   const notice = useStore((state) => state.fixNotice);
   return (

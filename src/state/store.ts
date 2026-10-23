@@ -15,8 +15,15 @@ export type OutputHalf = 'preview' | 'bundle';
 /** Which Output halves are open; a closed one shows only its header. */
 export type OutputHalves = Record<OutputHalf, boolean>;
 
-/** What the fix toast reports: how many issues a fix fixed, that it failed, or that the project changed meanwhile. */
-export type FixNotice = { kind: 'fixed'; fixed: number; total: number } | { kind: 'failed'; label?: string } | { kind: 'stale' };
+/**
+ * What the toast reports: how many issues a fix fixed, that it failed, or that the project changed meanwhile;
+ * or an error of another action, such as a project file that could not be opened (`error`).
+ */
+export type FixNotice =
+  | { kind: 'fixed'; fixed: number; total: number }
+  | { kind: 'failed'; label?: string }
+  | { kind: 'stale' }
+  | { kind: 'error'; message: string };
 
 /** One undo or redo step: the project and the selection to go back to. */
 export interface HistoryStep {
@@ -105,6 +112,8 @@ export interface AppState {
   applyFixes: (groups: Fix[][]) => Promise<void>;
   /** Hides the toast; the fix stays in the history. */
   dismissFixNotice: () => void;
+  /** Shows `message` in the error toast. */
+  showError: (message: string) => void;
 }
 
 /** The language to keep editing after `before` became `after`: the same tag, else the tag now at its place (a rename), else the first. */
@@ -314,6 +323,7 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
     }
   },
   dismissFixNotice: () => set({ fixNotice: null }),
+  showError: (message) => set({ fixNotice: { kind: 'error', message } }),
 })));
 
 // The project's collapsed groups are saved whenever they change, however they changed.

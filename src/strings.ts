@@ -62,7 +62,12 @@ export const t = {
     untitled: 'Untitled credential',
     outOfSpace:
       "This browser is out of space, so recent changes aren't saved here. Save a project file to keep them, or delete old projects from the start screen.",
-    saveProjectFile: 'Save project file',
+  },
+  projectFile: {
+    save: 'Save project file',
+    open: 'Open project file',
+    invalid: "This file isn't an OCA generator project.",
+    newer: 'This project was saved by a newer version of the OCA generator. Reload the page to update, then open it again.',
   },
   workspace: {
     untitled: 'Untitled credential',

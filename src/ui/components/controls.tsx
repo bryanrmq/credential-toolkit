@@ -143,6 +143,11 @@ export interface MenuItem {
   label: string;
   onSelect: () => void;
   className?: string;
+  /** Draws a line above the item, starting a new group. */
+  separatorBefore?: boolean;
+  /** The item's keys, as `shortcutLabel` shows them, and for `aria-keyshortcuts`. */
+  shortcut?: string;
+  ariaKeyShortcuts?: string;
 }
 
 /** A "⋯" button with a small list of actions. Closes on selection, outside click or Escape. */
@@ -172,21 +177,29 @@ export function Menu({ label, items }: { label: string; items: MenuItem[] }) {
       {open && (
         <div className="menu__list" role="menu" aria-label={label}>
           {items.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              role="menuitem"
-              className={`menu__item ${item.className ?? ''}`.trim()}
-              onClick={() => {
-                setOpen(false);
-                // The item is about to disappear: give focus back to the trigger first, so whatever the item
-                // opens (a dialog, the tour) can hand it back there when it closes.
-                ref.current?.querySelector<HTMLElement>('[aria-haspopup="menu"]')?.focus();
-                item.onSelect();
-              }}
-            >
-              {item.label}
-            </button>
+            <Fragment key={item.label}>
+              {item.separatorBefore && <div role="separator" className="menu__separator" />}
+              <button
+                type="button"
+                role="menuitem"
+                className={`menu__item ${item.className ?? ''}`.trim()}
+                aria-keyshortcuts={item.ariaKeyShortcuts}
+                onClick={() => {
+                  setOpen(false);
+                  // The item is about to disappear: give focus back to the trigger first, so whatever the item
+                  // opens (a dialog, the tour) can hand it back there when it closes.
+                  ref.current?.querySelector<HTMLElement>('[aria-haspopup="menu"]')?.focus();
+                  item.onSelect();
+                }}
+              >
+                {item.label}
+                {item.shortcut && (
+                  <span aria-hidden="true">
+                    <kbd>{item.shortcut}</kbd>
+                  </span>
+                )}
+              </button>
+            </Fragment>
           ))}
         </div>
       )}
