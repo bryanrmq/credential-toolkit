@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { type CardLayout, type Ink, type Rgba, formatRgba } from '../../core/card/profiles';
 import type { SummarySegment } from '../../core/card/summary';
 import { CardLogo, GradientLayers, SummaryText } from './cardParts';
@@ -17,16 +17,20 @@ export interface CredentialCardProps {
   logo?: string;
   /** CSS zoom factor that fits the reference width into the available space. */
   scale?: number;
+  /** Badges along the bottom edge, as the large iOS card on the details screen draws its status. */
+  badges?: ReactNode;
 }
 
 /** One wallet's credential card: colour and gradients, black or white content, logo silhouette, name and summary. */
-export function CredentialCard({ label, layout, background, ink, name, summary, logo, scale = 1 }: CredentialCardProps) {
+export function CredentialCard({ label, layout, background, ink, name, summary, logo, scale = 1, badges }: CredentialCardProps) {
   const { padding } = layout;
   const style = {
     '--card-width': `${layout.referenceWidth}px`,
     '--card-ratio': String(layout.aspectRatio),
     '--card-radius': `${layout.radius}px`,
     '--card-padding': `${padding.top}px ${padding.end}px ${padding.bottom}px ${padding.start}px`,
+    '--card-padding-bottom': `${padding.bottom}px`,
+    '--card-padding-start': `${padding.start}px`,
     '--card-logo-width': `${layout.logo.width}px`,
     '--card-logo-height': `${layout.logo.height}px`,
     '--card-logo-gap': `${layout.logoGap}px`,
@@ -64,6 +68,7 @@ export function CredentialCard({ label, layout, background, ink, name, summary, 
           {text}
         </>
       )}
+      {badges && <div className="credential-card__badges">{badges}</div>}
     </figure>
   );
 }

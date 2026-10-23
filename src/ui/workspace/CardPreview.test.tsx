@@ -85,14 +85,13 @@ describe('CardPreview in the Output preview', () => {
     expect(useStore.getState().cardVariant).toBe('detail');
   });
 
-  it('shows the Details view as an empty state, without the card notes', async () => {
+  it('shows the iOS details screen in the Details view, without the card notes', async () => {
     const user = userEvent.setup();
     renderPreview();
     await user.click(control('Preview view', 'Details'));
     expect(useStore.getState().cardVariant).toBe('details');
     expect(pressed('Preview view')).toEqual(['Details']);
-    expect(screen.getByText('No details preview for iOS here yet.')).toBeInTheDocument();
-    expect(screen.queryByRole('figure')).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'iOS details screen' })).toBeInTheDocument();
     expect(screen.queryByText('Android: white text')).not.toBeInTheDocument();
     expect(screen.queryByText(/Approximation of the swiyu wallets/)).not.toBeInTheDocument();
 
