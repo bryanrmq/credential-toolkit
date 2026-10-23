@@ -7,7 +7,6 @@ import { ImportError, type ImportResult, parseJsonText } from '../../core/import
 import { importSample, parseSampleText } from '../../core/import/sample';
 import { DEFAULT_LANGUAGES } from '../../core/langs';
 import { type LangTag, emptyProject } from '../../core/model';
-import { deleteDraft, selectResumeDraft, useDrafts } from '../../state/persistence';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Button, Dialog } from '../components/controls';
@@ -54,14 +53,8 @@ export function ImportDialog({ kind, onClose }: { kind: ImportKind; onClose: () 
         baseline = await makeBaseline(text, result.project.hosting, 'import');
       }
       else result = importIssuerMetadata(parseJsonText(text), configuration || configurations[0]?.id || '');
-      // The start screen keeps one draft until it lists them all: a new project replaces it.
-      const replaced = selectResumeDraft(useDrafts.getState());
-      if (replaced && !window.confirm(t.start.confirmReplaceDraft)) {
-        setBusy(false);
-        return;
-      }
+      // A new draft: the drafts stored before stay in Recent projects.
       load(result.project, result.report, { reviewI14y: kind === 'bundle', baseline });
-      if (replaced) void deleteDraft(replaced.id);
     } catch (caught) {
       setError(caught instanceof ImportError ? caught.message : `Unexpected error: ${String(caught)}`);
       setBusy(false);

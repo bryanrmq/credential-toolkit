@@ -9,11 +9,14 @@ export const TOAST_DURATION_MS = 6000;
 function noticeText(notice: FixNotice): string {
   if (notice.kind === 'fixed') return t.fixes.fixed(notice.fixed, notice.total);
   if (notice.kind === 'failed') return t.fixes.failed(notice.label);
-  if (notice.kind === 'error') return notice.message;
+  if (notice.kind === 'error' || notice.kind === 'undoable') return notice.message;
   return t.fixes.stale;
 }
 
-/** Reports the last fix and offers to undo it until it goes away or the project is edited; also shows other actions' errors. */
+/**
+ * Reports the last fix and offers to undo it until it goes away or the project is edited; also shows other
+ * actions' errors, and other actions with their own Undo (`showUndoable`).
+ */
 export function FixToast() {
   const notice = useStore((state) => state.fixNotice);
   return (
@@ -39,7 +42,7 @@ function Toast({ notice }: { notice: FixNotice }) {
 
   return (
     <div
-      className={notice.kind === 'fixed' ? 'toast' : 'toast toast--error'}
+      className={notice.kind === 'fixed' || notice.kind === 'undoable' ? 'toast' : 'toast toast--error'}
       onMouseEnter={() => setHeld(true)}
       onMouseLeave={() => setHeld(false)}
       onFocus={() => setHeld(true)}
@@ -50,6 +53,18 @@ function Toast({ notice }: { notice: FixNotice }) {
       <span>{noticeText(notice)}</span>
       {notice.kind === 'fixed' && canUndo && (
         <Button size="small" variant="ghost" onClick={undo}>
+          {t.fixes.undo}
+        </Button>
+      )}
+      {notice.kind === 'undoable' && (
+        <Button
+          size="small"
+          variant="ghost"
+          onClick={() => {
+            dismiss();
+            notice.undo();
+          }}
+        >
           {t.fixes.undo}
         </Button>
       )}
