@@ -7,7 +7,13 @@
  * `ChildClusterView.swift`, `CredentialClaimViewModel.swift`, `DisplayLocalizable.swift` and
  * `CredentialRenderingEntity+Init.swift`. Wallet quirks are copied rather than fixed, so issuers see what holders see.
  * Earlier wallets (v1.14.0 and before) only read Data Source 1.0 overlays and match nothing in the 2.0 overlays this
- * tool exports. Android rules are not in yet, so both platforms get the iOS model for now.
+ * tool exports.
+ *
+ * Android follows swiyu-admin-ch/eidch-android-wallet v1.19.0 (commit c29a6f3) where it differs, with the same output
+ * shape (paths under `app/src/main/java/ch/admin/foitt/wallet/platform/`): `oca/.../GenerateOcaDisplaysImpl.kt` and
+ * `GenerateOcaClaimDisplaysImpl.kt` build the same tree, `credentialCluster/.../MapToCredentialClaimClusterImpl.kt`,
+ * `utils/CredentialElementCollectionExt.kt` and `locale/.../GetLocalizedDisplayImpl.kt` read it back, and
+ * `credential/presentation/CredentialElements.kt` draws it. See `ANDROID_RULES` for what differs.
  *
  * Nested paths: the wallet matches each attribute's claims path against every path in the whole payload, not only
  * top-level disclosures, so `["address", "street"]` finds `address.street`. A `refs:` group whose own source is missing
@@ -58,8 +64,25 @@ export function iosLanguageCodes(deviceLanguages: readonly string[]): string[] {
 /** Which screen lists the claims; they differ only in where the claims without an attribute go. */
 export type DetailsScreen = 'details' | 'offer';
 
+/** The languages the Android app is translated into (`locales_config.xml`). */
+export const ANDROID_APP_LANGUAGES: readonly string[] = ['de', 'en', 'fr', 'it', 'rm'];
+
+/** What Android uses when no device language is one of its own (`GetCurrentAppLocaleImpl`). */
+export const ANDROID_DEFAULT_LOCALE = 'en-CH';
+
+/**
+ * The Android app's locale: the first device language whose language the app is translated into, region included,
+ * else `en-CH` (`GetCurrentAppLocaleImpl.useDeviceLocaleOrDefault`). Labels, numbers and dates all use it.
+ */
+export function androidAppLocale(deviceLanguages: readonly string[]): string {
+  return deviceLanguages.find((tag) => ANDROID_APP_LANGUAGES.includes(languageOf(tag))) ?? ANDROID_DEFAULT_LOCALE;
+}
+
 export interface DetailsOptions {
-  /** Language codes in order of preference, matched as prefixes of the label languages; see `iosLanguageCodes`. */
+  /**
+   * iOS: language codes in order of preference, matched as prefixes of the label languages (see `iosLanguageCodes`).
+   * Android: the app locale first (see `androidAppLocale`).
+   */
   languages: readonly string[];
   platform: CardPlatform;
   /** Defaults to `details`, the screen of an accepted credential. */
@@ -73,7 +96,10 @@ export interface CredentialDetails {
   sections: DetailsGroup[];
   /** The project has no sample, so the values are type placeholders. The wallet never shows rows without values. */
   noSample: boolean;
-  /** Somewhere the wallet's order is undefined, as it comes from a Swift dictionary (see `DetailsGroup.orderUndefined`). */
+  /**
+   * Somewhere the wallet's order is undefined, as it comes from a Swift dictionary (see `DetailsGroup.orderUndefined`).
+   * Always false on Android, which keeps ties in capture base order.
+   */
   orderUndefined: boolean;
 }
 
@@ -102,7 +128,7 @@ export interface DetailsClaim {
   kind: 'claim';
   label: string;
   value: DetailsValue;
-  /** Whether iOS draws the "Sensitive" pill; values are never masked. */
+  /** Whether the wallet draws the "Sensitive" pill; values are never masked. */
   sensitive: boolean;
   /** The claim's full claims path, with array indices filled in. */
   path: ClaimsPath;
@@ -126,19 +152,91 @@ export interface ClaimFormat {
 }
 
 /**
- * A raw sample value still to be formatted; the entry label that replaces an entry code; or, without a sample, the
- * attribute's type. iOS turns JSON booleans into `1` and `0`, as they reach it as NSNumber and are cast to Int first
- * (`JsonPrimitive`).
+ * A raw sample value still to be formatted; the entry label that replaces an entry code; a JSON `null`, which only
+ * Android lists (as `–`); or, without a sample, the attribute's type. iOS turns JSON booleans into `1` and `0`, as they
+ * reach it as NSNumber and are cast to Int first (`JsonPrimitive`); Android keeps `true` and `false`.
  */
 export type DetailsValue =
   | { kind: 'raw'; value: string | number | boolean }
   | { kind: 'entry'; code: string; label: string }
+  | { kind: 'null' }
   | { kind: 'placeholder'; type: PrimitiveType };
 
-/** `Int(Int16.max)`: the order of a claim whose attribute has none. */
-const UNORDERED_CLAIM = 32767;
-/** The order of a group whose attribute has none, so unordered groups come first. */
+/** The order of a group whose attribute has none, so unordered groups come first on iOS. */
 const UNORDERED_GROUP = -1;
+
+/** Where the two wallets build or read the tree differently. */
+interface PlatformRules {
+  /** The order of a claim whose attribute has none. */
+  unorderedClaim: number;
+  /** Sorts rows; `tie` means the wallet's order of some rows is undefined. */
+  sortRows<T extends { order: number }>(items: T[]): { items: T[]; tie: boolean };
+  /** A JSON `null` is listed as a row. */
+  listsNull: boolean;
+  /** Groups with no claims anywhere below them are left out. */
+  dropsEmptyGroups: boolean;
+  /** The unmapped claims come first on the details screen, last on the offer. Otherwise always last. */
+  unmappedFirstOnDetails: boolean;
+  /** Whether a row's pill shows, given the group's depth, the flag it inherits and its own. */
+  groupSensitive(depth: number, inherited: boolean, own: boolean): { rows: boolean; groups: boolean };
+  /** The text entry codes are matched against. */
+  text(value: string | number | boolean): string;
+  /** The label of a row without one. */
+  pathText(path: ClaimsPath): string;
+  /** Picks a claim's display; `path` is the label of the fallback display. */
+  pickClaim(displays: Display[], languages: readonly string[], path: string): Display | undefined;
+  pickTitle(displays: Display[], languages: readonly string[]): Display | undefined;
+}
+
+/** eidch-ios-wallet v1.19.0. */
+const IOS_RULES: PlatformRules = {
+  // `Int(Int16.max)`.
+  unorderedClaim: 32767,
+  // Swift's `sorted`, on items that come from a dictionary: ties have no defined order.
+  sortRows: (items) => ({ items: [...items].sort((a, b) => a.order - b.order), tie: new Set(items.map((item) => item.order)).size < items.length }),
+  listsNull: false,
+  dropsEmptyGroups: false,
+  unmappedFirstOnDetails: true,
+  // `ClaimClusterList` passes a section's flag to its rows; `ChildClusterView` passes a group's flag to its sub-groups only.
+  groupSensitive: (depth, inherited, own) => ({ rows: inherited, groups: depth === 0 ? inherited : inherited || own }),
+  text: walletText,
+  // `JSONSerialization` escapes `/`.
+  pathText: (path) => JSON.stringify(path).replaceAll('/', '\\/'),
+  pickClaim: pickPrefix,
+  pickTitle: pickPrefix,
+};
+
+/** eidch-android-wallet v1.19.0. */
+const ANDROID_RULES: PlatformRules = {
+  // `GenerateOcaClaimDisplaysImpl`: `order ?: ocaClaimData?.order ?: -1`.
+  unorderedClaim: -1,
+  // `CredentialElementCollectionExt.elementComparator`: a negative order sorts last. The sort is stable and the items
+  // come from the database in capture base order (claims, then groups), so ties keep that order.
+  sortRows: (items) => ({ items: [...items].sort((a, b) => androidOrder(a.order) - androidOrder(b.order)), tie: false }),
+  // `JsonNull` is a `JsonPrimitive`: the row is kept with a null value, drawn as `–` (`CredentialElements.kt`).
+  listsNull: true,
+  // `MapToCredentialClaimClusterImpl.filterEmptyItems`.
+  dropsEmptyGroups: true,
+  // The unmapped cluster keeps order -1, which `sortByOrder` puts after the sections on every screen.
+  unmappedFirstOnDetails: false,
+  // `CredentialElements.kt`: a section passes `parentIsSensitive = false`; a nested group passes its flag to everything below.
+  groupSensitive: (depth, inherited, own) => {
+    const sensitive = depth === 0 ? false : inherited || own;
+    return { rows: sensitive, groups: sensitive };
+  },
+  // `JsonPrimitive.contentOrNull`: JSON booleans stay `true` and `false`.
+  text: (value) => String(value),
+  // kotlinx `Json.encodeToString`, which leaves `/` as is.
+  pathText: (path) => JSON.stringify(path),
+  pickClaim: (displays, languages, path) => pickAndroid([...withoutEntryOnly(displays), { locale: FALLBACK_LOCALE, name: path }, ...entryOnly(displays)], languages[0]),
+  pickTitle: (displays, languages) => pickAndroid(displays, languages[0]),
+};
+
+const PLATFORM_RULES: Record<CardPlatform, PlatformRules> = { ios: IOS_RULES, android: ANDROID_RULES };
+
+function androidOrder(order: number): number {
+  return order < 0 ? Number.MAX_SAFE_INTEGER : order;
+}
 
 export function credentialDetails(project: Project, options: DetailsOptions): CredentialDetails {
   return new DetailsBuilder(project, options).build();
@@ -165,7 +263,7 @@ interface OcaAttribute {
   characterEncoding?: string;
 }
 
-type Primitive = string | number | boolean | Placeholder;
+type Primitive = string | number | boolean | null | Placeholder;
 
 interface RawClaim {
   kind: 'claim';
@@ -196,6 +294,8 @@ interface Display {
   name?: string;
   /** The entry label for the claim's value. */
   value?: string;
+  /** A display for a language that translates the entry but has no label. */
+  entryOnly?: boolean;
 }
 
 class DetailsBuilder {
@@ -203,11 +303,13 @@ class DetailsBuilder {
   private readonly options: DetailsOptions;
   private readonly claims: ClaimIndex;
   private readonly orders: (group: Group) => Readonly<Record<string, number>> | undefined;
+  private readonly rules: PlatformRules;
   private orderUndefined = false;
 
   constructor(project: Project, options: DetailsOptions) {
     this.project = project;
     this.options = options;
+    this.rules = PLATFORM_RULES[options.platform];
     const payload = project.sample === undefined ? placeholderPayload(project) : project.sample;
     const claims = isPlainObject(payload)
       ? Object.fromEntries(Object.entries(payload).filter(([key]) => !IOS_TECHNICAL_CLAIMS.includes(key)))
@@ -221,26 +323,31 @@ class DetailsBuilder {
     const sections: RawCluster[] = [];
     this.expand(root, sections);
     const unmapped = this.unmapped();
-    // The offer lists the generated clusters as they are. Saving the credential sorts them by order, which puts
+    // iOS: the offer lists the generated clusters as they are. Saving the credential sorts them by order, which puts
     // the unmapped claims (order -1) first on the details screen.
     if (unmapped) {
-      if ((this.options.screen ?? 'details') === 'details') sections.unshift(unmapped);
+      if (this.rules.unmappedFirstOnDetails && (this.options.screen ?? 'details') === 'details') sections.unshift(unmapped);
       else sections.push(unmapped);
     }
+    const rendered = sections.map((section) => this.render(section, 0, section.sensitive));
     return {
-      sections: sections.map((section) => this.render(section, 0, section.sensitive)),
+      sections: this.rules.dropsEmptyGroups ? rendered.filter(hasClaims) : rendered,
       noSample: this.project.sample === undefined,
       orderUndefined: this.orderUndefined,
     };
   }
 
-  /** A root with only groups is dropped for its groups, recursively (`expandChildCluster`). */
+  /**
+   * A root with only groups is dropped for its groups, recursively (`expandChildCluster`). Both wallets sort them
+   * plainly by order here, so unordered groups (-1) come first.
+   */
   private expand(cluster: RawCluster, sections: RawCluster[]): void {
     if (cluster.claims.length || !cluster.clusters.length) {
       sections.push(cluster);
       return;
     }
-    for (const child of this.sorted(cluster.clusters).items) this.expand(child, sections);
+    const children = this.options.platform === 'ios' ? this.sorted(cluster.clusters).items : [...cluster.clusters].sort((a, b) => a.order - b.order);
+    for (const child of children) this.expand(child, sections);
   }
 
   private attributes(group: Group): OcaAttribute[] {
@@ -288,13 +395,32 @@ class DetailsBuilder {
     switch (type.kind) {
       case 'array':
         if (elementPath && Array.isArray(element)) return this.arrayCluster(type.of, element, attribute, elementPath);
-        return claimFor(element, path, undefined, nodeId);
+        return this.claimFor(element, path, undefined, nodeId);
       case 'reference':
         // Shown even when the payload has nothing at `path`.
         return this.cluster(type.group, attribute, path);
       case 'primitive':
-        return claimFor(element, path, attribute, nodeId);
+        return this.claimFor(element, path, attribute, nodeId);
     }
+  }
+
+  /** A row for a string, number or boolean, and on Android for `null`. Anything else gives no row. */
+  private claimFor(element: unknown, path: ClaimsPath, attribute: OcaAttribute | undefined, nodeId: string | undefined): RawClaim | undefined {
+    if (!this.isValue(element)) return undefined;
+    return {
+      kind: 'claim',
+      path,
+      order: lastIndex(path) ?? attribute?.order ?? this.rules.unorderedClaim,
+      value: element,
+      attribute: attribute?.node.kind === 'attribute' ? attribute.node : undefined,
+      format: attribute?.format,
+      characterEncoding: attribute?.characterEncoding,
+      nodeId,
+    };
+  }
+
+  private isValue(value: unknown): value is Primitive {
+    return isPrimitive(value) || (value === null && this.rules.listsNull);
   }
 
   /** `path`, or for an array attribute its `[…, null]` form when that is where the array is. */
@@ -334,42 +460,47 @@ class DetailsBuilder {
   private unmapped(): RawCluster | undefined {
     const claims: RawClaim[] = [];
     for (const { path, value } of this.claims.rest()) {
-      if (isPrimitive(value)) claims.push({ kind: 'claim', path, order: lastIndex(path) ?? UNORDERED_CLAIM, value });
+      if (this.isValue(value)) claims.push({ kind: 'claim', path, order: lastIndex(path) ?? this.rules.unorderedClaim, value });
     }
     if (!claims.length) return undefined;
     return { kind: 'group', path: [], order: UNORDERED_GROUP, sensitive: false, claims, clusters: [], unmapped: true };
   }
 
   /**
-   * Draws the cluster as `ClaimClusterList` and `ChildClusterView` do. The pill quirk is copied: a group's own
-   * sensitive flag reaches its sub-groups' rows but not its own, except on a section.
+   * Draws the cluster as the wallet does. iOS (`ClaimClusterList`, `ChildClusterView`): a group's own sensitive flag
+   * reaches its sub-groups' rows but not its own, except on a section. Android (`CredentialElements.kt`): a section's
+   * flag reaches nothing, a nested group's flag every row below it. Both quirks are copied.
    */
   private render(cluster: RawCluster, depth: number, sensitive: boolean): DetailsGroup {
-    const childSensitive = depth === 0 ? sensitive : sensitive || cluster.sensitive;
+    const pill = this.rules.groupSensitive(depth, sensitive, cluster.sensitive);
     const { items, tie } = this.sorted<RawClaim | RawCluster>([...cluster.claims, ...cluster.clusters]);
-    const title = cluster.labels && pickDisplay(this.labelDisplays(cluster.labels), this.options.languages)?.name;
+    const title = cluster.labels && this.rules.pickTitle(this.labelDisplays(cluster.labels), this.options.languages)?.name;
+    const rows = items.map((item) => (item.kind === 'claim' ? this.renderClaim(item, pill.rows) : this.render(item, depth + 1, pill.groups)));
     return {
       kind: 'group',
       ...(title ? { title } : {}),
       depth,
+      // Before empty groups are dropped, as Android's `determineSimpleTypeClusterNodes` runs first.
       valuesOnly: cluster.path.at(-1) === null && !cluster.clusters.length,
       unmapped: cluster.unmapped ?? false,
       orderUndefined: tie,
       path: cluster.path,
       ...(cluster.nodeId ? { nodeId: cluster.nodeId } : {}),
-      rows: items.map((item) =>
-        item.kind === 'claim' ? this.renderClaim(item, sensitive) : this.render(item, depth + 1, childSensitive),
-      ),
+      rows: this.rules.dropsEmptyGroups ? rows.filter((row) => row.kind === 'claim' || hasClaims(row)) : rows,
     };
   }
 
   private renderClaim(claim: RawClaim, sensitive: boolean): DetailsClaim {
     const { attribute } = claim;
-    const text = claim.value instanceof Placeholder ? undefined : walletText(claim.value);
-    const display = attribute ? pickDisplay(this.claimDisplays(attribute, text), this.options.languages) : undefined;
+    const text = claim.value instanceof Placeholder || claim.value === null ? undefined : this.rules.text(claim.value);
+    const path = this.rules.pathText(claim.path);
+    const display = attribute
+      ? this.rules.pickClaim(this.claimDisplays(attribute, text), this.options.languages, path)
+      : this.rules.pickClaim([], this.options.languages, path);
     let value: DetailsValue;
     if (display?.value !== undefined && text !== undefined) value = { kind: 'entry', code: text, label: display.value };
     else if (claim.value instanceof Placeholder) value = { kind: 'placeholder', type: claim.value.type };
+    else if (claim.value === null) value = { kind: 'null' };
     else value = { kind: 'raw', value: claim.value };
     const type = attribute && (isArrayType(attribute.type) ? attribute.type.array : attribute.type);
     const format: ClaimFormat | undefined = type && {
@@ -381,7 +512,7 @@ class DetailsBuilder {
     return {
       kind: 'claim',
       // A display with only an entry translation has no name, so the label falls back to the path too.
-      label: display?.name ?? pathText(claim.path),
+      label: display?.name ?? path,
       value,
       sensitive: sensitive || (attribute?.sensitive ?? false),
       path: claim.path,
@@ -403,17 +534,22 @@ class DetailsBuilder {
     if (text === undefined) return displays;
     for (const lang of this.project.languages) {
       const value = entry(lang);
-      if (value !== undefined && !attribute.labels[lang]) displays.push({ locale: lang, value });
+      if (value !== undefined && !attribute.labels[lang]) displays.push({ locale: lang, value, entryOnly: true });
     }
     return displays;
   }
 
-  /** Stable sort by order, as Swift's `sorted`; ties mean the wallet's order is undefined. */
+  /** Sorts by order as the platform does; on iOS, ties mean the wallet's order is undefined. */
   private sorted<T extends { order: number }>(items: T[]): { items: T[]; tie: boolean } {
-    const tie = new Set(items.map((item) => item.order)).size < items.length;
-    if (tie) this.orderUndefined = true;
-    return { items: [...items].sort((a, b) => a.order - b.order), tie };
+    const sorted = this.rules.sortRows(items);
+    if (sorted.tie) this.orderUndefined = true;
+    return sorted;
   }
+}
+
+/** Whether a group holds a claim anywhere below it (`numberOfNonClusterChildren`). */
+function hasClaims(group: DetailsGroup): boolean {
+  return group.rows.some((row) => row.kind === 'claim' || hasClaims(row));
 }
 
 /**
@@ -496,21 +632,6 @@ function place(payload: Record<string, unknown>, path: ClaimsPath, value: unknow
   }
 }
 
-/** A row for a string, number or boolean. Anything else, `null` included, gives no row. */
-function claimFor(element: unknown, path: ClaimsPath, attribute: OcaAttribute | undefined, nodeId: string | undefined): RawClaim | undefined {
-  if (!isPrimitive(element)) return undefined;
-  return {
-    kind: 'claim',
-    path,
-    order: lastIndex(path) ?? attribute?.order ?? UNORDERED_CLAIM,
-    value: element,
-    attribute: attribute?.node.kind === 'attribute' ? attribute.node : undefined,
-    format: attribute?.format,
-    characterEncoding: attribute?.characterEncoding,
-    nodeId,
-  };
-}
-
 function ocaType(type: AttrType): OcaType {
   return isArrayType(type) ? { kind: 'array', of: { kind: 'primitive', type: type.array } } : { kind: 'primitive', type };
 }
@@ -541,14 +662,54 @@ function overlayString(record: unknown, key: string): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-/** The first display whose language starts with a preferred code, else the first display's language (`findDisplaysWithFallback`). */
-function pickDisplay(displays: Display[], codes: readonly string[]): Display | undefined {
+/** iOS: the first display whose language starts with a preferred code, else the first display's language (`findDisplaysWithFallback`). */
+function pickPrefix(displays: Display[], codes: readonly string[]): Display | undefined {
   for (const code of codes) {
     const match = displays.find((display) => display.locale.startsWith(code));
     if (match) return match;
   }
   const first = displays[0];
   return first && displays.find((display) => display.locale.startsWith(first.locale));
+}
+
+/** The locale of the display Android adds to every claim, labelled with the path (`DisplayLanguage.FALLBACK`). */
+const FALLBACK_LOCALE = 'fallback';
+
+/** `DisplayLanguage.PRIORITIES`: matched as whole locales, so `de-CH` is not `de`. */
+const ANDROID_PRIORITIES = ['de', 'en', 'x-unknown', 'x-fallback'];
+
+/** A claim's displays as Android lists them: label displays, then its path fallback, then entry-only displays. */
+function withoutEntryOnly(displays: Display[]): Display[] {
+  return displays.filter((display) => !display.entryOnly);
+}
+
+function entryOnly(displays: Display[]): Display[] {
+  return displays.filter((display) => display.entryOnly);
+}
+
+/**
+ * `GetLocalizedDisplayImpl`: the display for the app locale, else the first in its language, else `de`, `en`, then
+ * the fallback (the path), else the first. `de` and `en` must match exactly, so with labels only in `de-CH` and
+ * `fr-CH` an Italian or English phone shows the path, not a label.
+ */
+function pickAndroid(displays: Display[], appLocale = ANDROID_DEFAULT_LOCALE): Display | undefined {
+  const locale = (tag: string) => (tag === FALLBACK_LOCALE ? 'x-fallback' : tag === 'unknown' ? 'x-unknown' : tag.replaceAll('_', '-').toLowerCase());
+  const app = locale(appLocale);
+  const exact = displays.find((display) => locale(display.locale) === app);
+  if (exact) return exact;
+  const sameLanguage = displays.find((display) => languageOf(locale(display.locale)) === languageOf(app));
+  if (sameLanguage) return sameLanguage;
+  const rank = (display: Display) => {
+    const index = ANDROID_PRIORITIES.indexOf(locale(display.locale));
+    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+  };
+  return displays.reduce<Display | undefined>((best, display) => (best === undefined || rank(display) < rank(best) ? display : best), undefined);
+}
+
+/** The language of a tag; private-use tags (`x-…`) have none. */
+function languageOf(tag: string): string {
+  const language = tag.split(/[-_]/)[0].toLowerCase();
+  return language === 'x' ? '' : language;
 }
 
 /** Array indices in `path`, in order (`allIndices`). */
@@ -569,9 +730,4 @@ function lastIndex(path: ClaimsPath): number | undefined {
 
 function pathKey(path: ClaimsPath): string {
   return JSON.stringify(path);
-}
-
-/** The path as the wallet writes it for a row without a label: JSON from `JSONSerialization`, which escapes `/`. */
-function pathText(path: ClaimsPath): string {
-  return JSON.stringify(path).replaceAll('/', '\\/');
 }

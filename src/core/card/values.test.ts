@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { type PrimitiveType, emptyProject, newAttribute } from '../model';
 import { type ClaimFormat, type DetailsClaim, type DetailsValue, credentialDetails } from './details';
-import { type FormattedValue, type ValueOptions, MAX_VALUE_LENGTH, formatClaim, formatClaimValue, walletLocale, walletText } from './values';
+import { type FormattedValue, type ValueOptions, MAX_VALUE_LENGTH, NULL_VALUE, formatClaim, formatClaimValue, walletLocale, walletText } from './values';
 
 // Every expected string below was produced by the wallet's own Swift code (v1.19.0) run with Foundation on macOS.
 
@@ -347,5 +347,94 @@ describe('with the details model', () => {
       { kind: 'text', text: '1e-05' },
       { kind: 'text', text: '1' },
     ]);
+  });
+});
+
+// Android expectations follow eidch-android-wallet v1.19.0's Kotlin code; the separators come from CLDR, as on Android.
+describe('on Android', () => {
+  const ANDROID: ValueOptions = { locale: 'de-CH', timeZone: 'Europe/Zurich', platform: 'android' };
+  const at = (locale: string): ValueOptions => ({ ...ANDROID, locale });
+  const android = (value: string | number | boolean, format?: ClaimFormat, options = ANDROID) => show(value, format, options);
+  const androidText = (value: string | number | boolean, format?: ClaimFormat, options = ANDROID) => text(value, format, options);
+
+  it('shows booleans as true and false, and a null as –', () => {
+    expect(androidText(true, typed('Boolean'))).toBe('true');
+    expect(androidText(false)).toBe('false');
+    expect(formatClaimValue({ kind: 'null' }, typed('Text'), ANDROID)).toEqual({ kind: 'text', text: NULL_VALUE });
+  });
+
+  it('keeps the digits a number is written with, grouped, with its sign and exponent as written', () => {
+    expect(['1234.50', 1234.5, '007', '-1234', '1.5e3', '0001234', '12x'].map((value) => androidText(value, NUMERIC, at('en')))).toEqual([
+      '1,234.50',
+      '1,234.5',
+      '007',
+      '-1,234',
+      '1.5e3',
+      '0,001,234',
+      '12x',
+    ]);
+    expect(androidText('1234.5', NUMERIC, at('de'))).toBe('1.234,5');
+    // No reading with the locale's separator first: a comma is not a number.
+    expect(androidText('1,5', NUMERIC, at('de'))).toBe('1,5');
+  });
+
+  it('formats dates with a fixed skeleton: four-digit year, 24-hour time, seconds and milliseconds as in the source', () => {
+    expect(['2024-12-31', '2024-12-31T14:30', '2024-12-31T14:30:15Z', '2024-12-31t14:30:15.5z', '14:30', '14:30:15'].map((value) => androidText(value, DATE))).toEqual([
+      '31.12.2024',
+      '31.12.2024, 14:30',
+      '31.12.2024, 15:30:15',
+      '31.12.2024, 15:30:15.500',
+      '14:30',
+      '14:30:15',
+    ]);
+    expect(androidText('2024-12', DATE)).toBe('Dezember 2024');
+    expect(androidText('2024', DATE)).toBe('2024');
+    expect(androidText('2024-12-31T14:30', DATE, at('en'))).toBe('12/31/2024, 14:30');
+  });
+
+  it("puts a zoned time on 1 January of year 0, in the device zone's local mean time then", () => {
+    expect(androidText('10:00+01:00', DATE)).toBe('09:34');
+    expect(androidText('10:00+01:00', DATE, { ...ANDROID, timeZone: 'UTC' })).toBe('09:00');
+  });
+
+  it('parses strict ISO only, moving a day past the month end to its last day', () => {
+    expect(androidText('2024-02-30', DATE)).toBe('29.02.2024');
+    expect(androidText('2023-02-29', DATE)).toBe('28.02.2023');
+    for (const value of ['2024-1-5', ' 2024-12-31', '2024-12-31T24:00', '2024-13-01', '10:00+0100x']) expect(androidText(value, DATE)).toBe(value);
+    // The date-only offset must be written with a colon (ISO_OFFSET_DATE); the converted day can move.
+    expect(androidText('2024-12-31+05:00', DATE)).toBe('30.12.2024');
+    expect(androidText('2024-12-31+0500', DATE)).toBe('2024-12-31+0500');
+  });
+
+  it('reads whole epoch seconds only, shown without seconds in the device zone', () => {
+    expect(androidText('1735655415', EPOCH)).toBe('31.12.2024, 15:30');
+    expect(androidText('1735655415.5', EPOCH)).toBe('1735655415.5');
+  });
+
+  it('does not use an entry label for a date, and does not cut entry labels', () => {
+    expect(formatClaimValue({ kind: 'entry', code: '2024-12-31', label: 'Silvester' }, DATE, ANDROID)).toEqual({ kind: 'text', text: '31.12.2024' });
+    const long = 'b'.repeat(MAX_VALUE_LENGTH + 10);
+    expect(formatClaimValue({ kind: 'entry', code: 'X', label: long }, typed('Text'), ANDROID)).toEqual({ kind: 'text', text: long });
+  });
+
+  it('cuts text over 1800 UTF-16 units', () => {
+    const thumb = '👍';
+    expect(androidText(thumb.repeat(MAX_VALUE_LENGTH))).toBe(`${thumb.repeat(MAX_VALUE_LENGTH / 2)}…`);
+    expect(androidText('a'.repeat(MAX_VALUE_LENGTH))).toBe('a'.repeat(MAX_VALUE_LENGTH));
+  });
+
+  it('draws PNG and JPEG images checked by their base64 prefix only', () => {
+    expect(android(`data:image/png;base64,${PNG}`, DATA_URL)).toEqual({ kind: 'image', mediaType: 'image/png', base64: PNG, src: `data:image/png;base64,${PNG}` });
+    expect(android(JPEG, PNG_BINARY)).toEqual({ kind: 'invalidImage', mediaType: 'image/png', reason: 'mismatchingFormat' });
+    // Under 12 bytes passes on Android.
+    expect(android('iVBORw0KGgo=', PNG_BINARY)).toMatchObject({ kind: 'image' });
+    expect(android(`${PNG}\n`, PNG_BINARY)).toMatchObject({ reason: 'invalidData' });
+  });
+
+  it('refuses other image types that iOS shows as text, and shows non-base64 data URLs as text', () => {
+    expect(android('data:image/gif;base64,R0lGODlh', DATA_URL)).toEqual({ kind: 'invalidImage', mediaType: 'image/gif', reason: 'unsupportedFormat' });
+    expect(android(PNG, typed('Binary', { format: 'image/webp', characterEncoding: 'base64' }))).toMatchObject({ reason: 'unsupportedFormat' });
+    expect(android('data:image/png,abc', DATA_URL)).toEqual({ kind: 'text', text: 'data:image/png,abc' });
+    expect(android(PNG, typed('Binary', { format: 'image/png', characterEncoding: 'utf-8' }))).toEqual({ kind: 'text', text: PNG });
   });
 });

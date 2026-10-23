@@ -51,7 +51,7 @@ describe('Output pane halves', () => {
     await user.click(within(output().getByRole('group', { name: 'Preview view' })).getByRole('button', { name: 'Details' }));
     expect(useStore.getState()).toMatchObject({ cardPlatform: 'android', cardVariant: 'details' });
     expect(within(output().getByRole('group', { name: 'Preview view' })).getByRole('button', { name: 'Details' })).toHaveAttribute('aria-pressed', 'true');
-    expect(output().getByText('No details preview for Android here yet.')).toBeInTheDocument();
+    expect(output().getByRole('region', { name: 'Android details screen' })).toBeInTheDocument();
   });
 
   it('resizes the preview with the keyboard and remembers the height', async () => {

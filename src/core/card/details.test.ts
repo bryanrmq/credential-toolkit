@@ -6,6 +6,7 @@ import {
   type DetailsGroup,
   type DetailsOptions,
   type DetailsRow,
+  androidAppLocale,
   credentialDetails,
   iosLanguageCodes,
 } from './details';
@@ -38,6 +39,8 @@ function valueText(claim: DetailsClaim): string {
       return String(claim.value.value);
     case 'entry':
       return claim.value.label;
+    case 'null':
+      return '–';
     case 'placeholder':
       return `‹${claim.value.type}›`;
   }
@@ -271,5 +274,96 @@ describe('claims without an attribute', () => {
   it('never lists the JWT claims', () => {
     const labels = claims(details(project([], sample)).sections.flatMap((section) => section.rows)).map((claim) => claim.label);
     for (const technical of ['iss', 'vct', 'cnf', 'status', 'iat']) expect(labels).not.toContain(`["${technical}"]`);
+  });
+});
+
+describe('Android rules', () => {
+  const android = (p: Project, options: Partial<DetailsOptions> = {}) => details(p, { platform: 'android', languages: ['de-CH'], ...options });
+
+  it('puts unordered claims and groups last, claims first, with a defined order', () => {
+    const p = project(
+      [
+        newAttribute('a', { source: ['a'] }),
+        newGroupLink('g', { labels: { [DE]: 'G' }, group: group(newAttribute('c', { source: ['c'] })) }),
+        newAttribute('b', { source: ['b'] }),
+      ],
+      { a: 'A', b: 'B', c: 'C' },
+    );
+    const result = android(p, { orders: (g) => (g === p.root ? { b: 1 } : undefined) });
+    expect(sections(result)).toEqual([{ '#': ['["b"]: B', '["a"]: A', { '# G': ['["c"]: C'] }] }]);
+    expect(result.orderUndefined).toBe(false);
+    const unordered = android(p, { orders: () => undefined });
+    expect(sections(unordered)).toEqual([{ '#': ['["a"]: A', '["b"]: B', { '# G': ['["c"]: C'] }] }]);
+    expect(unordered.orderUndefined).toBe(false);
+  });
+
+  it('lists the claims without an attribute last, on the details screen too', () => {
+    const p = project([newAttribute('name', { labels: { [DE]: 'Name' } })], { name: 'Rex', sub: 's' });
+    expect(sections(android(p))).toEqual([{ '#': ['Name: Rex'] }, { '#': ['["sub"]: s'] }]);
+  });
+
+  it('keeps a null claim as a row and drops objects and lists', () => {
+    const p = project(['a', 'b', 'c', 'd', 'e'].map((key) => newAttribute(key)), { a: 'A', c: null, d: { x: 1 }, e: [], f: null });
+    expect(sections(android(p))).toEqual([{ '#': ['["a"]: A', '["c"]: –'] }, { '#': ['["d","x"]: 1', '["f"]: –'] }]);
+  });
+
+  it('drops a group with no claims below it', () => {
+    const address = newGroupLink('address', {
+      source: ['address'],
+      labels: { [DE]: 'Adresse' },
+      group: group(newAttribute('street', { source: ['address', 'street'] })),
+    });
+    expect(sections(android(project([newAttribute('name'), address], { name: 'Rex' })))).toEqual([{ '#': ['["name"]: Rex'] }]);
+    expect(android(project([address], {})).sections).toEqual([]);
+  });
+
+  it("marks every row below a nested sensitive group, and ignores a section's flag (wallet quirk)", () => {
+    const deep = newGroupLink('deep', { group: group(newAttribute('c', { source: ['c'] })) });
+    const nested = newGroupLink('nested', { sensitive: true, group: group(newAttribute('b', { source: ['b'] }), deep) });
+    const p = project([newAttribute('a', { source: ['a'] }), nested], { a: 1, b: 2, c: 3 });
+    expect(claims(android(p).sections[0].rows).map((claim) => [claim.label, claim.sensitive])).toEqual([
+      ['["a"]', false],
+      ['["b"]', true],
+      ['["c"]', true],
+    ]);
+    expect(claims(android(project([nested], { b: 2, c: 3 })).sections[0].rows).some((claim) => claim.sensitive)).toBe(false);
+  });
+
+  it('picks the app locale, then its language, then exactly de or en, then the path', () => {
+    const regional = project([newAttribute('name', { labels: { [DE]: 'Name', [FR]: 'Nom' } })], { name: 'Rex' });
+    const label = (p: Project, locale: string) => claims(android(p, { languages: [locale] }).sections[0].rows)[0].label;
+    expect(label(regional, 'fr')).toBe('Nom');
+    expect(label(regional, 'de-CH')).toBe('Name');
+    // No label in Italian, de or en: the path display wins over de-CH and fr-CH.
+    expect(label(regional, 'it')).toBe('["name"]');
+    const bare = project([newAttribute('name', { labels: { fr: 'Nom', en: 'Name' } })], { name: 'Rex' }, ['fr', 'en']);
+    expect(label(bare, 'it')).toBe('Name');
+  });
+
+  it('titles a group with its first label when no language matches, never the path', () => {
+    const g = newGroupLink('g', { labels: { [FR]: 'Groupe' }, group: group(newAttribute('a', { source: ['a'] })) });
+    expect(android(project([newAttribute('b'), g], { a: 1, b: 2 }), { languages: ['it'] }).sections[0].rows[1]).toMatchObject({ title: 'Groupe' });
+  });
+
+  it('builds the app locale from the device languages, else en-CH', () => {
+    expect(androidAppLocale(['es', 'fr-CH', 'de'])).toBe('fr-CH');
+    expect(androidAppLocale(['es'])).toBe('en-CH');
+  });
+
+  it('shows the path without escaping slashes, and matches entry codes against true and false', () => {
+    const vaccinated = newAttribute('vaccinated', {
+      type: 'Boolean',
+      labels: { [DE]: 'Geimpft' },
+      entries: { codes: ['true'], labels: { [DE]: { true: 'Ja' } } },
+    });
+    const p = project([newAttribute('a/b', { source: ['a/b'] }), vaccinated], { 'a/b': 'x', vaccinated: true });
+    expect(outline(android(p).sections[0].rows)).toEqual(['["a/b"]: x', 'Geimpft: Ja']);
+    expect(outline(details(p).sections[0].rows)).toEqual(['["a\\/b"]: x', 'Geimpft: true']);
+  });
+
+  it('falls back to the path label when the app language only translates the entry, as iOS does', () => {
+    const colour = newAttribute('colour', { labels: { [DE]: 'Farbe' }, entries: { codes: ['br'], labels: { [FR]: { br: 'Brun' } } } });
+    const [claim] = claims(android(project([colour], { colour: 'br' }), { languages: ['fr-CH'] }).sections[0].rows);
+    expect(claim).toMatchObject({ label: '["colour"]', value: { kind: 'entry', label: 'Brun' } });
   });
 });
