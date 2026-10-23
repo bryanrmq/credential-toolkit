@@ -177,13 +177,13 @@ describe('IssuesPanel', () => {
     expect(item.querySelector('.issues__location')).toHaveTextContent('Credential');
   });
 
-  it('leaves the Output pane with the Bundle and VCT tabs, Bundle first', () => {
+  it('leaves the Output pane with the Bundle, VCT and Changes tabs, Bundle first', () => {
     useStore.getState().load(cleanProject());
     useStore.setState({ outputTab: 'bundle' });
     render(<Workspace />);
     const output = screen.getByRole('region', { name: 'Output' });
     const tabs = within(output).getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Bundle', 'VCT snippet']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Bundle', 'VCT snippet', 'Changes']);
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     expect(useStore.getInitialState().outputTab).toBe('bundle');
   });

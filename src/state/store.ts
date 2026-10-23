@@ -10,7 +10,7 @@ import { loadCollapsed, revealSelection, saveCollapsed, selectionOnCollapse } fr
 export type { Selection, SelectionRequest } from './selection';
 export type View = 'editor' | 'translations';
 export type Theme = 'light' | 'dark';
-export type OutputTab = 'bundle' | 'vct';
+export type OutputTab = 'bundle' | 'vct' | 'changes';
 /** The two halves of the Output pane: the wallet preview on top, the bundle below. */
 export type OutputHalf = 'preview' | 'bundle';
 /** Which Output halves are open; a closed one shows only its header. */

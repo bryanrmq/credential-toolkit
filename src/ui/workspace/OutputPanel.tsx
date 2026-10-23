@@ -1,5 +1,6 @@
 import { CaretDownIcon, CaretRightIcon, CheckIcon, CopyIcon, DownloadSimpleIcon, GearSixIcon, SidebarSimpleIcon } from '@phosphor-icons/react';
 import { type CSSProperties, Fragment, useRef, useState } from 'react';
+import type { ProjectChange } from '../../core/compare';
 import { CARD_PROFILES, type PreviewView, previewViewOf, shownVariant } from '../../core/card/profiles';
 import { BUNDLE_FILE_NAME, buildVctSnippet } from '../../core/export/outputs';
 import { type OutputHalf, useStore } from '../../state/store';
@@ -8,8 +9,11 @@ import { t } from '../../strings';
 import { Button, InlineIssueFixes, Segmented, Tabs } from '../components/controls';
 import { PaneResizer } from '../components/PaneResizer';
 import { useFieldIssues, useIssues } from '../issues';
+import { useBaseline } from '../lib/baseline';
+import { useChanges } from '../lib/changes';
 import { copyText, downloadText } from '../lib/download';
 import { DEFAULT_PREVIEW_HEIGHT, PREVIEW_HEIGHT_LIMITS, clampPreviewHeight, loadPreviewHeight, savePreviewHeight } from '../lib/paneLayout';
+import { ChangesView } from './ChangesView';
 import { OutputPreview } from './OutputPreview';
 import { SampleControl } from './SampleControl';
 
@@ -80,8 +84,19 @@ function CollapseButton({ half, controls, collapseLabel, expandLabel }: { half: 
  * preview's height, remembered like the pane widths; each half collapses to its header and the other takes the room.
  * `stacked` (a narrow window) puts both halves in one scrolling column with no divider.
  * `onHide`, given on a wide window only, adds a button to the preview's header that hides the pane.
+ * `onJump` runs after a click in the Changes tab took the user to a field.
  */
-export function OutputPanel({ exportState, onHide, stacked = false }: { exportState: ExportState; onHide?: () => void; stacked?: boolean }) {
+export function OutputPanel({
+  exportState,
+  onHide,
+  onJump,
+  stacked = false,
+}: {
+  exportState: ExportState;
+  onHide?: () => void;
+  onJump?: (change: ProjectChange) => void;
+  stacked?: boolean;
+}) {
   const halves = useStore((state) => state.outputHalves);
   const rootRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(loadPreviewHeight);
@@ -116,7 +131,7 @@ export function OutputPanel({ exportState, onHide, stacked = false }: { exportSt
           }}
         />
       )}
-      <BundleHalf exportState={exportState} />
+      <BundleHalf exportState={exportState} onJump={onJump} />
     </div>
   );
 }
@@ -183,15 +198,17 @@ function PreviewHalf({ onHide }: { onHide?: () => void }) {
   );
 }
 
-function BundleHalf({ exportState }: { exportState: ExportState }) {
+function BundleHalf({ exportState, onJump }: { exportState: ExportState; onJump?: (change: ProjectChange) => void }) {
   const project = useStore((state) => state.project)!;
   const open = useStore((state) => state.outputHalves.bundle);
   const settingsOpen = useStore((state) => state.outputSettingsOpen);
   const tab = useStore((state) => state.outputTab);
   const { setOutputTab, setOutputHalfOpen, setOutputSettingsOpen } = useStore.getState();
-  const errors = useIssues().filter((issue) => issue.severity === 'error');
   const ready = exportState.status === 'ready' ? exportState : null;
   const snippet = ready ? JSON.stringify(buildVctSnippet(project, ready.outputs), null, 2) : '';
+  const baseline = useBaseline();
+  const changes = useChanges(project, baseline);
+  const changeCount = changes.status === 'ready' ? changes.changes.length : 0;
   // A tab or the gear also expands a collapsed half, since what they pick shows in its body.
   const show = (change: () => void) => {
     change();
@@ -208,11 +225,25 @@ function BundleHalf({ exportState }: { exportState: ExportState }) {
           options={[
             { value: 'bundle', label: t.output.bundle },
             { value: 'vct', label: t.output.vct },
+            {
+              value: 'changes',
+              label: (
+                <>
+                  {t.changes.tab}
+                  {changeCount > 0 && (
+                    <>
+                      {' '}
+                      <span className="tabs__count">{changeCount}</span>
+                    </>
+                  )}
+                </>
+              ),
+            },
           ]}
         />
         <span className="output-half__actions">
           {ready && <span className="field__hint">{t.output.size((ready.outputs.json.length / 1024).toFixed(1))}</span>}
-          {ready && (
+          {ready && tab !== 'changes' && (
             <CopyButton
               // One per tab, so a "Copied" from the other tab does not carry over.
               key={tab}
@@ -240,39 +271,60 @@ function BundleHalf({ exportState }: { exportState: ExportState }) {
         <div className="output-half__body" id={BUNDLE_BODY_ID}>
           {settingsOpen && <BundleSettings />}
           <div className="output-bundle">
-            {exportState.status === 'working' && <p className="field__hint">{t.output.working}</p>}
-            {exportState.status === 'failed' && <p className="error-text">{t.output.failed(exportState.error)}</p>}
-            {ready && (
-              <>
-                {tab === 'vct' && <p className="note">{t.output.vctHint}</p>}
-                <pre className="code-block">{tab === 'bundle' ? ready.outputs.json : snippet}</pre>
-                <div className="integrity">
-                  <span className="field__label">{t.output.integrity}</span>
-                  <div className="integrity__value">
-                    <code>{ready.outputs.integrity}</code>
-                    <CopyButton text={ready.outputs.integrity} label={t.output.copyIntegrity} iconOnly />
-                  </div>
-                </div>
-                {tab === 'bundle' && (
-                  <div className="row row--wrap">
-                    <Button
-                      variant="primary"
-                      size="small"
-                      disabled={errors.length > 0}
-                      title={errors.length ? t.workspace.downloadBlocked(errors.length) : undefined}
-                      onClick={() => downloadText(BUNDLE_FILE_NAME, ready.outputs.json)}
-                    >
-                      <DownloadSimpleIcon /> {BUNDLE_FILE_NAME}
-                    </Button>
-                    <CopyButton text={ready.outputs.dataUrl} label={t.output.copyDataUrl} />
-                  </div>
-                )}
-              </>
+            {tab === 'changes' ? (
+              <ChangesView
+                baseline={baseline}
+                state={changes}
+                current={ready?.outputs.integrity ?? null}
+                copy={ready && <CopyButton text={ready.outputs.integrity} label={t.output.copyIntegrity} iconOnly />}
+                onJump={onJump}
+              />
+            ) : (
+              <BundleOutput exportState={exportState} tab={tab} snippet={snippet} />
             )}
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+/** The Bundle and VCT tabs: the JSON, its `#integrity` and, under Bundle, the download. */
+function BundleOutput({ exportState, tab, snippet }: { exportState: ExportState; tab: 'bundle' | 'vct'; snippet: string }) {
+  const errors = useIssues().filter((issue) => issue.severity === 'error');
+  const ready = exportState.status === 'ready' ? exportState : null;
+  return (
+    <>
+      {exportState.status === 'working' && <p className="field__hint">{t.output.working}</p>}
+      {exportState.status === 'failed' && <p className="error-text">{t.output.failed(exportState.error)}</p>}
+      {ready && (
+        <>
+          {tab === 'vct' && <p className="note">{t.output.vctHint}</p>}
+          <pre className="code-block">{tab === 'bundle' ? ready.outputs.json : snippet}</pre>
+          <div className="integrity">
+            <span className="field__label">{t.output.integrity}</span>
+            <div className="integrity__value">
+              <code>{ready.outputs.integrity}</code>
+              <CopyButton text={ready.outputs.integrity} label={t.output.copyIntegrity} iconOnly />
+            </div>
+          </div>
+          {tab === 'bundle' && (
+            <div className="row row--wrap">
+              <Button
+                variant="primary"
+                size="small"
+                disabled={errors.length > 0}
+                title={errors.length ? t.workspace.downloadBlocked(errors.length) : undefined}
+                onClick={() => downloadText(BUNDLE_FILE_NAME, ready.outputs.json)}
+              >
+                <DownloadSimpleIcon /> {BUNDLE_FILE_NAME}
+              </Button>
+              <CopyButton text={ready.outputs.dataUrl} label={t.output.copyDataUrl} />
+            </div>
+          )}
+        </>
+      )}
+    </>
   );
 }
 

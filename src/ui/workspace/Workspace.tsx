@@ -171,7 +171,13 @@ export function Workspace() {
                 <>
                   {resizer('output', t.workspace.resizeOutput, -1)}
                   <section className="pane pane--output" aria-label={t.output.title} data-tour="output">
-                    <OutputPanel exportState={exportState} onHide={wide ? hideOutput : undefined} stacked={!wide} />
+                    <OutputPanel
+                      exportState={exportState}
+                      onHide={wide ? hideOutput : undefined}
+                      // On narrow windows only one pane shows: a change's field is in Edit (languages open a dialog).
+                      onJump={(change) => change.section !== 'languages' && setPane('inspector')}
+                      stacked={!wide}
+                    />
                   </section>
                 </>
               )}
