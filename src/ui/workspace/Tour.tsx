@@ -12,11 +12,9 @@ import { type View, useStore } from '../../state/store';
 import { type TourKeys, t } from '../../strings';
 import { Button } from '../components/controls';
 import { withKeys } from '../components/keys';
-import { undoShortcutLabel } from '../lib/historyShortcuts';
-import { outputShortcutLabel } from '../lib/outputShortcut';
+import { type CommandId, shortcutLabel } from '../lib/commands';
 import type { WorkspacePane } from '../lib/paneLayout';
 import { type Box, type Size, placeCard, saveTourSeen, spotlightBox } from '../lib/tour';
-import { treeShortcutLabel } from '../lib/treeShortcuts';
 
 interface TourStep {
   id: keyof typeof t.tour.steps;
@@ -40,15 +38,16 @@ const STEPS: TourStep[] = [
 ];
 
 function tourKeys(): TourKeys {
+  const label = (id: CommandId) => shortcutLabel(id)!;
   return {
-    add: treeShortcutLabel('add'),
-    delete: treeShortcutLabel('delete'),
-    group: treeShortcutLabel('group'),
-    moveUp: treeShortcutLabel('moveUp'),
-    moveDown: treeShortcutLabel('moveDown'),
-    filter: treeShortcutLabel('filter'),
-    undo: undoShortcutLabel(),
-    output: outputShortcutLabel(),
+    add: label('tree.addAttribute'),
+    delete: label('tree.delete'),
+    group: label('tree.group'),
+    moveUp: label('tree.moveUp'),
+    moveDown: label('tree.moveDown'),
+    filter: label('tree.filter'),
+    undo: label('workspace.undo'),
+    output: label('workspace.toggleOutput'),
   };
 }
 
