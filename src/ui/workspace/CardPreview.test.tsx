@@ -117,7 +117,7 @@ describe('CardPreview', () => {
     });
     render(<CardPreview />);
     expect(card()).toHaveTextContent('Halter: ‹Vorname›');
-    expect(screen.getByText('Attach a sample credential in the Output pane to see real values.')).toBeInTheDocument();
+    expect(screen.getByText('Attach a sample credential in the Output bundle settings to see real values.')).toBeInTheDocument();
 
     act(() =>
       useStore.getState().update((draft) => {

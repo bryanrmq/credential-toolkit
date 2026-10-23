@@ -1098,8 +1098,7 @@ input[type='checkbox'] {
   justify-content: space-between;
   gap: 8px;
 }
-.pane--structure .pane__header,
-.pane--output .pane__header {
+.pane--structure .pane__header {
   background: var(--canvas);
 }
 /* The Structure header wraps its filter box onto a line of its own, below the title and the Add menu. */
@@ -1760,6 +1759,138 @@ button.tree__toggle:hover {
   display: grid;
   gap: 8px;
 }
+/* The Output pane in two halves: the wallet preview on top, the bundle below. On a wide window they share the
+   pane's height (the preview's set by the divider) and each body scrolls; collapsed, a half keeps only its header
+   and the other takes the room. On a narrow window they stack in the pane's one scrolling column. */
+.pane--output {
+  background: var(--canvas);
+}
+@media (min-width: 1001px) {
+  .pane--output {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .output {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .output-half {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  /* A remembered height can outgrow a window made shorter since: the Bundle half keeps room regardless. */
+  .output--split .output-half--preview {
+    flex: 0 0 var(--preview-height, 320px);
+    max-height: calc(100% - 160px);
+  }
+  .output-half--collapsed {
+    flex: none;
+  }
+  .output-half__body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .output-half .code-block {
+    max-height: none;
+  }
+}
+.output > .pane-resizer--horizontal {
+  flex: none;
+  height: 5px;
+}
+.output-half--bundle {
+  border-top: 1px solid var(--border);
+}
+.output--split .output-half--bundle {
+  border-top: none;
+}
+.output-half__header {
+  min-height: 44px;
+  padding: 8px 12px 8px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--canvas);
+}
+/* The Bundle half's tabs are its title: they sit on the header's bottom line, which the selected one underlines. */
+.output-half__header--tabs {
+  padding: 0 12px 0 8px;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border);
+}
+.output-half--collapsed .output-half__header--tabs {
+  border-bottom: none;
+}
+.output-half__header--tabs .tabs {
+  border-bottom: none;
+  min-width: 0;
+}
+.output-half__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.output-half__actions .field__hint {
+  margin-right: 4px;
+  font-family: var(--font-mono);
+}
+/* The preview's segmented controls take a line of their own under the title, like the Structure filter box. */
+.output-half__controls {
+  flex: 1 0 100%;
+  order: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.output-half__toggle {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  justify-content: center;
+}
+.output-half__settings.is-active {
+  background: var(--surface-muted);
+  color: var(--text-strong);
+}
+.output-preview {
+  padding: 4px 20px 20px;
+}
+.output-settings {
+  display: grid;
+  gap: 16px;
+  padding: 16px 20px;
+  background: var(--surface-muted);
+  border-bottom: 1px solid var(--border);
+}
+.output-settings__hosting {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+.output-settings .radio:last-child {
+  margin-bottom: 0;
+}
+.output-settings .sample-control {
+  margin-bottom: 0;
+}
+.output-bundle {
+  padding: 16px 20px 32px;
+}
+.output-bundle .integrity {
+  margin-bottom: 12px;
+}
+
 /* Issues panel: full width under the panes, like an editor's Problems panel. */
 .issues-panel {
   position: relative;
