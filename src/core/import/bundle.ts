@@ -1,7 +1,9 @@
 import { OVERLAY_TYPES, computeDigests } from '../export/bundle.ts';
 import {
+  DATA_SOURCE_FORMATS,
   type BrandingPair,
   type ClaimsPath,
+  type DataSourceFormat,
   type Group,
   type LangTag,
   type Node,
@@ -14,6 +16,7 @@ import {
   parseTypeString,
   walkGroups,
 } from '../model.ts';
+import { formatPath } from '../paths.ts';
 import { toEditorTemplate } from '../templates.ts';
 import { ImportError, type ImportResult, type ReportNote, isPlainObject } from './report.ts';
 
@@ -96,6 +99,57 @@ function asStringRecord(value: unknown): Record<string, string> {
 
 function isClaimsPath(value: unknown): value is ClaimsPath {
   return Array.isArray(value) && value.every((segment) => segment === null || typeof segment === 'string' || typeof segment === 'number');
+}
+
+const isDataSourceFormat = (format: unknown): format is DataSourceFormat => DATA_SOURCE_FORMATS.includes(format as DataSourceFormat);
+
+/** Which wallets labelled nothing in a bundle without Data Source overlays for the format. */
+const MISSING_FORMAT_NOTES: Record<DataSourceFormat, string> = {
+  'vc+sd-jwt':
+    'The bundle had no "vc+sd-jwt" Data Source overlay for some capture bases. The iOS wallet up to 1.18, and the Android wallet for credentials whose issuer metadata says "vc+sd-jwt", show those claims without labels. The export writes both "vc+sd-jwt" and "dc+sd-jwt".',
+  'dc+sd-jwt':
+    'The bundle had no "dc+sd-jwt" Data Source overlay for some capture bases. The Android wallet shows those claims without labels for credentials whose issuer metadata says "dc+sd-jwt". The export writes both "vc+sd-jwt" and "dc+sd-jwt".',
+};
+
+/**
+ * Sets each node's source from the group's Data Source overlays. The project keeps one path per attribute, which
+ * the export writes for every format: "dc+sd-jwt" wins over "vc+sd-jwt", which wins over other formats.
+ */
+function readDataSources(
+  overlays: RawOverlay[],
+  nodes: Map<string, Node>,
+  note: (message: string, level?: ReportNote['level']) => void,
+  noteOnce: (message: string, level?: ReportNote['level']) => void,
+): void {
+  const rank = (overlay: RawOverlay) => DATA_SOURCE_FORMATS.indexOf(overlay.format as DataSourceFormat);
+  const read = new Map<string, { path: ClaimsPath; format: string }>();
+  for (const overlay of [...overlays].sort((a, b) => rank(a) - rank(b))) {
+    const v1 = overlay.type === OVERLAY_TYPES.dataSourceV1;
+    const format = typeof overlay.format === 'string' ? overlay.format : '';
+    if (!isDataSourceFormat(format)) {
+      const which = format ? `format "${format}"` : 'no format';
+      noteOnce(`Data Source overlays with ${which} are not read by the wallets. Their paths are exported as "vc+sd-jwt" and "dc+sd-jwt".`, 'warning');
+    }
+    const sources = isPlainObject(overlay.attribute_sources) ? overlay.attribute_sources : {};
+    for (const [key, value] of Object.entries(sources)) {
+      const node = nodes.get(key);
+      if (!node) continue;
+      const path = v1 ? (typeof value === 'string' ? jsonPathToClaimsPath(value) : null) : isClaimsPath(value) ? value : null;
+      if (!path) {
+        note(`The data source of "${key}" could not be read and was left empty.`, 'warning');
+        continue;
+      }
+      const previous = read.get(key);
+      if (previous && JSON.stringify(previous.path) !== JSON.stringify(path)) {
+        note(
+          `The data source of "${key}" differed between formats: ${formatPath(previous.path)} for "${previous.format || 'no format'}", ${formatPath(path)} for "${format || 'no format'}". The ${formatPath(path)} path was kept for every format.`,
+          'warning',
+        );
+      }
+      read.set(key, { path, format });
+      node.source = path;
+    }
+  }
 }
 
 /**
@@ -204,13 +258,20 @@ export async function importBundle(input: unknown): Promise<ImportResult> {
     }
   };
 
+  // Formats some capture base with Data Source overlays has none for.
+  const missingFormats = new Set<DataSourceFormat>();
+
   for (const [captureBase, groups] of [...groupsByDigest.entries()].map(([digest, list]) => [byDigest.get(digest)!, list] as const)) {
     const list = overlaysByCaptureBase.get(captureBase) ?? [];
     const hasDataSourceV2 = list.some((overlay) => overlay.type === OVERLAY_TYPES.dataSource);
+    const readDataSourceType = hasDataSourceV2 ? OVERLAY_TYPES.dataSource : OVERLAY_TYPES.dataSourceV1;
+    const readFormats = list.filter((overlay) => overlay.type === readDataSourceType).map((overlay) => overlay.format);
+    if (readFormats.length) for (const format of DATA_SOURCE_FORMATS) if (!readFormats.includes(format)) missingFormats.add(format);
     for (const group of groups) {
       const nodes = nodesByGroup.get(group)!;
       const isRoot = group === root;
       const orders = new Map<string, number>();
+      const dataSources: RawOverlay[] = [];
 
       for (const overlay of list) {
         const lang = typeof overlay.language === 'string' ? overlay.language : undefined;
@@ -287,21 +348,7 @@ export async function importBundle(input: unknown): Promise<ImportResult> {
               break;
             }
             if (v1) noteOnce('Data Source 1.0 overlays (JSONPath) were converted to Data Source 2.0 (claims paths).');
-            if (overlay.format === 'vc+sd-jwt') noteOnce('Data source format "vc+sd-jwt" was changed to "dc+sd-jwt".');
-            else if (overlay.format !== undefined && overlay.format !== 'dc+sd-jwt') {
-              noteOnce(`Data source format "${String(overlay.format)}" is not supported and was changed to "dc+sd-jwt".`, 'warning');
-            }
-            const sources = isPlainObject(overlay.attribute_sources) ? overlay.attribute_sources : {};
-            for (const [key, value] of Object.entries(sources)) {
-              const node = nodes.get(key);
-              if (!node) continue;
-              const path = v1 ? (typeof value === 'string' ? jsonPathToClaimsPath(value) : null) : isClaimsPath(value) ? value : null;
-              if (!path) {
-                note(`The data source of "${key}" could not be read and was left empty.`, 'warning');
-                continue;
-              }
-              node.source = path;
-            }
+            dataSources.push(overlay);
             break;
           }
           case OVERLAY_TYPES.standard: {
@@ -357,6 +404,8 @@ export async function importBundle(input: unknown): Promise<ImportResult> {
         }
       }
 
+      readDataSources(dataSources, nodes, note, noteOnce);
+
       if (orders.size) {
         const position = (node: Node, index: number) => orders.get(node.key) ?? Number.MAX_SAFE_INTEGER - group.children.length + index;
         const indexed = group.children.map((node, index) => ({ node, rank: position(node, index), index }));
@@ -365,6 +414,8 @@ export async function importBundle(input: unknown): Promise<ImportResult> {
       }
     }
   }
+
+  for (const format of missingFormats) note(MISSING_FORMAT_NOTES[format], 'warning');
 
   for (const fix of templateFixes) fix();
   for (const lang of project.languages) ensureLanguageSlots(project, lang);

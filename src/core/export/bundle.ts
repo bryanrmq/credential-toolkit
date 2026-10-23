@@ -1,7 +1,7 @@
 import canonicalize from 'canonicalize';
 import { cesrDigest } from '../cesr.ts';
 import {
-  DATA_SOURCE_FORMAT,
+  DATA_SOURCE_FORMATS,
   type Branding,
   type Group,
   type LangTag,
@@ -151,7 +151,7 @@ export function groupOverlays(project: Project, group: Group, digests: Map<strin
     if (source && source.length) attribute_sources[child.key] = source;
   }
   if (Object.keys(attribute_sources).length) {
-    overlays.push({ ...base(OVERLAY_TYPES.dataSource), format: DATA_SOURCE_FORMAT, attribute_sources });
+    for (const format of DATA_SOURCE_FORMATS) overlays.push({ ...base(OVERLAY_TYPES.dataSource), format, attribute_sources: { ...attribute_sources } });
   }
 
   const attr_standards: Record<string, string> = {};
