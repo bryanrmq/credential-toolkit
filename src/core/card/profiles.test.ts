@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CARD_PROFILES, type CardPlatform, formatHex, formatRgba, shownVariant } from './profiles';
+import { CARD_PROFILES, type CardPlatform, formatHex, formatRgba, previewViewOf, shownVariant } from './profiles';
 
 const ink = (platform: CardPlatform, hex: string) => {
   const profile = CARD_PROFILES[platform];
@@ -90,9 +90,9 @@ describe('profiles', () => {
     expect(CARD_PROFILES.android.missingName).toBeNull();
   });
 
-  it('offers Card and Home on iOS, whose offer screen uses the detail card, and Detail, Offer and Home on Android', () => {
-    expect(CARD_PROFILES.ios.variants).toEqual(['detail', 'home']);
-    expect(CARD_PROFILES.android.variants).toEqual(['detail', 'offer', 'home']);
+  it('offers Card, Details and Home on iOS, whose offer screen uses the detail card, and Detail, Offer, Details and Home on Android', () => {
+    expect(CARD_PROFILES.ios.variants).toEqual(['detail', 'details', 'home']);
+    expect(CARD_PROFILES.android.variants).toEqual(['detail', 'offer', 'details', 'home']);
     expect(CARD_PROFILES.ios.layout.offer).toBeUndefined();
   });
 
@@ -107,6 +107,14 @@ describe('profiles', () => {
     expect(shownVariant(CARD_PROFILES.ios, 'offer')).toBe('detail');
     expect(shownVariant(CARD_PROFILES.ios, 'home')).toBe('home');
     expect(shownVariant(CARD_PROFILES.android, 'offer')).toBe('offer');
+    expect(shownVariant(CARD_PROFILES.ios, 'details')).toBe('details');
+  });
+
+  it('puts both cards in the Card view', () => {
+    expect(previewViewOf('detail')).toBe('card');
+    expect(previewViewOf('offer')).toBe('card');
+    expect(previewViewOf('details')).toBe('details');
+    expect(previewViewOf('home')).toBe('home');
   });
 
   it('draws the home row like each wallet list', () => {

@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { selectBranding } from '../../core/card/branding';
 import { type CardDifference, cardDifferences, otherPlatform } from '../../core/card/differences';
-import { CARD_PROFILES, type CardPlatform, type CardVariant, shownVariant } from '../../core/card/profiles';
+import { CARD_PROFILES, type CardPlatform, shownVariant } from '../../core/card/profiles';
 import { cardSummary, summaryText } from '../../core/card/summary';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { CredentialCard } from '../components/CredentialCard';
 import { CredentialHomeRow } from '../components/CredentialHomeRow';
-import { Tabs } from '../components/controls';
 
 function describeDifference(difference: CardDifference, platform: CardPlatform): string {
   const name = t.cardPreview.platforms[platform];
@@ -39,14 +38,16 @@ function useFitScale(width: number) {
   return { ref, scale: available === null ? 1 : Math.min(1, available / width) };
 }
 
-/** The credential card as the iOS or Android wallet would roughly draw it, for the editing language and theme. */
+/**
+ * The credential card or home row as the iOS or Android wallet would roughly draw it, for the editing language and
+ * theme, with the notes on it underneath. The platform and variant are picked in the Output preview's header.
+ */
 export function CardPreview() {
   const project = useStore((state) => state.project)!;
   const lang = useStore((state) => state.editLang);
   const theme = useStore((state) => state.brandingTheme);
   const platform = useStore((state) => state.cardPlatform);
   const variant = useStore((state) => state.cardVariant);
-  const { setCardPlatform, setCardVariant } = useStore.getState();
 
   const profile = CARD_PROFILES[platform];
   const shown = shownVariant(profile, variant);
@@ -60,32 +61,12 @@ export function CardPreview() {
   const background = profile.parseBackground(branding.primaryBackgroundColor) ?? profile.fallbackBackground;
   const ink = profile.textInk(background);
   const differences = cardDifferences(platform, { variant: shown, name, background: branding.primaryBackgroundColor, summaries });
-  // A wallet that shows its detail card on the offer screen calls it just "Card".
-  const tabName = (option: CardVariant) => (option === 'detail' && !profile.variants.includes('offer') ? 'card' : option);
-  const label = `${t.cardPreview.platforms[platform]} ${t.cardPreview.drawn[tabName(shown)]}`;
+  // A wallet that shows its detail card on the offer screen calls it just "card".
+  const drawn = shown === 'home' ? 'home' : shown === 'offer' ? 'offer' : profile.variants.includes('offer') ? 'detail' : 'card';
+  const label = `${t.cardPreview.platforms[platform]} ${t.cardPreview.drawn[drawn]}`;
 
   return (
     <div className="card-preview">
-      <div className="card-preview__header">
-        <span className="section__title">{t.cardPreview.title}</span>
-        <div className="row row--wrap">
-          <Tabs
-            label={t.cardPreview.platform}
-            value={platform}
-            onChange={setCardPlatform}
-            options={[
-              { value: 'ios', label: t.cardPreview.platforms.ios },
-              { value: 'android', label: t.cardPreview.platforms.android },
-            ]}
-          />
-          <Tabs
-            label={t.cardPreview.card}
-            value={shown}
-            onChange={setCardVariant}
-            options={profile.variants.map((option) => ({ value: option, label: t.cardPreview.variants[tabName(option)] }))}
-          />
-        </div>
-      </div>
       <div
         ref={ref}
         className={`card-preview__stage card-preview__stage--${theme}`}

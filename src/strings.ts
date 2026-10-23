@@ -86,7 +86,6 @@ export const t = {
     errorCount: (count: number) => `${count} ${count === 1 ? 'error' : 'errors'}`,
     warningCount: (count: number) => `${count} ${count === 1 ? 'warning' : 'warnings'}`,
     newProject: 'New project',
-    confirmNew: 'Discard this draft and go back to the start screen? Download the bundle first if you want to keep it.',
     storageUnavailable: 'This browser does not allow local storage, so the draft will not be saved.',
     reportTitle: 'Import report',
     dismiss: 'Dismiss',
@@ -271,12 +270,9 @@ export const t = {
     delete: 'Delete',
   },
   cardPreview: {
-    title: 'Card preview',
-    platform: 'Platform',
-    card: 'Card',
     platforms: { ios: 'iOS', android: 'Android' },
-    /** Tab labels; `card` names the detail card of a wallet that uses it on the offer screen too. */
-    variants: { detail: 'Detail', offer: 'Offer', home: 'Home', card: 'Card' },
+    /** The cards of a wallet that has a separate offer card. */
+    variants: { detail: 'Detail', offer: 'Offer' },
     /** Accessible names of what the preview draws, after the platform name. */
     drawn: { detail: 'detail card', offer: 'offer card', home: 'home row', card: 'card' },
     caption: "Approximation of the swiyu wallets. Uses this app's font and leaves out patterns and badges.",
@@ -294,10 +290,10 @@ export const t = {
     preview: 'Preview',
     previewPlatform: 'Preview platform',
     previewView: 'Preview view',
+    previewCard: 'Preview card',
     views: { card: 'Card', details: 'Details', home: 'Home' },
-    /** The Preview half's body until the wallet views move into it. */
+    /** The Details view until the details screens are drawn. */
     previewEmpty: (view: string, platform: string) => `No ${view.toLowerCase()} preview for ${platform} here yet.`,
-    previewInEdit: 'Select the credential in Structure to see its card preview in the Edit pane.',
     resizePreview: 'Resize the preview',
     collapsePreview: 'Collapse preview',
     expandPreview: 'Expand preview',
@@ -414,7 +410,7 @@ export const t = {
         title: 'Edit',
         body: 'Edits what you selected in Structure, in the editing language.',
         features: [
-          'Credential: name, description, logo, background colour and primary field, with a card preview for iOS and Android.',
+          'Credential: name, description, logo, background colour and primary field. Output previews the card as you type.',
           'Attribute: key, label, type, source path, value translations and the sensitive flag. A group has a headline instead of a label.',
           'Type [[{{]] in the primary field or a list headline to insert an attribute value.',
           'With several languages, the Translations panel beside the form shows the item in each one. Click a language to edit in it.',
@@ -424,7 +420,8 @@ export const t = {
         title: 'Output',
         body: 'Previews the credential in the wallets and gives you what to publish.',
         features: (keys: TourKeys) => [
-          'Preview on top, for iOS and Android. Drag the divider to share the space with the bundle, or collapse either half to its header.',
+          'Preview on top: the card, the details screen or the home list row, for iOS or Android, with the notes on how the other wallet differs.',
+          'Drag the divider to share the space with the bundle, or collapse either half to its header.',
           'Bundle: copy the JSON and its uri#integrity value. The gear holds where the bundle will be hosted.',
           'The gear also attaches a sample credential to check that every source path exists. It is never exported.',
           'VCT snippet: the display entries to add to your SD-JWT VC Type Metadata.',

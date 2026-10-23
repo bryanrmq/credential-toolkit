@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { type Project, emptyGroup, emptyProject, newAttribute, newGroupLink } from '../../core/model';
 import { useStore } from '../../state/store';
-import { CardPreview } from './CardPreview';
+import { OutputPanel } from './OutputPanel';
 
 function load(configure?: (project: Project) => void) {
   const project = emptyProject(['de-CH', 'en-GB']);
@@ -17,49 +17,112 @@ function load(configure?: (project: Project) => void) {
 }
 
 const card = () => screen.getByRole('figure');
+/** A button of one of the Preview half's segmented controls: platform, view, or Android's detail and offer cards. */
+const control = (group: 'Preview platform' | 'Preview view' | 'Preview card', name: string) =>
+  within(screen.getByRole('group', { name: group })).getByRole('button', { name });
+const pressed = (group: string) =>
+  within(screen.getByRole('group', { name: group }))
+    .getAllByRole('button')
+    .filter((button) => button.getAttribute('aria-pressed') === 'true')
+    .map((button) => button.textContent);
+/** The card preview as the Output pane shows it, under the Preview half's controls. */
+const renderPreview = () => render(<OutputPanel exportState={{ status: 'working' }} />);
 
 beforeEach(() => {
   localStorage.clear();
   load();
 });
 
-describe('CardPreview', () => {
+describe('CardPreview in the Output preview', () => {
   it('starts on the iOS card and switches platform and card', async () => {
     const user = userEvent.setup();
-    render(<CardPreview />);
+    renderPreview();
     expect(screen.getByRole('figure', { name: 'iOS card' })).toHaveTextContent('Hundebewilligung');
     expect(card()).toHaveTextContent('Für Hundehalter');
     expect(card()).toHaveAttribute('data-ink', 'black');
     expect(screen.getByText('Android: white text')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'Android' }));
+    await user.click(control('Preview platform', 'Android'));
     expect(screen.getByRole('figure', { name: 'Android detail card' })).toHaveAttribute('data-ink', 'white');
     expect(screen.getByText('iOS: black text')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'Offer' }));
+    await user.click(control('Preview card', 'Offer'));
     expect(screen.getByRole('figure', { name: 'Android offer card' })).toBeInTheDocument();
     expect(useStore.getState()).toMatchObject({ cardPlatform: 'android', cardVariant: 'offer' });
   });
 
-  it('offers Card and Home on iOS, which shows its card for Offer, and keeps Offer for Android', async () => {
+  it('offers Detail and Offer under Card on Android only; iOS shows its card for Offer', async () => {
     const user = userEvent.setup();
     useStore.setState({ cardPlatform: 'android', cardVariant: 'offer' });
-    render(<CardPreview />);
-    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['iOS', 'Android', 'Detail', 'Offer', 'Home']);
+    renderPreview();
+    expect(within(screen.getByRole('group', { name: 'Preview view' })).getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'Card',
+      'Details',
+      'Home',
+    ]);
+    expect(pressed('Preview view')).toEqual(['Card']);
+    expect(within(screen.getByRole('group', { name: 'Preview card' })).getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'Detail',
+      'Offer',
+    ]);
+    expect(pressed('Preview card')).toEqual(['Offer']);
 
-    await user.click(screen.getByRole('tab', { name: 'iOS' }));
-    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['iOS', 'Android', 'Card', 'Home']);
-    expect(screen.getByRole('tab', { name: 'Card' })).toHaveAttribute('aria-selected', 'true');
+    await user.click(control('Preview platform', 'iOS'));
+    expect(screen.queryByRole('group', { name: 'Preview card' })).not.toBeInTheDocument();
+    expect(pressed('Preview view')).toEqual(['Card']);
     expect(screen.getByRole('figure', { name: 'iOS card' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'Android' }));
+    // Card again keeps the card shown; Android still has its offer card.
+    await user.click(control('Preview view', 'Card'));
+    await user.click(control('Preview platform', 'Android'));
     expect(screen.getByRole('figure', { name: 'Android offer card' })).toBeInTheDocument();
+
+    // Leaving Card and coming back opens the detail card.
+    await user.click(control('Preview view', 'Home'));
+    expect(screen.queryByRole('group', { name: 'Preview card' })).not.toBeInTheDocument();
+    await user.click(control('Preview view', 'Card'));
+    expect(screen.getByRole('figure', { name: 'Android detail card' })).toBeInTheDocument();
+    expect(useStore.getState().cardVariant).toBe('detail');
+  });
+
+  it('shows the Details view as an empty state, without the card notes', async () => {
+    const user = userEvent.setup();
+    renderPreview();
+    await user.click(control('Preview view', 'Details'));
+    expect(useStore.getState().cardVariant).toBe('details');
+    expect(pressed('Preview view')).toEqual(['Details']);
+    expect(screen.getByText('No details preview for iOS here yet.')).toBeInTheDocument();
+    expect(screen.queryByRole('figure')).not.toBeInTheDocument();
+    expect(screen.queryByText('Android: white text')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Approximation of the swiyu wallets/)).not.toBeInTheDocument();
+
+    await user.click(control('Preview platform', 'Android'));
+    expect(screen.getByText('No details preview for Android here yet.')).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Preview card' })).not.toBeInTheDocument();
+
+    await user.click(control('Preview view', 'Card'));
+    expect(screen.getByRole('figure', { name: 'Android detail card' })).toBeInTheDocument();
+  });
+
+  it('puts the notes and the caption under the preview', () => {
+    load((project) => {
+      project.branding['de-CH'].light.primaryField = 'Halter: {{given_name}}';
+    });
+    renderPreview();
+    act(() => useStore.getState().setBrandingTheme('dark'));
+    const notes = [
+      screen.getByText('No dark branding: both wallets show the light card in dark mode.'),
+      screen.getByText('Attach a sample credential in the Output bundle settings to see real values.'),
+      screen.getByText('Android: white text'),
+      screen.getByText("Approximation of the swiyu wallets. Uses this app's font and leaves out patterns and badges."),
+    ];
+    for (const note of notes) expect(card().compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('draws the home row on each platform list background', async () => {
     const user = userEvent.setup();
-    render(<CardPreview />);
-    await user.click(screen.getByRole('tab', { name: 'Home' }));
+    renderPreview();
+    await user.click(control('Preview view', 'Home'));
     const row = screen.getByRole('figure', { name: 'iOS home row' });
     expect(row).toHaveTextContent('Hundebewilligung');
     expect(row).toHaveTextContent('Für Hundehalter');
@@ -71,33 +134,33 @@ describe('CardPreview', () => {
 
   it('names the home row fallback title when the name is empty', async () => {
     const user = userEvent.setup();
-    render(<CardPreview />);
-    await user.click(screen.getByRole('tab', { name: 'Home' }));
+    renderPreview();
+    await user.click(control('Preview view', 'Home'));
     act(() => useStore.getState().setEditLang('en-GB'));
     expect(card()).toHaveTextContent('Credential');
     expect(screen.getByText('Android: no text when the name is empty')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'Android' }));
+    await user.click(control('Preview platform', 'Android'));
     expect(card()).not.toHaveTextContent('Credential');
     expect(screen.getByText('iOS: shows "Credential" when the name is empty')).toBeInTheDocument();
   });
 
   it('follows the editing language, including one with no name or branding yet', async () => {
     const user = userEvent.setup();
-    render(<CardPreview />);
+    renderPreview();
     act(() => useStore.getState().setEditLang('en-GB'));
     expect(card()).toHaveTextContent('n/a');
     expect(card().style.background).toBe('rgb(215, 212, 205)');
     expect(screen.getByText('Android: no text when the name is empty')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'Android' }));
+    await user.click(control('Preview platform', 'Android'));
     expect(card()).not.toHaveTextContent('n/a');
     expect(card().style.background).toBe('rgb(240, 237, 229)');
     expect(screen.getByText('iOS: shows "n/a" when the name is empty')).toBeInTheDocument();
   });
 
   it('shows the light card on the dark tab until a dark variant exists', () => {
-    render(<CardPreview />);
+    renderPreview();
     act(() => useStore.getState().setBrandingTheme('dark'));
     expect(screen.getByText('No dark branding: both wallets show the light card in dark mode.')).toBeInTheDocument();
     expect(card().style.background).toBe('rgb(59, 130, 246)');
@@ -115,7 +178,7 @@ describe('CardPreview', () => {
     load((project) => {
       project.branding['de-CH'].light.primaryField = 'Halter: {{given_name}}';
     });
-    render(<CardPreview />);
+    renderPreview();
     expect(card()).toHaveTextContent('Halter: ‹Vorname›');
     expect(screen.getByText('Attach a sample credential in the Output bundle settings to see real values.')).toBeInTheDocument();
 
@@ -136,11 +199,11 @@ describe('CardPreview', () => {
       project.branding['de-CH'].light.primaryField = '{{pets.name[1]}}';
       project.sample = { pets: [{ name: 'Rex' }, { name: 'Bello' }] };
     });
-    render(<CardPreview />);
+    renderPreview();
     expect(card()).toHaveTextContent('Bello');
     expect(screen.getByText('Android: empty summary')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'Android' }));
+    await user.click(control('Preview platform', 'Android'));
     expect(card()).not.toHaveTextContent('Bello');
     expect(screen.getByText('iOS: summary "Bello"')).toBeInTheDocument();
   });
@@ -149,7 +212,7 @@ describe('CardPreview', () => {
     load((project) => {
       project.branding['de-CH'].light.primaryBackgroundColor = '#3B82F680';
     });
-    render(<CardPreview />);
+    renderPreview();
     expect(card().style.background).toBe('rgba(59, 130, 246, 0.502)');
     expect(screen.getByText('Android: colour not supported, shows #F0EDE5')).toBeInTheDocument();
   });

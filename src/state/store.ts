@@ -14,8 +14,6 @@ export type OutputTab = 'bundle' | 'vct';
 export type OutputHalf = 'preview' | 'bundle';
 /** Which Output halves are open; a closed one shows only its header. */
 export type OutputHalves = Record<OutputHalf, boolean>;
-/** What the Output pane's Preview half shows. */
-export type PreviewView = 'card' | 'details' | 'home';
 
 /** What the fix toast reports: how many issues a fix fixed, that it failed, or that the project changed meanwhile. */
 export type FixNotice = { kind: 'fixed'; fixed: number; total: number } | { kind: 'failed'; label?: string } | { kind: 'stale' };
@@ -58,7 +56,7 @@ export interface AppState {
   outputHalves: OutputHalves;
   /** Whether the Bundle half shows its settings (hosting and the sample credential) above the bundle. */
   outputSettingsOpen: boolean;
-  previewView: PreviewView;
+  /** The platform and view the Output preview shows; a variant the platform lacks shows its detail card (`shownVariant`). */
   cardPlatform: CardPlatform;
   cardVariant: CardVariant;
   draftSaveFailed: boolean;
@@ -97,7 +95,6 @@ export interface AppState {
   setOutputHalves: (halves: OutputHalves) => void;
   setOutputHalfOpen: (half: OutputHalf, open: boolean) => void;
   setOutputSettingsOpen: (open: boolean) => void;
-  setPreviewView: (view: PreviewView) => void;
   setCardPlatform: (platform: CardPlatform) => void;
   setCardVariant: (variant: CardVariant) => void;
   setDraftSaveFailed: (failed: boolean) => void;
@@ -188,7 +185,6 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
   outputOpen: true,
   outputHalves: { preview: true, bundle: true },
   outputSettingsOpen: false,
-  previewView: 'card',
   cardPlatform: 'ios',
   cardVariant: 'detail',
   draftSaveFailed: false,
@@ -277,7 +273,6 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
   setOutputHalves: (outputHalves) => set({ outputHalves }),
   setOutputHalfOpen: (half, open) => set({ outputHalves: { ...get().outputHalves, [half]: open } }),
   setOutputSettingsOpen: (outputSettingsOpen) => set({ outputSettingsOpen }),
-  setPreviewView: (previewView) => set({ previewView }),
   setCardPlatform: (cardPlatform) => set({ cardPlatform }),
   setCardVariant: (cardVariant) => set({ cardVariant }),
   setDraftSaveFailed: (draftSaveFailed) => set({ draftSaveFailed }),

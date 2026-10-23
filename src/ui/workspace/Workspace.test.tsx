@@ -127,19 +127,15 @@ describe('Workspace', () => {
     expect(useStore.getState().selection).toMatchObject({ kind: 'node' });
   });
 
-  it('starts over from the menu after confirming', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+  it('returns to the start screen from the menu without asking', async () => {
+    const confirm = vi.spyOn(window, 'confirm');
     const user = userEvent.setup();
     render(<Workspace />);
     await user.click(screen.getByRole('button', { name: 'More actions' }));
     await user.click(screen.getByRole('menuitem', { name: 'New project' }));
-    expect(useStore.getState().project).not.toBeNull();
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'More actions' }));
-    await user.click(screen.getByRole('menuitem', { name: 'New project' }));
-    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(confirm).not.toHaveBeenCalled();
     expect(useStore.getState().project).toBeNull();
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     confirm.mockRestore();
   });
 
