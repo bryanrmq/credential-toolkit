@@ -594,6 +594,78 @@ kbd.palette__meta {
   border-color: transparent;
   color: var(--red-text);
 }
+/* A long action in the toast: title, mono detail and percentage on one line, a 2px bar on the bottom edge. */
+.toast--progress {
+  position: relative;
+  overflow: hidden;
+  min-width: min(320px, calc(100vw - 32px));
+  padding: 10px 14px 12px;
+}
+.toast__progress {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.toast__title {
+  font-weight: 500;
+  white-space: nowrap;
+}
+.toast__detail {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.toast__percent {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-strong);
+}
+.toast__bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--border);
+}
+.toast__bar-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--text-strong);
+  transform-origin: left;
+  transform: scaleX(0);
+}
+.toast__bar[data-indeterminate] .toast__bar-fill {
+  right: auto;
+  width: 30%;
+  transform: none;
+  opacity: 0.6;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .toast__bar-fill {
+    transition: transform 240ms var(--ease);
+  }
+  .toast__bar[data-indeterminate] .toast__bar-fill {
+    opacity: 1;
+    animation: toast-bar-run 1.4s var(--ease) infinite;
+  }
+}
+@keyframes toast-bar-run {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
 .error-text {
   color: var(--red-text);
   font-size: 13px;

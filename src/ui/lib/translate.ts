@@ -149,7 +149,11 @@ async function translateInto(
   const showDownload = () => {
     if (!current()) return;
     const share = [...loaded.values()].reduce((sum, value) => sum + value, 0) / loaded.size;
-    store().showProgress(t.translate.downloading(Math.round(share * 100)));
+    // The browser reports 0 before it knows how far it is: the bar runs without a share until then.
+    store().showProgress(t.translate.downloading(downloads.length), {
+      detail: t.translate.direction(source, downloads),
+      share: share > 0 ? share : undefined,
+    });
   };
   if (downloads.length > 0) showDownload();
   // Created at once, while the click that asked for the download still counts as the user's: the browser needs one to download.
@@ -167,7 +171,10 @@ async function translateInto(
 
   if (!current()) return;
   const work = missing.filter((text) => translators.has(text.lang));
-  if (work.length > 0) store().showProgress(t.translate.translating);
+  if (work.length > 0) {
+    const into = targets.filter((lang) => translators.has(lang));
+    store().showProgress(t.translate.translating(work.length), { detail: t.translate.direction(source, into) });
+  }
   const results = await Promise.all(work.map(async (text) => ({ ...text, text: await translateText(translators.get(text.lang)!, text.source) })));
   if (!current()) return;
 

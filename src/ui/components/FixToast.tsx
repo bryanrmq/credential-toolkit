@@ -42,7 +42,13 @@ function Toast({ notice }: { notice: FixNotice }) {
 
   return (
     <div
-      className={notice.kind === 'error' || notice.kind === 'failed' || notice.kind === 'stale' ? 'toast toast--error' : 'toast'}
+      className={
+        notice.kind === 'error' || notice.kind === 'failed' || notice.kind === 'stale'
+          ? 'toast toast--error'
+          : notice.kind === 'progress'
+            ? 'toast toast--progress'
+            : 'toast'
+      }
       onMouseEnter={() => setHeld(true)}
       onMouseLeave={() => setHeld(false)}
       onFocus={() => setHeld(true)}
@@ -50,7 +56,7 @@ function Toast({ notice }: { notice: FixNotice }) {
         if (!event.currentTarget.contains(event.relatedTarget)) setHeld(false);
       }}
     >
-      <span>{noticeText(notice)}</span>
+      {notice.kind === 'progress' ? <Progress notice={notice} /> : <span>{noticeText(notice)}</span>}
       {notice.kind === 'fixed' && canUndo && (
         <Button size="small" variant="ghost" onClick={undo}>
           {t.fixes.undo}
@@ -69,5 +75,38 @@ function Toast({ notice }: { notice: FixNotice }) {
         </Button>
       )}
     </div>
+  );
+}
+
+/**
+ * A long action as it runs: what it does, a technical detail in mono, the percentage once known, and a thin bar
+ * along the toast's bottom edge that fills with the share done, or runs back and forth while the share is unknown.
+ */
+function Progress({ notice }: { notice: Extract<FixNotice, { kind: 'progress' }> }) {
+  const percent = notice.share === undefined ? undefined : Math.round(Math.min(Math.max(notice.share, 0), 1) * 100);
+  return (
+    <>
+      <span className="toast__progress">
+        <span className="toast__title">{notice.message}</span>
+        {notice.detail && <span className="toast__detail">{notice.detail}</span>}
+        {/* The bar carries the value for assistive technology; the live region should not read every step. */}
+        {percent !== undefined && (
+          <span className="toast__percent" aria-hidden="true">
+            {t.translate.percent(percent)}
+          </span>
+        )}
+      </span>
+      <span
+        className="toast__bar"
+        role="progressbar"
+        aria-label={notice.message}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+        data-indeterminate={percent === undefined || undefined}
+      >
+        <span className="toast__bar-fill" style={percent === undefined ? undefined : { transform: `scaleX(${percent / 100})` }} />
+      </span>
+    </>
   );
 }

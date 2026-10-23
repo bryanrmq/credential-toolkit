@@ -245,9 +245,18 @@ describe('the model download notice', () => {
     act(() => runCommand('workspace.translateMissing'));
     await user.click(await screen.findByRole('button', { name: 'Download and translate' }));
     await waitFor(() => expect(downloads).toHaveLength(1));
-    expect(toast()).toHaveTextContent('Downloading the translation model… 0%');
+    // Before the browser knows how far it is, the bar runs without a value.
+    const bar = () => within(toast() as HTMLElement).getByRole('progressbar', { name: 'Downloading translation model' });
+    expect(toast()).toHaveClass('toast--progress');
+    expect(toast()).toHaveTextContent('Downloading translation modelde-CH → fr-CH');
+    expect(bar()).toHaveAttribute('data-indeterminate');
+    expect(bar()).not.toHaveAttribute('aria-valuenow');
+    act(() => downloads[0].progress(0));
+    expect(bar()).toHaveAttribute('data-indeterminate');
     act(() => downloads[0].progress(0.4));
-    expect(toast()).toHaveTextContent('Downloading the translation model… 40%');
+    expect(bar()).toHaveAttribute('aria-valuenow', '40');
+    expect(bar()).not.toHaveAttribute('data-indeterminate');
+    expect(toast()).toHaveTextContent('40%');
     act(() => downloads[0].release());
     await waitFor(() => expect(toast()).toHaveTextContent('Translated 4 texts, marked for review'));
     expect(label('fr-CH')).toBe('fr:Name');

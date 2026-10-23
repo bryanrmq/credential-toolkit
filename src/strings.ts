@@ -482,8 +482,11 @@ export const t = {
       `Your browser will download ${pairs.length === 1 ? 'a translation model' : 'translation models'} for ${listOf(pairs)} once. The text never leaves this device.`,
     download: 'Download and translate',
     cancel: 'Cancel',
-    downloading: (percent: number) => `Downloading the translation model… ${percent}%`,
-    translating: 'Translating…',
+    downloading: (count: number) => (count === 1 ? 'Downloading translation model' : 'Downloading translation models'),
+    /** The language pairs in the progress toast, as `de-CH → fr-CH, it-CH`. */
+    direction: (from: string, to: string[]) => `${from} → ${to.join(', ')}`,
+    percent: (percent: number) => `${percent}%`,
+    translating: (count: number) => `Translating ${count} ${count === 1 ? 'text' : 'texts'}`,
     translated: (count: number) => `Translated ${count} ${count === 1 ? 'text' : 'texts'}, marked for review`,
     unavailable: (languages: string[]) => `${listOf(languages)} ${languages.length === 1 ? "isn't" : "aren't"} available in this browser's translator`,
     /** The toast: what was translated, then what was skipped. */
