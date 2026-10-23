@@ -1,5 +1,6 @@
 import { issuerIdentifiers } from '../issuer.ts';
 import type { LangTag, Project } from '../model.ts';
+import { EXTERNAL_URL_PLACEHOLDER } from './issuerMetadata.ts';
 import { type ExportOutputs, PROFILE_VERSION } from './outputs.ts';
 
 /*
@@ -16,9 +17,6 @@ import { type ExportOutputs, PROFILE_VERSION } from './outputs.ts';
  * Neither wallet nor the issuer reads a display `locale`, so there is none. Claim metadata (`claims`) is not
  * supported by the Swiss profile, and the tool has no `extends` or JSON schema to give, so those are left out.
  */
-
-/** The generic issuer's placeholder for its own public URL, which it fills in when it serves the file. */
-export const EXTERNAL_URL = '${external-url}';
 
 /** Where the bundle is and its `#integrity`, as the wallets read them. */
 export interface TypeMetadataOca {
@@ -49,9 +47,12 @@ export interface BuiltTypeMetadata {
   text: string;
 }
 
-/** The project's `vct`, also its Type Metadata URL: `${external-url}/oid4vci/vct/<type key>`. */
+/**
+ * The project's `vct`, also its Type Metadata URL: `${external-url}/oid4vci/vct/<type key>`. The Issuer Metadata
+ * (`buildIssuerMetadata`) has the same `vct`, which Android v1.19.0 `FetchTypeMetadataImpl` requires.
+ */
 export function typeMetadataUri(project: Project): string {
-  return `${EXTERNAL_URL}/oid4vci/vct/${issuerIdentifiers(project).typeKey}`;
+  return `${EXTERNAL_URL_PLACEHOLDER}/oid4vci/vct/${issuerIdentifiers(project).typeKey}`;
 }
 
 /** The Type Metadata for `project` and its `outputs`: a `display` entry per language, each pointing to the bundle. */

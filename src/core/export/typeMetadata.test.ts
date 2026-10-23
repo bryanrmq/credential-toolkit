@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sriSha256, utf8 } from '../cesr';
 import { type Hosting, type Project, emptyProject, newAttribute } from '../model';
 import { buildBundle } from './bundle';
+import { buildIssuerMetadata } from './issuerMetadata';
 import { buildOutputs } from './outputs';
 import { type TypeMetadata, buildTypeMetadata, serializeTypeMetadata, typeMetadataUri } from './typeMetadata';
 
@@ -72,6 +73,14 @@ describe('buildTypeMetadata', () => {
     expect(metadata).not.toHaveProperty('description');
     expect(metadata.display.map((entry) => entry.lang)).toEqual(['en-GB', 'de-CH']);
     expect(metadata.display[0]).not.toHaveProperty('description');
+  });
+
+  it('has the vct of the Issuer Metadata, as the wallets require', async () => {
+    const project = petPermit();
+    const { metadata } = await typeMetadataFor(project);
+    const [configuration] = Object.values(buildIssuerMetadata(project).metadata.credential_configurations_supported);
+    expect(configuration.vct).toBe(metadata.vct);
+    expect(configuration.vct_metadata_uri).toBe(metadata.vct);
   });
 
   it('gives the same bytes every time', async () => {

@@ -6,7 +6,8 @@
  * compiles to ES modules Node can load.
  *
  * Typical use: `parseProjectFile` → `exportProject` (or `validate`, `buildBundle`, `buildOutputs` and
- * `buildTypeMetadata` one by one). `importBundle` goes the other way, from a bundle to a project.
+ * `buildTypeMetadata` one by one), and `buildIssuerMetadata` for the generic issuer's `issuer_metadata.json`.
+ * `importBundle` goes the other way, from a bundle to a project.
  */
 
 // The project model: what a project file holds and the functions below take.
@@ -58,8 +59,28 @@ export { buildBundle, serializeBundle } from './export/bundle.ts';
 export type { BuiltBundle, BundleJson, CaptureBaseJson, OverlayJson } from './export/bundle.ts';
 export { BUNDLE_FILE_NAME, VCT_FILE_NAME, buildOutputs, bundleDataUrl, bundleIntegrity } from './export/outputs.ts';
 export type { ExportOutputs } from './export/outputs.ts';
-export { EXTERNAL_URL, buildTypeMetadata, serializeTypeMetadata, typeMetadataUri } from './export/typeMetadata.ts';
+export { buildTypeMetadata, serializeTypeMetadata, typeMetadataUri } from './export/typeMetadata.ts';
 export type { BuiltTypeMetadata, TypeMetadata, TypeMetadataDisplay, TypeMetadataOca } from './export/typeMetadata.ts';
+
+// The swiyu generic issuer's `issuer_metadata.json` (Credential Issuer Metadata), with its placeholders.
+export {
+  EXTERNAL_URL_PLACEHOLDER,
+  ISSUER_METADATA_FILE_NAME,
+  ISSUER_METADATA_FORMAT,
+  VCT_INTEGRITY_PLACEHOLDER,
+  buildIssuerMetadata,
+  serializeIssuerMetadata,
+} from './export/issuerMetadata.ts';
+export type {
+  BuiltIssuerMetadata,
+  ClaimDescription,
+  CredentialConfigurationJson,
+  CredentialDisplayEntry,
+  IssuerDisplayEntry,
+  IssuerMetadataJson,
+  MetadataLogo,
+  MetadataPlaceholder,
+} from './export/issuerMetadata.ts';
 
 // Import: an existing bundle into a project.
 export { importBundle } from './import/bundle.ts';
