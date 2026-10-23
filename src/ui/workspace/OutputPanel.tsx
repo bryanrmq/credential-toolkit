@@ -1,7 +1,8 @@
 import { CaretDownIcon, CaretRightIcon, CheckIcon, CopyIcon, DownloadSimpleIcon, GearSixIcon, SidebarSimpleIcon } from '@phosphor-icons/react';
 import { type CSSProperties, Fragment, useRef, useState } from 'react';
+import { CARD_PROFILES, type PreviewView, previewViewOf, shownVariant } from '../../core/card/profiles';
 import { BUNDLE_FILE_NAME, buildVctSnippet } from '../../core/export/outputs';
-import { type OutputHalf, type PreviewView, useStore } from '../../state/store';
+import { type OutputHalf, useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
 import { Button, InlineIssueFixes, Segmented, Tabs } from '../components/controls';
@@ -16,6 +17,8 @@ const PREVIEW_BODY_ID = 'output-preview-body';
 const BUNDLE_BODY_ID = 'output-bundle-body';
 const SETTINGS_ID = 'output-bundle-settings';
 const PREVIEW_VIEWS: PreviewView[] = ['card', 'details', 'home'];
+/** The cards of a wallet with a separate offer card, picked under the Card view. */
+const CARD_VARIANTS = ['detail', 'offer'] as const;
 
 function CopyButton({ text, label, iconOnly = false }: { text: string; label: string; iconOnly?: boolean }) {
   const [copied, setCopied] = useState(false);
@@ -121,8 +124,15 @@ export function OutputPanel({ exportState, onHide, stacked = false }: { exportSt
 function PreviewHalf({ onHide }: { onHide?: () => void }) {
   const open = useStore((state) => state.outputHalves.preview);
   const platform = useStore((state) => state.cardPlatform);
-  const view = useStore((state) => state.previewView);
-  const { setCardPlatform, setPreviewView } = useStore.getState();
+  const variant = useStore((state) => state.cardVariant);
+  const { setCardPlatform, setCardVariant } = useStore.getState();
+  const profile = CARD_PROFILES[platform];
+  const shown = shownVariant(profile, variant);
+  const view = previewViewOf(shown);
+  // Card opens the detail card; picking it again keeps the card shown, offer included.
+  const pickView = (option: PreviewView) => {
+    if (option !== view) setCardVariant(option === 'card' ? 'detail' : option);
+  };
 
   return (
     <div className={open ? 'output-half output-half--preview' : 'output-half output-half--preview output-half--collapsed'}>
@@ -150,9 +160,17 @@ function PreviewHalf({ onHide }: { onHide?: () => void }) {
             <Segmented
               label={t.output.previewView}
               value={view}
-              onChange={setPreviewView}
+              onChange={pickView}
               options={PREVIEW_VIEWS.map((option) => ({ value: option, label: t.output.views[option] }))}
             />
+            {view === 'card' && profile.variants.includes('offer') && (
+              <Segmented
+                label={t.output.previewCard}
+                value={shown}
+                onChange={setCardVariant}
+                options={CARD_VARIANTS.map((option) => ({ value: option, label: t.cardPreview.variants[option] }))}
+              />
+            )}
           </span>
         )}
       </div>

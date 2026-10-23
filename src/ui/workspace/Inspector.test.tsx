@@ -123,3 +123,15 @@ describe('Inspector with several nodes selected', () => {
     expect(screen.getByText('Translations')).toBeInTheDocument();
   });
 });
+
+describe('Inspector for the credential', () => {
+  it('edits the name and branding without a card preview, which lives in the Output pane', () => {
+    useStore.getState().select({ kind: 'credential' });
+    render(<Inspector />);
+    expect(screen.getByLabelText('Name')).toBeInTheDocument();
+    expect(screen.getByRole('tablist', { name: 'Branding' })).toBeInTheDocument();
+    expect(screen.queryByRole('figure')).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Preview platform' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Approximation of the swiyu wallets/)).not.toBeInTheDocument();
+  });
+});
