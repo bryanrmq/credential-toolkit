@@ -9,9 +9,13 @@ import {
   type I14yConcept,
   type I14yHit,
   addConcepts,
+  canFillFromI14y,
   clearLink,
   compareWithI14y,
+  conceptsToLoad,
   fillFromConcept,
+  fillFromI14y,
+  i14yFills,
   i14yLabel,
   i14yValueLabel,
   linkConcept,
@@ -22,6 +26,7 @@ import {
   pendingLinks,
   suggestLinks,
 } from './i14y';
+import { reviewMarks } from '../review';
 import { ImportError } from './report';
 
 const LANGUAGES = ['de-CH', 'fr-CH', 'it-CH', 'rm-CH', 'en-GB'];
@@ -416,5 +421,85 @@ describe('pendingLinks', () => {
       { path: 'person.gender', hits: ['sex'], clear: 'sex' },
     ]);
     expect(pending[0].nodeId).toBe(project.root.children[0].id);
+  });
+});
+
+describe('fillFromI14y', () => {
+  /** De, fr and rm: a linked sex attribute with its German label and one French value label written, and an unlinked attribute. */
+  function linkedProject() {
+    const project = emptyProject(['de-CH', 'fr-CH', 'rm-CH']);
+    const gender = newAttribute('gender', {
+      labels: { 'de-CH': 'Geschlecht (amtlich)' },
+      entries: { codes: ['1', '2'], labels: { 'de-CH': {}, 'fr-CH': { '1': 'Homme' } } },
+    });
+    const other = newAttribute('other', { labels: { 'de-CH': 'Andere' } });
+    insertNode(project, project.root.id, gender);
+    insertNode(project, project.root.id, other);
+    linkConcept(project, gender.id, sex);
+    return { project, gender: () => project.root.children[0] as AttributeNode, other: () => project.root.children[1] as AttributeNode };
+  }
+
+  it('fills only the empty labels and value labels of linked attributes, in project languages', () => {
+    const { project, gender, other } = linkedProject();
+    expect(canFillFromI14y(project)).toBe(true);
+    expect(fillFromI14y(project)).toBe(4);
+    expect(gender().labels).toEqual({ 'de-CH': 'Geschlecht (amtlich)', 'fr-CH': 'Sexe' });
+    expect(gender().entries?.labels).toEqual({ 'de-CH': { '1': 'Männlich', '2': 'Weiblich' }, 'fr-CH': { '1': 'Homme', '2': 'Féminin' } });
+    // Value 3 is not in the attribute's list, rm has no I14Y text, and the unlinked attribute is left alone.
+    expect(other().labels).toEqual({ 'de-CH': 'Andere' });
+    expect(canFillFromI14y(project)).toBe(false);
+    expect(fillFromI14y(project)).toBe(0);
+  });
+
+  it('never overwrites text the issuer wrote', () => {
+    const { project, gender } = linkedProject();
+    const describeFill = (fill: ReturnType<typeof i14yFills>[number]) => [fill.place.kind, fill.lang, fill.place.kind === 'entry' && fill.place.code].filter(Boolean).join(' ');
+    expect(i14yFills(project).map(describeFill)).toEqual(['entry de-CH 1', 'entry de-CH 2', 'label fr-CH', 'entry fr-CH 2']);
+    fillFromI14y(project);
+    expect(gender().labels['de-CH']).toBe('Geschlecht (amtlich)');
+    expect(gender().entries?.labels['fr-CH']['1']).toBe('Homme');
+  });
+
+  it('marks every filled text "needs review" from I14Y', () => {
+    const { project, gender } = linkedProject();
+    fillFromI14y(project);
+    const marks = reviewMarks(project);
+    expect(marks).toHaveLength(4);
+    expect(marks.every((mark) => mark.source === 'i14y' && 'nodeId' in mark.place && mark.place.nodeId === gender().id)).toBe(true);
+    expect(marks.find((mark) => mark.place.kind === 'label')).toEqual({ place: { kind: 'label', nodeId: gender().id }, lang: 'fr-CH', source: 'i14y', text: 'Sexe' });
+  });
+
+  it('has nothing to fill when every language I14Y has is written', () => {
+    const project = emptyProject(['de-CH', 'rm-CH']);
+    const node = newAttribute('dob', { labels: { 'de-CH': 'Geb. Datum' } });
+    insertNode(project, project.root.id, node);
+    linkConcept(project, node.id, dateOfBirth);
+    expect(i14yFills(project)).toEqual([]);
+    expect(conceptsToLoad(project)).toEqual([]);
+    expect(canFillFromI14y(project)).toBe(false);
+  });
+
+  it('asks for the concepts whose link carries no texts, and fills from them once fetched', () => {
+    const project = emptyProject(['de-CH', 'fr-CH']);
+    const dob = newAttribute('dob', { labels: { 'de-CH': 'Geb. Datum' } });
+    const again = newAttribute('dob2');
+    const done = newAttribute('name', { labels: { 'de-CH': 'Vorname', 'fr-CH': 'Prénom' } });
+    for (const node of [dob, again, done]) insertNode(project, project.root.id, node);
+    linkConcept(project, dob.id, dateOfBirth);
+    linkConcept(project, again.id, dateOfBirth);
+    linkConcept(project, done.id, firstName);
+    for (const node of project.root.children as AttributeNode[]) node.i14y = { ...node.i14y!, name: {}, values: {} };
+
+    // Each concept once; a concept whose attributes lack nothing is not fetched.
+    expect(conceptsToLoad(project)).toEqual([{ conceptId: dateOfBirth.id, identifier: 'dateOfBirth' }]);
+    expect(i14yFills(project)).toEqual([]);
+    expect(canFillFromI14y(project)).toBe(true);
+
+    expect(fillFromI14y(project, [dateOfBirth])).toBe(3);
+    const [first, second] = project.root.children as AttributeNode[];
+    expect(first.labels).toEqual({ 'de-CH': 'Geb. Datum', 'fr-CH': 'Date de naissance' });
+    expect(second.labels).toEqual({ 'de-CH': 'Geburtsdatum', 'fr-CH': 'Date de naissance' });
+    expect(first.i14y?.name.fr).toBe('Date de naissance');
+    expect(conceptsToLoad(project)).toEqual([]);
   });
 });

@@ -231,6 +231,14 @@ export const t = {
     add: (count: number) => (count === 0 ? 'Add' : `Add ${count} ${count === 1 ? 'attribute' : 'attributes'}`),
     suggestHeading: 'From I14Y — fills this attribute in every language',
   },
+  i14yFill: {
+    command: 'Fill missing languages from I14Y',
+    /** After a fill; `failed` names the concepts that could not be loaded. */
+    filled: (count: number, failed: string[]) =>
+      `Filled ${count} ${count === 1 ? 'text' : 'texts'} from I14Y, marked for review.${failed.length ? ` Could not load from I14Y: ${failed.join(', ')}.` : ''}`,
+    nothing: (failed: string[]) =>
+      failed.length ? `Nothing filled. Could not load from I14Y: ${failed.join(', ')}.` : 'Nothing filled: I14Y has no text for the missing languages.',
+  },
   i14yMatch: {
     region: 'Possible I14Y match',
     looksLike: 'Looks like',
@@ -343,7 +351,7 @@ export const t = {
     drawn: { detail: 'detail card', offer: 'offer card', home: 'home row', card: 'card' },
     caption: "Approximation of the swiyu wallets. Uses this app's font and leaves out patterns and badges.",
     lightForDark: 'No dark branding: both wallets show the light card in dark mode.',
-    noSample: 'Attach a sample credential in the Output bundle settings to see real values.',
+    noSample: "Attach a sample credential under the Output pane's Bundle tab to see real values.",
     ink: (platform: string, ink: string) => `${platform}: ${ink} text`,
     background: (platform: string, fallback: string) => `${platform}: colour not supported, shows ${fallback}`,
     accepted: (platform: string, translucent: boolean) => `${platform}: shows this colour${translucent ? ', translucent' : ''}`,
@@ -391,17 +399,10 @@ export const t = {
   },
   output: {
     title: 'Output',
-    preview: 'Preview',
     previewPlatform: 'Preview platform',
     previewView: 'Preview view',
     previewCard: 'Preview card',
     views: { card: 'Card', details: 'Details', home: 'Home' },
-    resizePreview: 'Resize the preview',
-    collapsePreview: 'Collapse preview',
-    expandPreview: 'Expand preview',
-    collapseBundle: 'Collapse bundle',
-    expandBundle: 'Expand bundle',
-    settings: 'Bundle settings',
     bundle: 'Bundle',
     vct: 'VCT snippet',
     hosting: 'Where will the bundle live?',

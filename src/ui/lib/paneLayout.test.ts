@@ -2,33 +2,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_ISSUES_HEIGHT,
-  DEFAULT_OUTPUT_HALVES,
-  DEFAULT_PREVIEW_HEIGHT,
   DEFAULT_PANE_WIDTHS,
   EDIT_PREVIEW_OPEN_KEY,
   ISSUES_HEIGHT_KEY,
   ISSUES_OPEN_KEY,
-  OUTPUT_HALVES_KEY,
   OUTPUT_OPEN_KEY,
   PANE_LAYOUT_KEY,
-  PREVIEW_HEIGHT_KEY,
   clampIssuesHeight,
   clampPaneWidth,
-  clampPreviewHeight,
   loadEditPreviewOpen,
   loadIssuesHeight,
   loadIssuesOpen,
-  loadOutputHalves,
   loadOutputOpen,
   loadPaneWidths,
-  loadPreviewHeight,
   saveEditPreviewOpen,
   saveIssuesHeight,
   saveIssuesOpen,
-  saveOutputHalves,
   saveOutputOpen,
   savePaneWidths,
-  savePreviewHeight,
 } from './paneLayout';
 
 beforeEach(() => localStorage.clear());
@@ -136,52 +127,6 @@ describe('edit preview open state', () => {
   });
 });
 
-describe('output preview height', () => {
-  it('falls back to the default when nothing usable is stored', () => {
-    expect(loadPreviewHeight()).toBe(DEFAULT_PREVIEW_HEIGHT);
-    localStorage.setItem(PREVIEW_HEIGHT_KEY, 'not json');
-    expect(loadPreviewHeight()).toBe(DEFAULT_PREVIEW_HEIGHT);
-    localStorage.setItem(PREVIEW_HEIGHT_KEY, '"tall"');
-    expect(loadPreviewHeight()).toBe(DEFAULT_PREVIEW_HEIGHT);
-  });
-
-  it('saves and restores the height, clamped to the limits', () => {
-    savePreviewHeight(400);
-    expect(loadPreviewHeight()).toBe(400);
-    localStorage.setItem(PREVIEW_HEIGHT_KEY, '5000');
-    expect(loadPreviewHeight()).toBe(800);
-    localStorage.setItem(PREVIEW_HEIGHT_KEY, '-20');
-    expect(loadPreviewHeight()).toBe(120);
-  });
-
-  it('clamps the height to its limits and to the room the Bundle half leaves', () => {
-    expect(clampPreviewHeight(10)).toBe(120);
-    expect(clampPreviewHeight(900)).toBe(800);
-    // A 600 px Output pane, the Bundle half keeps 160 px: the preview can take at most 440 px.
-    expect(clampPreviewHeight(500, 600)).toBe(440);
-    expect(clampPreviewHeight(500, 200)).toBe(120);
-  });
-});
-
-describe('output halves open state', () => {
-  it('opens both halves unless they were saved as collapsed', () => {
-    expect(loadOutputHalves()).toEqual(DEFAULT_OUTPUT_HALVES);
-    localStorage.setItem(OUTPUT_HALVES_KEY, 'not json');
-    expect(loadOutputHalves()).toEqual(DEFAULT_OUTPUT_HALVES);
-    localStorage.setItem(OUTPUT_HALVES_KEY, '[false]');
-    expect(loadOutputHalves()).toEqual(DEFAULT_OUTPUT_HALVES);
-    localStorage.setItem(OUTPUT_HALVES_KEY, '{"preview":0,"bundle":"no"}');
-    expect(loadOutputHalves()).toEqual(DEFAULT_OUTPUT_HALVES);
-  });
-
-  it('saves and restores each half', () => {
-    saveOutputHalves({ preview: false, bundle: true });
-    expect(loadOutputHalves()).toEqual({ preview: false, bundle: true });
-    saveOutputHalves({ preview: false, bundle: false });
-    expect(loadOutputHalves()).toEqual({ preview: false, bundle: false });
-  });
-});
-
 describe('broken storage', () => {
   afterEach(() => vi.restoreAllMocks());
 
@@ -192,9 +137,9 @@ describe('broken storage', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new DOMException('full', 'QuotaExceededError');
     });
-    expect(() => savePreviewHeight(400)).not.toThrow();
-    expect(() => saveOutputHalves({ preview: false, bundle: false })).not.toThrow();
-    expect(loadPreviewHeight()).toBe(DEFAULT_PREVIEW_HEIGHT);
-    expect(loadOutputHalves()).toEqual(DEFAULT_OUTPUT_HALVES);
+    expect(() => saveIssuesHeight(400)).not.toThrow();
+    expect(() => saveEditPreviewOpen(false)).not.toThrow();
+    expect(loadIssuesHeight()).toBe(DEFAULT_ISSUES_HEIGHT);
+    expect(loadEditPreviewOpen()).toBe(true);
   });
 });

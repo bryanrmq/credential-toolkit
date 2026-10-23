@@ -168,7 +168,7 @@ export function focusField(id: string): void {
   );
 }
 
-/** Selects whatever an issue points to, switches language and theme (or shows the Output pane's bundle settings), and focuses the field. */
+/** Selects whatever an issue points to, switches language and theme (or shows the Output pane's Bundle tab), and focuses the field. */
 export function goToIssue(issue: Issue): void {
   const state = useStore.getState();
   const target = issue.target;
@@ -178,10 +178,8 @@ export function goToIssue(issue: Issue): void {
     return;
   }
   if (target.kind === 'hosting') {
-    // The hosting field is in the Bundle half's settings: show the pane, expand the half and open the settings.
+    // The hosting field is under the Output pane's Bundle tab.
     state.setOutputOpen(true);
-    state.setOutputHalfOpen('bundle', true);
-    state.setOutputSettingsOpen(true);
     state.setOutputTab('bundle');
   } else if (target.kind === 'credential') {
     state.select({ kind: 'credential' });

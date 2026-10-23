@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { type Project, emptyGroup, emptyProject, newAttribute, newGroupLink } from '../../core/model';
 import { useStore } from '../../state/store';
-import { OutputPanel } from './OutputPanel';
+import { EditPreview } from './EditPreview';
 
 function load(configure?: (project: Project) => void) {
   const project = emptyProject(['de-CH', 'en-GB']);
@@ -17,7 +17,7 @@ function load(configure?: (project: Project) => void) {
 }
 
 const card = () => screen.getByRole('figure');
-/** A button of one of the Preview half's segmented controls: platform, view, or Android's detail and offer cards. */
+/** A button of one of the preview's segmented controls: platform, view, or Android's detail and offer cards. */
 const control = (group: 'Preview platform' | 'Preview view' | 'Preview card', name: string) =>
   within(screen.getByRole('group', { name: group })).getByRole('button', { name });
 const pressed = (group: string) =>
@@ -25,15 +25,15 @@ const pressed = (group: string) =>
     .getAllByRole('button')
     .filter((button) => button.getAttribute('aria-pressed') === 'true')
     .map((button) => button.textContent);
-/** The card preview as the Output pane shows it, under the Preview half's controls. */
-const renderPreview = () => render(<OutputPanel exportState={{ status: 'working' }} />);
+/** The card preview as the Edit pane shows it beside the form, under the preview's controls. */
+const renderPreview = () => render(<EditPreview beside />);
 
 beforeEach(() => {
   localStorage.clear();
   load();
 });
 
-describe('CardPreview in the Output preview', () => {
+describe('CardPreview in the wallet preview', () => {
   it('starts on the iOS card and switches platform and card', async () => {
     const user = userEvent.setup();
     renderPreview();
@@ -111,7 +111,7 @@ describe('CardPreview in the Output preview', () => {
     act(() => useStore.getState().setBrandingTheme('dark'));
     const notes = [
       screen.getByText('No dark branding: both wallets show the light card in dark mode.'),
-      screen.getByText('Attach a sample credential in the Output bundle settings to see real values.'),
+      screen.getByText("Attach a sample credential under the Output pane's Bundle tab to see real values."),
       screen.getByText('Android: white text'),
       screen.getByText("Approximation of the swiyu wallets. Uses this app's font and leaves out patterns and badges."),
     ];
@@ -179,7 +179,7 @@ describe('CardPreview in the Output preview', () => {
     });
     renderPreview();
     expect(card()).toHaveTextContent('Halter: ‹Vorname›');
-    expect(screen.getByText('Attach a sample credential in the Output bundle settings to see real values.')).toBeInTheDocument();
+    expect(screen.getByText("Attach a sample credential under the Output pane's Bundle tab to see real values.")).toBeInTheDocument();
 
     act(() =>
       useStore.getState().update((draft) => {

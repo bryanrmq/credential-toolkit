@@ -192,16 +192,3 @@ describe('Details preview scrolling', () => {
   });
 });
 
-describe('Details preview on a narrow window', () => {
-  it('switches to the Edit pane after a row in the Output pane is picked', async () => {
-    load('ios');
-    stubMedia(() => true);
-    const user = userEvent.setup();
-    render(<Workspace />);
-    const tabs = within(screen.getByRole('tablist', { name: 'Panes' }));
-    await user.click(tabs.getByRole('tab', { name: 'Output' }));
-    await user.click(within(screen.getByRole('region', { name: 'Output' })).getByRole('button', { name: 'Name, Rex' }));
-    expect(selectedKey()).toBe('name');
-    expect(tabs.getByRole('tab', { name: 'Edit' })).toHaveAttribute('aria-selected', 'true');
-  });
-});

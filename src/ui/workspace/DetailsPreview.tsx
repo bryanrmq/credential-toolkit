@@ -88,9 +88,9 @@ function describeDifference(difference: DetailsDifference, platform: string): st
  * other platform would differ. It sizes itself from the width it is given, so it renders wherever the preview lives.
  *
  * It is linked to the editor both ways. The selected node's rows are outlined and scrolled into view, without taking
- * focus; clicking a row or a group title (or Enter or Space on it) selects its node, then calls `onPick`.
+ * focus; clicking a row or a group title (or Enter or Space on it) selects its node.
  */
-export function DetailsPreview({ onPick }: { onPick?: () => void }) {
+export function DetailsPreview() {
   const project = useStore((state) => state.project)!;
   const platform = useStore((state) => state.cardPlatform);
   const lang = useStore((state) => state.editLang);
@@ -100,16 +100,7 @@ export function DetailsPreview({ onPick }: { onPick?: () => void }) {
   const statusId = useId();
   const { ref, scale } = useFitScale(platform === 'ios' ? IOS_SCREEN_WIDTH : ANDROID_SCREEN_WIDTH);
   const selected = useStore((state) => (state.selection.kind === 'node' ? state.selection.id : undefined));
-  const link = useMemo(
-    () => ({
-      selected,
-      pick: (id: string) => {
-        pick(id);
-        onPick?.();
-      },
-    }),
-    [selected, onPick],
-  );
+  const link = useMemo(() => ({ selected, pick }), [selected]);
   useEffect(() => {
     const stage = ref.current;
     // Below the form, the preview scrolls with the form: moving it would take the form out of view.

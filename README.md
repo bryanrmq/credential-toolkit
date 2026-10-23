@@ -42,8 +42,15 @@ const result = file.ok && (await exportProject(file.project));
 Its entry point is `src/core/index.ts`, which lists the public API; the
 [package README](packages/oca-generator/README.md) documents it. `packages/oca-generator` compiles
 `src/core` with `tsc` (`npm run build:lib`) against Node's types only, so browser globals can't slip
-in. That's also why relative imports in `src/core` name their `.ts` file. An `oca` command line
-([#47](https://github.com/bryanrmq/oca-generator/issues/47)) is planned for the same package.
+in. That's also why relative imports in `src/core` name their `.ts` file.
+
+The package also has an `oca` command, for scripts and CI (`packages/oca-generator/src/cli.ts`,
+compiled after the library and importing it by its package name, so it only uses the public API):
+
+```bash
+npx -p @bryanrmq/oca-generator oca check pet-permit.oca-project.json
+npx -p @bryanrmq/oca-generator oca build pet-permit.oca-project.json -o oca-bundle.json --vct vct-display.json
+```
 
 To release it, set `version` in `packages/oca-generator/package.json`, merge, then push a
 `lib-v<version>` tag (`git tag lib-v0.1.0 && git push origin lib-v0.1.0`).

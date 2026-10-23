@@ -21,13 +21,16 @@ import {
   SidebarSimpleIcon,
   StackIcon,
   TextboxIcon,
+  TranslateIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
 import { type RefObject, useEffect, useLayoutEffect } from 'react';
+import { canFillFromI14y } from '../../core/import/i14y';
 import { confirmReview, hasUnreviewed } from '../../core/review';
 import { selectedIds } from '../../state/selection';
 import { endTyping, useStore } from '../../state/store';
 import { t } from '../../strings';
+import { fillMissingFromI14y } from './i14y';
 import { usesCommandKey } from './platform';
 import { openProjectFile, saveProjectFile } from './projectFile';
 import {
@@ -54,7 +57,7 @@ import { isWideWindow } from './wideWindow';
  * Every command of the workspace that has a shortcut or a menu entry, defined once: its label, icon,
  * keys, where its keys work, when it applies and what it does. Menus, the Edit pane's buttons, the
  * tour and the one keyboard handler (`useCommandShortcuts`) read from here. The actions themselves
- * live in `treeActions.ts`, `treeClipboard.ts`, `projectFile.ts` and the store.
+ * live in `treeActions.ts`, `treeClipboard.ts`, `projectFile.ts`, `i14y.ts` and the store.
  */
 
 export type CommandId =
@@ -79,6 +82,7 @@ export type CommandId =
   | 'workspace.toggleOutput'
   | 'workspace.saveProjectFile'
   | 'workspace.openProjectFile'
+  | 'workspace.fillFromI14y'
   | 'workspace.confirmSuggestions'
   | 'workspace.palette';
 
@@ -408,6 +412,20 @@ export const COMMANDS: readonly Command[] = [
     scope: 'workspace',
     appliesWhen: always,
     run: openProjectFile,
+  },
+  {
+    id: 'workspace.fillFromI14y',
+    label: t.i14yFill.command,
+    icon: TranslateIcon,
+    scope: 'workspace',
+    // Offered only when a linked attribute lacks a text its concept may have.
+    available: () => {
+      const project = useStore.getState().project;
+      return project !== null && canFillFromI14y(project);
+    },
+    appliesWhen: always,
+    // Every text at once, as one undo step.
+    run: () => void fillMissingFromI14y(),
   },
   {
     id: 'workspace.confirmSuggestions',
