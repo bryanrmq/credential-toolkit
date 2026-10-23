@@ -132,6 +132,16 @@ export const t = {
     delete: (count: number) => (count > 1 ? `Delete ${count} items` : 'Delete'),
     deleteGroup: (count: number) => (count > 1 ? `Delete ${count} items` : 'Delete group'),
   },
+  /** The names of the commands (`src/ui/lib/commands.ts`) that no menu or button names already. */
+  commands: {
+    addAttribute: 'Add attribute',
+    addGroup: 'Add group',
+    addList: 'Add list of objects',
+    edit: 'Edit',
+    rename: 'Rename',
+    undo: 'Undo',
+    redo: 'Redo',
+  },
   i14y: {
     title: 'Add attributes from I14Y',
     intro:
@@ -251,12 +261,9 @@ export const t = {
     keys: 'Selected keys',
     more: (count: number) => `+ ${count} more`,
     group: 'Group',
-    /** Shortcut hints: ⌘ on Apple platforms, Ctrl elsewhere. */
-    groupKeys: { command: '⌘G', control: 'Ctrl+G' },
     moveTo: 'Move to',
     moveToPlaceholder: 'Move to…',
     delete: 'Delete',
-    deleteKeys: '⌫',
   },
   cardPreview: {
     title: 'Card preview',

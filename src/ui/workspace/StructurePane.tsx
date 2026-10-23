@@ -12,19 +12,12 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import {
-  ArrowDownIcon,
-  ArrowUpIcon,
   BinaryIcon,
   CalendarBlankIcon,
   CaretDownIcon,
   CaretRightIcon,
-  ClipboardTextIcon,
-  CopyIcon,
-  CopySimpleIcon,
   DotsSixVerticalIcon,
-  FolderSimpleDashedIcon,
   FolderSimpleIcon,
-  FolderSimplePlusIcon,
   HashIcon,
   IdentificationCardIcon,
   ImageIcon,
@@ -32,11 +25,9 @@ import {
   LockSimpleIcon,
   MagnifyingGlassIcon,
   PlusIcon,
-  ScissorsIcon,
   StackIcon,
   TextTIcon,
   ToggleLeftIcon,
-  TrashIcon,
 } from '@phosphor-icons/react';
 import { type KeyboardEvent, type MouseEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -60,26 +51,11 @@ import { Button } from '../components/controls';
 import { PopupMenu, type PopupMenuItem } from '../components/PopupMenu';
 import { useIssues } from '../issues';
 import { useI14yCatalogue } from '../lib/i14y';
-import {
-  type NewNodeKind,
-  type NodePlace,
-  addNode,
-  canDeleteSelection,
-  canDuplicateSelection,
-  canGroupSelection,
-  canMoveSelection,
-  canUngroupSelection,
-  deleteSelection,
-  duplicateSelection,
-  editSelection,
-  groupSelection,
-  moveSelection,
-  newNodePlace,
-  ungroupSelection,
-} from '../lib/treeActions';
-import { canCopySelection, canPasteCopied, copySelection, cutSelection, pasteCopied, useTreeClipboard } from '../lib/treeClipboard';
+import { type CommandArgs, type CommandId, type LabelPlace, applies, command, commandLabel, runCommand, shortcutLabel, useCommandHost } from '../lib/commands';
+import { type NewNodeKind, type NodePlace, addNode, newNodePlace } from '../lib/treeActions';
+import { useTreeClipboard } from '../lib/treeClipboard';
 import { type DropIndicator, type DropTarget, dropTarget, emptyRowId } from '../lib/treeDrop';
-import { type ClipboardShortcut, type TreeShortcut, treeActionsAvailable, treeShortcut, treeShortcutLabel, treeShortcutsActive } from '../lib/treeShortcuts';
+import { treeActionsAvailable, treeShortcutsActive } from '../lib/treeShortcuts';
 import { useWideWindow } from '../lib/wideWindow';
 import { I14yDialog } from './I14yDialog';
 import { SampleDialog } from './SampleControl';
@@ -114,6 +90,15 @@ interface TreeMenu {
   sections: PopupMenuItem[][];
   at: { x: number; y: number };
   returnFocus: HTMLElement | null;
+}
+
+/** How a menu shows and runs a command: see `commandItem`. */
+interface ItemOptions {
+  labelAt?: LabelPlace;
+  args?: CommandArgs;
+  keys?: boolean;
+  danger?: boolean;
+  then?: () => void;
 }
 
 /** Unlinked attributes that look like I14Y concepts, by node id. */
@@ -465,21 +450,6 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     }
   };
 
-  // The tree shortcuts other than ⏎, which the Enter branch below handles. Adding and grouping focus the new key field.
-  const runShortcut = (shortcut: Exclude<TreeShortcut, 'edit'>) => {
-    if (shortcut === 'filter') focusFilter();
-    else if (shortcut === 'add') addNode();
-    else if (shortcut === 'rename') renameSelection();
-    else if (shortcut === 'group') groupSelection();
-    else {
-      if (shortcut === 'delete') deleteSelection();
-      else if (shortcut === 'ungroup') ungroupSelection();
-      else if (shortcut === 'duplicate') duplicateSelection();
-      else moveSelection(shortcut === 'moveUp' ? 'up' : 'down');
-      refocusTree();
-    }
-  };
-
   /**
    * → (`inward`) expands the primary row's group when collapsed, else goes to its first child; ← collapses
    * it when expanded, else goes to the group around the row (ARIA tree pattern). While filtering, the
@@ -502,7 +472,8 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
 
   // ↑ / ↓ move the selection over the rows on screen and ⇧↑ / ⇧↓ extend it (wide windows only); Home / End go
   // to the first and last rows; ← / → expand, collapse and step across levels (`stepAcross`).
-  // On wide windows the tree shortcuts (`treeShortcut`) run too, while a row has focus.
+  // ⏎ selects the focused row and shows the Edit pane, and on wide windows focuses its key (`tree.edit`).
+  // The other tree keys are commands, which the workspace's keyboard handler runs (`useCommandShortcuts`).
   const onTreeKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.defaultPrevented) return;
     const menuKey = event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey);
@@ -513,14 +484,6 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
       openMenu(rowElement, { x: rect.left + 24, y: rect.bottom });
       return;
     }
-    const shortcut = treeShortcut(event.nativeEvent);
-    const active = treeShortcutsActive(event.target, wide);
-    // ⌘F goes to the filter box, which an empty structure does not have: the browser's find runs then.
-    if (shortcut && shortcut !== 'edit' && active && (shortcut !== 'filter' || filterRef.current)) {
-      event.preventDefault();
-      runShortcut(shortcut);
-      return;
-    }
     if (event.altKey || event.metaKey || event.ctrlKey) return;
     if (!(event.target instanceof HTMLElement) || event.target.getAttribute('role') !== 'treeitem') return;
     const current = useStore.getState().selection;
@@ -528,7 +491,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
       const id = event.target.dataset.row ?? CREDENTIAL_ROW;
       if (id !== focusId) select(id === CREDENTIAL_ROW ? CREDENTIAL : { kind: 'node', id });
       onSelect();
-      if (active) editSelection();
+      if (treeShortcutsActive(event.target, wide)) runCommand('tree.edit');
       return;
     }
     const arrow = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
@@ -576,6 +539,34 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
 
   const openI14y = () => setI14yGroupId(targetGroup(project, selection.kind === 'node' ? selection.id : null).id);
 
+  // What only this pane can do for the tree commands (`commands.ts`).
+  useCommandHost('tree', {
+    tree: treeRef,
+    hasFilter: () => filterRef.current !== null,
+    focusFilter,
+    rename: renameSelection,
+    addFromI14y: (groupId) => (groupId ? setI14yGroupId(groupId) : openI14y()),
+    refocus: refocusTree,
+  });
+
+  /**
+   * The menu item of command `id`: its label (at `labelAt`), icon and keys (unless `keys` is false), and
+   * what it does with `args`, followed by `then`.
+   */
+  const commandItem = (id: CommandId, { labelAt, args, keys = true, danger, then }: ItemOptions = {}): PopupMenuItem => {
+    const Icon = command(id).icon;
+    return {
+      label: commandLabel(id, labelAt),
+      icon: <Icon />,
+      shortcut: keys ? shortcutLabel(id) : undefined,
+      danger,
+      onSelect: () => {
+        runCommand(id, args);
+        then?.();
+      },
+    };
+  };
+
   /** Opens the header's Add menu below `button`, right-aligned with it. New items go where N puts them. */
   const openAddMenu = (button: HTMLElement) => {
     const rect = button.getBoundingClientRect();
@@ -584,9 +575,9 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
       label: t.structure.addMenu,
       sections: [
         [
-          { label: t.structure.addAttribute, icon: <PlusIcon />, shortcut: treeShortcutLabel('add'), onSelect: () => add('attribute') },
-          { label: t.structure.addGroup, icon: <FolderSimpleIcon />, onSelect: () => add('group') },
-          { label: t.structure.addList, icon: <StackIcon />, onSelect: () => add('list') },
+          commandItem('tree.addAttribute', { labelAt: 'addMenu', then: onSelect }),
+          commandItem('tree.addGroup', { labelAt: 'addMenu', then: onSelect }),
+          commandItem('tree.addList', { labelAt: 'addMenu', then: onSelect }),
         ],
       ],
       at: { x: rect.right, y: rect.bottom + 4 },
@@ -618,84 +609,35 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
 
   /**
    * The items of `node`'s menu, or the top level's. A node's menu acts on the selection (the node is in
-   * it), so the shared `canX` checks decide which items show; adding goes after an attribute, or inside a
-   * group at its end.
+   * it), so each command's `appliesWhen` decides whether its item shows; adding goes after an attribute,
+   * or inside a group at its end.
    */
   const menuSections = (node: Node | undefined): PopupMenuItem[][] => {
-    const addTo = (kind: NewNodeKind, groupId: string, index?: number) => () => {
-      addNode(kind, { groupId, index });
-      onSelect();
-    };
-    const shortcut = (name: TreeShortcut | ClipboardShortcut) => (node ? treeShortcutLabel(name) : undefined);
+    // Only a node's menu shows the keys: they act on the selection, as its items do.
+    const item = (id: CommandId, options: ItemOptions = {}) => commandItem(id, { keys: node !== undefined, ...options });
+    const when = (id: CommandId, options?: ItemOptions) => (applies(id) ? [item(id, options)] : []);
     const addHere = (groupId: string): PopupMenuItem[] => [
-      { label: t.treeMenu.addAttributeHere, icon: <PlusIcon />, shortcut: shortcut('add'), onSelect: addTo('attribute', groupId) },
-      { label: t.treeMenu.addGroupHere, icon: <FolderSimpleIcon />, onSelect: addTo('group', groupId) },
-      { label: t.treeMenu.addListHere, icon: <StackIcon />, onSelect: addTo('list', groupId) },
-      { label: t.treeMenu.addFromI14y, icon: <MagnifyingGlassIcon />, onSelect: () => setI14yGroupId(groupId) },
+      item('tree.addAttribute', { labelAt: 'here', args: { place: { groupId } }, then: onSelect }),
+      item('tree.addGroup', { labelAt: 'here', args: { place: { groupId } }, then: onSelect }),
+      item('tree.addList', { labelAt: 'here', args: { place: { groupId } }, then: onSelect }),
+      item('tree.addFromI14y', { args: { place: { groupId } } }),
     ];
-    const when = (applies: boolean, item: PopupMenuItem) => (applies ? [item] : []);
-    const paste = (place: NodePlace) =>
-      when(canPasteCopied(), {
-        label: t.treeMenu.paste,
-        icon: <ClipboardTextIcon />,
-        shortcut: shortcut('paste'),
-        onSelect: () => {
-          pasteCopied(place);
-          onSelect();
-          refocusTree();
-        },
-      });
+    const paste = (place: NodePlace) => when('tree.paste', { args: { place }, then: onSelect });
     if (!node) return [addHere(project.root.id), paste({ groupId: project.root.id })];
 
-    const state = useStore.getState();
-    const count = selectedIds(state.selection).length;
     const below = newNodePlace(project, oneNode(node.id));
-    const clipboard = [
-      ...when(canCopySelection(state.selection), {
-        label: t.treeMenu.cut(count),
-        icon: <ScissorsIcon />,
-        shortcut: shortcut('cut'),
-        onSelect: () => {
-          cutSelection();
-          refocusTree();
-        },
-      }),
-      ...when(canCopySelection(state.selection), { label: t.treeMenu.copy(count), icon: <CopySimpleIcon />, shortcut: shortcut('copy'), onSelect: copySelection }),
-      ...paste(below),
-    ];
-    const moves = [
-      ...when(canMoveSelection('up', state), { label: t.treeMenu.moveUp, icon: <ArrowUpIcon />, shortcut: shortcut('moveUp'), onSelect: () => runShortcut('moveUp') }),
-      ...when(canMoveSelection('down', state), { label: t.treeMenu.moveDown, icon: <ArrowDownIcon />, shortcut: shortcut('moveDown'), onSelect: () => runShortcut('moveDown') }),
-    ];
-    const duplicate = when(canDuplicateSelection(state.selection), {
-      label: t.treeMenu.duplicate(count),
-      icon: <CopyIcon />,
-      shortcut: shortcut('duplicate'),
-      onSelect: () => runShortcut('duplicate'),
-    });
-    const remove = (label: string) =>
-      when(canDeleteSelection(state.selection), { label, icon: <TrashIcon />, shortcut: shortcut('delete'), danger: true, onSelect: () => runShortcut('delete') });
+    const clipboard = [...when('tree.cut'), ...when('tree.copy'), ...paste(below)];
+    const moves = [...when('tree.moveUp'), ...when('tree.moveDown')];
+    const duplicate = when('tree.duplicate');
+    const remove = (labelAt?: LabelPlace) => when('tree.delete', { labelAt, danger: true });
     if (node.kind === 'group') {
-      return [
-        addHere(node.group.id),
-        [
-          ...duplicate,
-          ...when(canUngroupSelection(state), { label: t.treeMenu.ungroup, icon: <FolderSimpleDashedIcon />, shortcut: shortcut('ungroup'), onSelect: () => runShortcut('ungroup') }),
-          ...moves,
-        ],
-        clipboard,
-        remove(t.treeMenu.deleteGroup(count)),
-      ];
+      return [addHere(node.group.id), [...duplicate, ...when('tree.ungroup'), ...moves], clipboard, remove('groupMenu')];
     }
     return [
-      [
-        ...when(canGroupSelection(state.selection), { label: t.treeMenu.groupSelection, icon: <FolderSimplePlusIcon />, shortcut: shortcut('group'), onSelect: () => runShortcut('group') }),
-        ...duplicate,
-        { label: t.treeMenu.addBelow, icon: <PlusIcon />, shortcut: shortcut('add'), onSelect: addTo('attribute', below.groupId, below.index) },
-      ],
+      [...when('tree.group'), ...duplicate, item('tree.addAttribute', { labelAt: 'below', args: { place: below }, then: onSelect })],
       moves,
       clipboard,
-      remove(t.treeMenu.delete(count)),
+      remove(),
     ];
   };
 

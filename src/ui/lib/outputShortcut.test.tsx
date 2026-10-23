@@ -4,11 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProject } from '../../core/model';
 import { useStore } from '../../state/store';
 import { Workspace } from '../workspace/Workspace';
-import { isOutputToggle } from './outputShortcut';
+import { command, matchesKeys } from './commands';
 import { TOUR_SEEN_KEY } from './tour';
 
 const key = (init: KeyboardEventInit) => new KeyboardEvent('keydown', { code: 'KeyB', key: 'b', ...init });
 const press = (init: KeyboardEventInit = { metaKey: true, altKey: true }) => fireEvent.keyDown(document, { code: 'KeyB', key: '∫', ...init });
+const isOutputToggle = (event: KeyboardEvent) => matchesKeys(command('workspace.toggleOutput').keys!, event);
 const output = () => screen.queryByRole('region', { name: 'Output' });
 
 beforeEach(() => {

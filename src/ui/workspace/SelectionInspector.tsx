@@ -1,15 +1,16 @@
-import { TrashIcon } from '@phosphor-icons/react';
 import { findNode } from '../../core/model';
 import { moveNodesInto } from '../../core/operations';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
-import { usesCommandKey } from '../lib/platform';
+import { ariaKeyShortcuts, command, commandLabel, shortcutLabel } from '../lib/commands';
 import { deleteSelection, groupSelection } from '../lib/treeActions';
 import { moveTargets } from './moveTargets';
 
 /** How many selected keys the list shows before "+ N more". */
 const SHOWN_KEYS = 5;
+
+const DeleteIcon = command('tree.delete').icon;
 
 /**
  * The Edit pane for several selected nodes (`ids`, the selection): their count and keys, and the actions
@@ -20,7 +21,6 @@ export function SelectionInspector({ ids }: { ids: string[] }) {
   const { update } = useStore.getState();
   const nodes = ids.flatMap((id) => findNode(project.root, id)?.node ?? []);
   const targets = moveTargets(project.root, nodes);
-  const command = usesCommandKey();
 
   return (
     <>
@@ -36,9 +36,9 @@ export function SelectionInspector({ ids }: { ids: string[] }) {
         </ul>
       </header>
       <div className="row row--wrap">
-        <Button onClick={groupSelection} aria-keyshortcuts={command ? 'Meta+G' : 'Control+G'}>
-          {t.selection.group}
-          <kbd aria-hidden="true">{command ? t.selection.groupKeys.command : t.selection.groupKeys.control}</kbd>
+        <Button onClick={groupSelection} aria-keyshortcuts={ariaKeyShortcuts('tree.group')}>
+          {commandLabel('tree.group', 'editPane')}
+          <kbd aria-hidden="true">{shortcutLabel('tree.group')}</kbd>
         </Button>
         <select
           className="select selection-move"
@@ -55,9 +55,9 @@ export function SelectionInspector({ ids }: { ids: string[] }) {
             </option>
           ))}
         </select>
-        <Button variant="danger" onClick={deleteSelection} aria-keyshortcuts="Backspace">
-          <TrashIcon /> {t.selection.delete}
-          <kbd aria-hidden="true">{t.selection.deleteKeys}</kbd>
+        <Button variant="danger" onClick={deleteSelection} aria-keyshortcuts={ariaKeyShortcuts('tree.delete')}>
+          <DeleteIcon /> {commandLabel('tree.delete', 'editPane')}
+          <kbd aria-hidden="true">{shortcutLabel('tree.delete')}</kbd>
         </Button>
       </div>
     </>
