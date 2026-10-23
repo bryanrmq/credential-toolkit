@@ -8,7 +8,7 @@ import { Tabs } from '../components/controls';
 import { FixToast } from '../components/FixToast';
 import { PaneResizer } from '../components/PaneResizer';
 import { IssuesContext } from '../issues';
-import { useCommandHost, useCommandShortcuts } from '../lib/commands';
+import { focusTreeSelection, useCommandHost, useCommandShortcuts } from '../lib/commands';
 import {
   DEFAULT_PANE_WIDTHS,
   PANE_LIMITS,
@@ -24,8 +24,10 @@ import {
   saveOutputOpen,
   savePaneWidths,
 } from '../lib/paneLayout';
+import { filterHides } from '../lib/palette';
 import { loadTourSeen } from '../lib/tour';
 import { useWideWindow } from '../lib/wideWindow';
+import { CommandPalette } from './CommandPalette';
 import { Inspector } from './Inspector';
 import { IssuesPanel } from './IssuesPanel';
 import { LanguagesDialog } from './LanguagesDialog';
@@ -69,6 +71,7 @@ export function Workspace() {
     // The button that was pressed is gone: focus goes to the top-bar toggle, which shows the pane again.
     topBarRef.current?.querySelector<HTMLElement>('[data-output-toggle]')?.focus();
   };
+  const [paletteOpen, setPaletteOpen] = useState(false);
   useCommandHost('workspace', {
     toggleOutput: () => {
       const { outputOpen: open, setOutputOpen } = useStore.getState();
@@ -76,7 +79,17 @@ export function Workspace() {
       if (open && document.activeElement?.closest('.pane--output')) hideOutput();
       else setOutputOpen(!open);
     },
+    openPalette: () => setPaletteOpen(true),
   });
+  // An attribute chosen in the palette: selected (which expands the groups around it) and shown in the tree, with focus on its row.
+  const reveal = (id: string) => {
+    const { project: current, treeFilter, editLang, setTreeFilter, setView, select } = useStore.getState();
+    if (current && filterHides(current, treeFilter, editLang, id)) setTreeFilter('');
+    setView('editor');
+    select({ kind: 'node', id });
+    if (!wide) setPane('structure');
+    requestAnimationFrame(focusTreeSelection);
+  };
   const resize = (target: ResizablePane, value: number) => {
     const other = target === 'structure' ? (outputShown ? widthsRef.current.output : 0) : widthsRef.current.structure;
     const next = { ...widthsRef.current, [target]: clampPaneWidth(target, value, { container: panesRef.current?.clientWidth ?? 0, other }) };
@@ -191,6 +204,7 @@ export function Workspace() {
         )}
         {languagesOpen && <LanguagesDialog />}
         {tourOpen && <Tour pane={pane} onPane={setPane} />}
+        {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onReveal={reveal} />}
         <FixToast />
       </div>
     </IssuesContext.Provider>

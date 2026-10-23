@@ -83,6 +83,7 @@ describe('the command list', () => {
         'workspace.toggleOutput',
         'workspace.saveProjectFile',
         'workspace.openProjectFile',
+        'workspace.palette',
       ].sort(),
     );
     for (const entry of COMMANDS) {

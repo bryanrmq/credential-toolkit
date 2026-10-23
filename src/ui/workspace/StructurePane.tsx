@@ -12,42 +12,26 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import {
-  BinaryIcon,
-  CalendarBlankIcon,
   CaretDownIcon,
   CaretRightIcon,
   DotsSixVerticalIcon,
-  FolderSimpleIcon,
-  HashIcon,
   IdentificationCardIcon,
-  ImageIcon,
-  ListBulletsIcon,
   LockSimpleIcon,
   MagnifyingGlassIcon,
   PlusIcon,
-  StackIcon,
-  TextTIcon,
-  ToggleLeftIcon,
 } from '@phosphor-icons/react';
-import { type KeyboardEvent, type MouseEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { type KeyboardEvent, type MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { type PendingLink, pendingLinks, textIn } from '../../core/import/i14y';
 import { importSample } from '../../core/import/sample';
-import {
-  type Group,
-  KNOWN_STANDARDS,
-  type Node,
-  type Project,
-  findNode,
-  isArrayType,
-  walkNodes,
-} from '../../core/model';
+import { type Group, type Node, type Project, findNode, walkNodes } from '../../core/model';
 import { moveNodesTo, outermostIds, renameNode } from '../../core/operations';
 import { CREDENTIAL, extendTo, isSelected, oneNode, rowAfter, selectedIds, toggleNode } from '../../state/selection';
 import { type Selection, useStore } from '../../state/store';
 import { ancestorIds, filteredIds, visibleRows } from '../../state/treeView';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
+import { nodeIcon } from '../components/nodeIcon';
 import { PopupMenu, type PopupMenuItem } from '../components/PopupMenu';
 import { useIssues } from '../issues';
 import { useI14yCatalogue } from '../lib/i14y';
@@ -59,18 +43,6 @@ import { treeActionsAvailable, treeShortcutsActive } from '../lib/treeShortcuts'
 import { useWideWindow } from '../lib/wideWindow';
 import { I14yDialog } from './I14yDialog';
 import { SampleDialog } from './SampleControl';
-
-function nodeIcon(node: Node): ReactNode {
-  if (node.kind === 'group') return node.array ? <StackIcon /> : <FolderSimpleIcon />;
-  const type = isArrayType(node.type) ? node.type.array : node.type;
-  if (isArrayType(node.type)) return <ListBulletsIcon />;
-  if (node.standard === KNOWN_STANDARDS.dataUrl) return <ImageIcon />;
-  if (type === 'Numeric') return <HashIcon />;
-  if (type === 'Boolean') return <ToggleLeftIcon />;
-  if (type === 'DateTime') return <CalendarBlankIcon />;
-  if (type === 'Binary') return <BinaryIcon />;
-  return <TextTIcon />;
-}
 
 /** The group new nodes go into: the selected group, the selected attribute's group, or the root. */
 function targetGroup(project: Project, selectionId: string | null): Group {
