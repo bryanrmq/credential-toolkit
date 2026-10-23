@@ -24,7 +24,8 @@ function someClaim(rows: DetailsRow[], test: (row: Extract<DetailsRow, { kind: '
 
 /**
  * The wallet's credential details screen for the platform picked in the Output preview's header, as a device set to
- * the editing language would show it, with the notes on it underneath. Only iOS is drawn so far.
+ * the editing language would show it, with the card status picker above and the notes on it underneath. Only iOS is
+ * drawn so far.
  */
 export function DetailsPreview() {
   const platform = useStore((state) => state.cardPlatform);
@@ -60,6 +61,21 @@ function IosDetailsPreview() {
 
   return (
     <div className="details-preview">
+      <div className="details-preview__status">
+        <label htmlFor="details-preview-status">{t.detailsPreview.status}</label>
+        <select
+          id="details-preview-status"
+          className="select select--compact"
+          value={status}
+          onChange={(event) => setStatus(event.target.value as CredentialStatus)}
+        >
+          {CREDENTIAL_STATUSES.map((value) => (
+            <option key={value} value={value}>
+              {t.detailsPreview.statuses[value]}
+            </option>
+          ))}
+        </select>
+      </div>
       <div ref={ref} className={`details-preview__stage details-preview__stage--${theme}`}>
         <IosDetailsScreen
           label={`${t.cardPreview.platforms.ios} ${t.detailsPreview.screen}`}
@@ -81,21 +97,6 @@ function IosDetailsPreview() {
           issuer={{ logo: branding.logo }}
           scale={scale}
         />
-      </div>
-      <div className="details-preview__status">
-        <label htmlFor="details-preview-status">{t.detailsPreview.status}</label>
-        <select
-          id="details-preview-status"
-          className="select select--compact"
-          value={status}
-          onChange={(event) => setStatus(event.target.value as CredentialStatus)}
-        >
-          {CREDENTIAL_STATUSES.map((value) => (
-            <option key={value} value={value}>
-              {t.detailsPreview.statuses[value]}
-            </option>
-          ))}
-        </select>
       </div>
       {details.noSample && <p className="note">{t.cardPreview.noSample}</p>}
       {details.orderUndefined && <p className="note">{t.detailsPreview.orderUndefined}</p>}

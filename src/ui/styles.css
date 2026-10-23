@@ -1831,7 +1831,7 @@ button.tree__toggle:hover {
   color: var(--yellow-text);
   font-size: 12.5px;
 }
-/* The Details view: the phone screen, scaled to the pane width, then its status picker and notes. */
+/* The Details view: the card status picker, the phone screen scaled to the pane width, then the notes. */
 .details-preview__stage {
   display: flex;
   justify-content: center;

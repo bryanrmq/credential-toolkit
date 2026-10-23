@@ -122,13 +122,18 @@ describe('DetailsPreview on iOS', () => {
     expect(screen.getByText(/name and logo from the issuer metadata/)).toBeInTheDocument();
   });
 
-  it('shows Valid by default and the status picked under the preview', async () => {
+  it('shows Valid by default and the status picked above the preview', async () => {
     const user = userEvent.setup();
     renderPreview();
     const badge = () => phone().getByRole('figure', { name: 'iOS card' }).querySelector('.ios-badge')!;
     expect(badge()).toHaveTextContent('Gültig');
     expect(badge()).toHaveAttribute('data-status', 'valid');
     expect(badge()).toHaveClass('ios-badge--success', 'ios-badge--on-black');
+
+    // The picker sits above the screen.
+    expect(screen.getByLabelText('Card status').compareDocumentPosition(screen.getByRole('region', { name: 'iOS details screen' }))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
 
     await user.selectOptions(screen.getByLabelText('Card status'), 'Revoked');
     expect(badge()).toHaveTextContent('Widerrufen');
