@@ -2075,6 +2075,35 @@ button.tree__toggle:hover {
 .details-preview__stage--dark {
   background: #1c1c1e;
 }
+/*
+ * Linked to the editor: rows and group titles from a node select it, and the selected node's rows or groups are
+ * outlined like :focus-visible. The line sits inside them, where the cards' rounded clip keeps it, and its width is
+ * divided by the screen's zoom so it stays 2px.
+ */
+.details-preview__stage [role='button'] {
+  cursor: pointer;
+}
+.details-link__title {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+.details-preview__stage :is([role='button'], .details-link__title):focus-visible,
+.details-preview__stage [data-linked] {
+  outline: calc(2px / var(--details-zoom, 1)) solid var(--blue-text);
+  outline-offset: calc(-2px / var(--details-zoom, 1));
+}
+/* A list of groups carries its node on every level: only the outermost is outlined. */
+.details-preview__stage [data-linked] [data-linked] {
+  outline: none;
+}
 .details-preview__status {
   display: flex;
   align-items: center;

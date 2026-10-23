@@ -188,6 +188,8 @@ export function Workspace() {
                       onHide={wide ? hideOutput : undefined}
                       // On narrow windows only one pane shows: a change's field is in Edit (languages open a dialog).
                       onJump={(change) => change.section !== 'languages' && setPane('inspector')}
+                      // A row picked in the details preview opens its node in Edit, as a click in the tree does.
+                      onPick={() => setPane('inspector')}
                       stacked={!wide}
                     />
                   </section>

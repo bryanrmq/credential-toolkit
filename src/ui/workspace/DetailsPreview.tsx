@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { selectBranding } from '../../core/card/branding';
 import { type DetailsRow, credentialDetails } from '../../core/card/details';
 import {
@@ -19,14 +19,25 @@ import { type FormattedValue, formatClaim } from '../../core/card/values';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { ANDROID_SCREEN_WIDTH, AndroidDetailsScreen } from '../components/AndroidDetailsScreen';
+import { DetailsLinkContext } from '../components/detailsLink';
 import { IOS_SCREEN_WIDTH, IosDetailsScreen } from '../components/IosDetailsScreen';
 import { useFitScale } from '../components/useFitScale';
+import { filterHides } from '../lib/palette';
 
 /** The day after today: when a "Not yet valid" credential becomes valid in the preview. */
 function tomorrow(): Date {
   const date = new Date();
   date.setDate(date.getDate() + 1);
   return date;
+}
+
+const reducedMotion = () => typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Selects node `id` from the preview, and shows it in the tree when the tree filter hides it. */
+function pick(id: string) {
+  const { project, treeFilter, editLang, setTreeFilter, select } = useStore.getState();
+  if (project && filterHides(project, treeFilter, editLang, id)) setTreeFilter('');
+  select({ kind: 'node', id });
 }
 
 function someClaim(rows: DetailsRow[], test: (row: Extract<DetailsRow, { kind: 'claim' }>) => boolean): boolean {
@@ -75,8 +86,11 @@ function describeDifference(difference: DetailsDifference, platform: string): st
  * The wallet's credential details screen for the platform picked in the preview's header, as a device set to the
  * editing language would show it, with the card status picker above and, underneath, the notes on it and where the
  * other platform would differ. It sizes itself from the width it is given, so it renders wherever the preview lives.
+ *
+ * It is linked to the editor both ways. The selected node's rows are outlined and scrolled into view, without taking
+ * focus; clicking a row or a group title (or Enter or Space on it) selects its node, then calls `onPick`.
  */
-export function DetailsPreview() {
+export function DetailsPreview({ onPick }: { onPick?: () => void }) {
   const project = useStore((state) => state.project)!;
   const platform = useStore((state) => state.cardPlatform);
   const lang = useStore((state) => state.editLang);
@@ -85,6 +99,23 @@ export function DetailsPreview() {
   // The preview can show in more than one pane at once, so the picker's id is generated.
   const statusId = useId();
   const { ref, scale } = useFitScale(platform === 'ios' ? IOS_SCREEN_WIDTH : ANDROID_SCREEN_WIDTH);
+  const selected = useStore((state) => (state.selection.kind === 'node' ? state.selection.id : undefined));
+  const link = useMemo(
+    () => ({
+      selected,
+      pick: (id: string) => {
+        pick(id);
+        onPick?.();
+      },
+    }),
+    [selected, onPick],
+  );
+  useEffect(() => {
+    const stage = ref.current;
+    // Below the form, the preview scrolls with the form: moving it would take the form out of view.
+    if (!selected || !stage || stage.closest('[data-placement="below"]')) return;
+    stage.querySelector('[data-linked]')?.scrollIntoView?.({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' });
+  }, [ref, selected, platform, lang]);
 
   const profile = CARD_PROFILES[platform];
   const { languages, valueOptions } = detailsDevice(platform, [lang]);
@@ -137,7 +168,7 @@ export function DetailsPreview() {
         </select>
       </div>
       <div ref={ref} className={`details-preview__stage details-preview__stage--${platform} details-preview__stage--${theme}`}>
-        {screen}
+        <DetailsLinkContext.Provider value={link}>{screen}</DetailsLinkContext.Provider>
       </div>
       {details.noSample && <p className="note">{t.cardPreview.noSample}</p>}
       {details.orderUndefined && <p className="note">{t.detailsPreview.orderUndefined}</p>}

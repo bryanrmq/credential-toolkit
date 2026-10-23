@@ -81,17 +81,20 @@ function CollapseButton({ half, controls, collapseLabel, expandLabel }: { half: 
  * preview's height, remembered like the pane widths; each half collapses to its header and the other takes the room.
  * `stacked` (a narrow window) puts both halves in one scrolling column with no divider.
  * `onHide`, given on a wide window only, adds a button to the preview's header that hides the pane.
- * `onJump` runs after a click in the Changes tab took the user to a field.
+ * `onJump` runs after a click in the Changes tab took the user to a field, `onPick` after a click on a row of the
+ * details preview selected its node.
  */
 export function OutputPanel({
   exportState,
   onHide,
   onJump,
+  onPick,
   stacked = false,
 }: {
   exportState: ExportState;
   onHide?: () => void;
   onJump?: (change: ProjectChange) => void;
+  onPick?: () => void;
   stacked?: boolean;
 }) {
   const halves = useStore((state) => state.outputHalves);
@@ -111,7 +114,7 @@ export function OutputPanel({
       className={split ? 'output output--split' : stacked ? 'output output--stacked' : 'output'}
       style={split ? ({ '--preview-height': `${height}px` } as CSSProperties) : undefined}
     >
-      <PreviewHalf onHide={onHide} />
+      <PreviewHalf onHide={onHide} onPick={onPick} />
       {split && (
         <PaneResizer
           label={t.output.resizePreview}
@@ -133,7 +136,7 @@ export function OutputPanel({
   );
 }
 
-function PreviewHalf({ onHide }: { onHide?: () => void }) {
+function PreviewHalf({ onHide, onPick }: { onHide?: () => void; onPick?: () => void }) {
   const open = useStore((state) => state.outputHalves.preview);
 
   return (
@@ -152,7 +155,7 @@ function PreviewHalf({ onHide }: { onHide?: () => void }) {
       </div>
       {open && (
         <div className="output-half__body" id={PREVIEW_BODY_ID}>
-          <OutputPreview />
+          <OutputPreview onPick={onPick} />
         </div>
       )}
     </div>

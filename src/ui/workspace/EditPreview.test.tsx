@@ -129,10 +129,7 @@ describe('Wallet preview in the Edit pane', () => {
     });
     render(<Inspector />);
     await user.click(control('Preview view', 'Details'));
-    const row = preview()
-      .getAllByRole('group')
-      .find((element) => element.classList.contains('ios-claim-row'));
-    expect(row).toHaveAttribute('data-node-id', idOf('given_name'));
+    expect(preview().getByRole('button', { name: 'Vorname, Rex' })).toHaveAttribute('data-node-id', idOf('given_name'));
   });
 });
 
