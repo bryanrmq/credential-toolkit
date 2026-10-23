@@ -98,6 +98,12 @@ function brandingOverlay(
   return Object.keys(overlay).length > 4 ? overlay : null;
 }
 
+/** The group's Order overlay values: each child's position, from 1. Undefined for an empty group, which gets none. */
+export function attributeOrders(group: Group): Record<string, number> | undefined {
+  if (!group.children.length) return undefined;
+  return Object.fromEntries(group.children.map((child, index) => [child.key, index + 1]));
+}
+
 /** Overlays for one group, in the fixed order of the design spec §5.2. */
 export function groupOverlays(project: Project, group: Group, digests: Map<string, string>): OverlayJson[] {
   const capture_base = digests.get(group.id)!;
@@ -136,10 +142,8 @@ export function groupOverlays(project: Project, group: Group, digests: Map<strin
     if (Object.keys(attribute_labels).length) overlays.push({ ...base(OVERLAY_TYPES.label), language: lang, attribute_labels });
   }
 
-  if (children.length) {
-    const attribute_orders = Object.fromEntries(children.map((child, index) => [child.key, index + 1]));
-    overlays.push({ ...base(OVERLAY_TYPES.order), attribute_orders });
-  }
+  const attribute_orders = attributeOrders(group);
+  if (attribute_orders) overlays.push({ ...base(OVERLAY_TYPES.order), attribute_orders });
 
   const attribute_sources: Record<string, unknown> = {};
   for (const child of children) {
