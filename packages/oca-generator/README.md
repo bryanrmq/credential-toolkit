@@ -51,8 +51,51 @@ The types (`Project`, `Issue`, `BundleJson`, `ExportOutputs`, …) are exported 
 
 ## Command line
 
-An `oca` command with `build` and `check` is planned for this package
-([#47](https://github.com/bryanrmq/oca-generator/issues/47)).
+The package installs an `oca` command that checks a project file and builds its bundle, for scripts and
+CI. It uses the API above and makes no network request.
+
+```bash
+npx -p @bryanrmq/oca-generator oca check pet-permit.oca-project.json   # or, once installed: npx oca check …
+```
+
+```text
+oca build <project.oca-project.json> [-o bundle.json] [--vct vct.json]
+oca check <project.oca-project.json>
+```
+
+- **`oca check`** lists the issues the app's Issues panel lists, in the same words: errors first, then
+  warnings, each with where it is (the attribute's key path, or `Credential`, `Languages`, `Hosting`) and
+  the languages it occurs in.
+
+  ```text
+  Errors (1)
+    ● lastName (de-CH, en-US): "{{nope}}" does not match any attribute.
+
+  Warnings (1)
+    ● Hosting: The bundle URL should start with https://.
+
+  1 error, 1 warning.
+  ```
+
+- **`oca build`** checks the same way, then writes the bundle byte for byte as the app downloads it, to
+  `-o <file>` or to stdout, and prints its `uri#integrity` and the VCT `display` snippet (or writes the
+  snippet to `--vct <file>`). When the bundle goes to stdout, everything else goes to stderr, so
+  `oca build project.oca-project.json > oca-bundle.json` works. It writes nothing when there are errors.
+
+| Exit code | Meaning |
+| --- | --- |
+| `0` | No errors. Warnings are printed. |
+| `1` | Validation errors: `oca build` wrote nothing. |
+| `2` | Input it can't use: a file it can't read or write, a file that isn't a project file, one saved by a newer app, or bad arguments. |
+
+Colours are used only on a terminal, and never when `NO_COLOR` is set. `oca --help` and `oca --version`
+work as usual.
+
+In CI, for example:
+
+```yaml
+- run: npx -p @bryanrmq/oca-generator oca build credential.oca-project.json -o public/oca/oca-bundle.json --vct vct-display.json
+```
 
 ## License
 
