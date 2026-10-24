@@ -11,7 +11,7 @@ translation problems before you issue anything.
 
 Your project stays in your browser. Nothing is uploaded.
 
-**[Open Credential Toolkit](https://oca-generator.vercel.app)**
+**[Open Credential Toolkit](https://credential-toolkit.vercel.app)**
 
 Credential Toolkit is a community project. It is not an official swiyu or Swiss federal product.
 
