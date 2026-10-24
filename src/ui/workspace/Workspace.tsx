@@ -141,7 +141,7 @@ export function Workspace() {
       <div className="workspace">
         <TopBar ref={topBarRef} exportState={exportState} onShowIssues={showIssues} />
         {!canSave && (
-          <p className="note" role="status" style={{ margin: '12px 20px 0' }}>
+          <p className="note workspace__note" role="status">
             {t.workspace.storageUnavailable}
           </p>
         )}

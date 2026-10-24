@@ -130,7 +130,7 @@ function BundleSettings() {
   return (
     <div className="output-settings">
       <fieldset className="output-settings__hosting">
-        <legend className="field__label" style={{ marginBottom: 8 }}>
+        <legend className="field__label output-settings__legend">
           {t.output.hosting}
         </legend>
         <label className="radio">
@@ -142,15 +142,14 @@ function BundleSettings() {
           />
           <span className="grow">
             {t.output.hostedUrl}
-            <span className="field__hint" style={{ display: 'block' }}>
+            <span className="field__hint output-settings__hint">
               {t.output.hostedUrlHint}
             </span>
             {hosting.mode === 'url' && (
               <input
                 id="field-hosting-url"
-                className="input input--mono"
+                className="input input--mono output-settings__detail"
                 aria-label={t.output.hostedUrl}
-                style={{ marginTop: 6 }}
                 placeholder={t.output.urlPlaceholder}
                 value={hosting.url}
                 onChange={(event) => update((draft) => void (draft.hosting = { mode: 'url', url: event.target.value }))}
@@ -159,7 +158,7 @@ function BundleSettings() {
             {hosting.mode === 'url' &&
               hostingIssues.map((issue) => (
                 <Fragment key={issue.code}>
-                  <span className="field__issue field__issue--warning" style={{ marginTop: 6 }}>
+                  <span className="field__issue field__issue--warning output-settings__detail">
                     {issue.message}
                   </span>
                   <InlineIssueFixes issue={issue} />
@@ -171,7 +170,7 @@ function BundleSettings() {
           <input type="radio" name="hosting" checked={hosting.mode === 'dataUrl'} onChange={() => update((draft) => void (draft.hosting = { mode: 'dataUrl' }))} />
           <span>
             {t.output.embedded}
-            <span className="field__hint" style={{ display: 'block' }}>
+            <span className="field__hint output-settings__hint">
               {t.output.embeddedHint}
             </span>
           </span>

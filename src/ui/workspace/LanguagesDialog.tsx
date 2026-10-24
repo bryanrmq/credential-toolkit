@@ -56,7 +56,7 @@ export function LanguagesDialog() {
         </Fragment>
       ))}
       {missingDefaults.length > 0 && (
-        <div className="row row--wrap" style={{ marginBottom: 16 }}>
+        <div className="row row--wrap language-defaults">
           {missingDefaults.map((lang) => (
             <Button key={lang} size="small" onClick={() => update((draft) => addLanguage(draft, lang))}>
               + {LANGUAGE_NAMES[lang]} <code>{lang}</code>
