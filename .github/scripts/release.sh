@@ -12,7 +12,7 @@
 set -euo pipefail
 
 target="${TARGET_SHA:-$(git rev-parse HEAD)}"
-repo_url="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-bryanrmq/oca-generator}"
+repo_url="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-bryanrmq/credential-toolkit}"
 
 last_tag="$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' "$target" 2>/dev/null || true)"
 if [[ -n "$last_tag" ]]; then
