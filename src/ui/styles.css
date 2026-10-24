@@ -1239,14 +1239,14 @@ kbd.palette__meta {
    item that starts a line, the first or one that wrapped, has its separator clipped by the wrapper.
    The wrapper's padding leaves room for the focus ring. */
 .start__credits {
-  margin: 4px -4px -4px;
-  padding: 4px;
+  margin: var(--space-1) calc(-1 * var(--space-1)) calc(-1 * var(--space-1));
+  padding: var(--space-1);
   overflow: hidden;
 }
 .start__credits ul {
   display: flex;
   flex-wrap: wrap;
-  margin: 0 0 0 -20px;
+  margin: 0 0 0 calc(-1 * var(--space-5));
   padding: 0;
   list-style: none;
 }
@@ -1263,7 +1263,7 @@ kbd.palette__meta {
 .start__credits a {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   text-decoration: none;
 }
 .start__credits a:hover {
