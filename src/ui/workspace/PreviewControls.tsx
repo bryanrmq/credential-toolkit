@@ -8,9 +8,9 @@ const PREVIEW_VIEWS: PreviewView[] = ['card', 'details', 'home'];
 const CARD_VARIANTS = ['detail', 'offer'] as const;
 
 /**
- * The wallet preview's pickers: the platform, the view (Card, Details or Home) and, under Card for a wallet with an
- * offer card, the Detail or Offer card. They set the store's `cardPlatform` and `cardVariant`, so every preview
- * follows them.
+ * The wallet preview's pickers: the platform, the wallet theme, the view (Card, Details or Home) and, under Card for
+ * a wallet with an offer card, the Detail or Offer card. They set the store's `cardPlatform`, `brandingTheme` and
+ * `cardVariant`, so every preview follows them.
  */
 export function PreviewControls({ className }: { className: string }) {
   const platform = useStore((state) => state.cardPlatform);
@@ -35,6 +35,7 @@ export function PreviewControls({ className }: { className: string }) {
           { value: 'android', label: t.cardPreview.platforms.android },
         ]}
       />
+      <WalletThemeSwitch />
       <Segmented
         label={t.output.previewView}
         value={view}
@@ -50,5 +51,21 @@ export function PreviewControls({ className }: { className: string }) {
         />
       )}
     </span>
+  );
+}
+
+/** Light or dark wallet: the branding the form edits and the theme every preview shows. */
+export function WalletThemeSwitch() {
+  const theme = useStore((state) => state.brandingTheme);
+  return (
+    <Segmented
+      label={t.inspector.walletTheme}
+      value={theme}
+      onChange={useStore.getState().setBrandingTheme}
+      options={[
+        { value: 'light', label: t.inspector.light },
+        { value: 'dark', label: t.inspector.dark },
+      ]}
+    />
   );
 }

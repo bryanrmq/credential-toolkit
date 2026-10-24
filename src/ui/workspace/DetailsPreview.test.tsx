@@ -113,7 +113,15 @@ describe('DetailsPreview on iOS', () => {
     renderPreview();
     expect(row('Name, Text')).toHaveAttribute('data-value', 'placeholder');
     expect(within(row('Name, Text')).getByText('Text')).toHaveClass('ios-details__placeholder');
-    expect(screen.getByText(/Attach a sample credential/)).toBeInTheDocument();
+    expect(screen.getByText(/^No sample credential/).closest('li')).not.toHaveClass('preview-notes__item--act');
+    expect(screen.getByRole('button', { name: 'Attach sample' })).toBeInTheDocument();
+  });
+
+  it('marks in yellow only the notes the issuer must act on', () => {
+    renderPreview();
+    expect(screen.getByText(/^No issuer name in/).closest('li')).toHaveClass('preview-notes__item--act');
+    expect(document.querySelectorAll('.preview-footnote')).toHaveLength(1);
+    expect(document.querySelector('.note')).toBeNull();
   });
 
   it('has no order note when every row has its own order', () => {

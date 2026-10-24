@@ -59,6 +59,24 @@ describe('Workspace', () => {
     expect(name?.labels).toEqual({ 'de-CH': 'Name', 'en-GB': 'Name' });
   });
 
+  it('wraps translation texts on one line and disables the editing language there', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    const languages = () => within(screen.getByRole('group', { name: 'Editing language' })).getAllByRole('button');
+    expect(languages().every((button) => !(button as HTMLButtonElement).disabled)).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Translations' }));
+    expect(languages().every((button) => (button as HTMLButtonElement).disabled)).toBe(true);
+    expect(screen.getByRole('combobox', { name: 'Editing language' })).toBeDisabled();
+
+    const cell = screen.getByLabelText('name Label (en-GB)');
+    expect(cell.tagName).toBe('TEXTAREA');
+    await user.type(cell, 'Dog{Enter}name');
+    expect(useStore.getState().project?.root.children[0].labels['en-GB']).toBe('Dogname');
+
+    await user.click(screen.getByRole('button', { name: 'Editor' }));
+    expect(languages().every((button) => !(button as HTMLButtonElement).disabled)).toBe(true);
+  });
+
   it('adds a language from the languages dialog', async () => {
     const user = userEvent.setup();
     render(<Workspace />);

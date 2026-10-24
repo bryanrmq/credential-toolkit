@@ -111,11 +111,17 @@ describe('CardPreview in the wallet preview', () => {
     act(() => useStore.getState().setBrandingTheme('dark'));
     const notes = [
       screen.getByText('No dark branding: both wallets show the light card in dark mode.'),
-      screen.getByText("Attach a sample credential under the Output pane's Bundle tab to see real values."),
+      screen.getByText('No sample credential, so the preview shows placeholders for the values.'),
       screen.getByText('Android: white text'),
       screen.getByText("Approximation of the swiyu wallets. Uses this app's font and leaves out the demo issuer pattern and badges."),
     ];
     for (const note of notes) expect(card().compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // One list of notes, neutral (nothing here for the issuer to fix), and one footnote.
+    const list = notes[0].closest('ul')!;
+    expect(notes[1].closest('ul')).toBe(list);
+    expect(list.querySelector('.preview-notes__item--act')).toBeNull();
+    expect(document.querySelectorAll('.preview-footnote')).toHaveLength(1);
+    expect(document.querySelector('.note')).toBeNull();
   });
 
   it('draws the home row on each platform list background', async () => {
@@ -179,7 +185,7 @@ describe('CardPreview in the wallet preview', () => {
     });
     renderPreview();
     expect(card()).toHaveTextContent('Halter: ‹Vorname›');
-    expect(screen.getByText("Attach a sample credential under the Output pane's Bundle tab to see real values.")).toBeInTheDocument();
+    expect(screen.getByText('No sample credential, so the preview shows placeholders for the values.')).toBeInTheDocument();
 
     act(() =>
       useStore.getState().update((draft) => {
@@ -187,7 +193,31 @@ describe('CardPreview in the wallet preview', () => {
       }),
     );
     expect(card()).toHaveTextContent('Halter: Seraina');
-    expect(screen.queryByText(/Attach a sample credential/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/shows placeholders/)).not.toBeInTheDocument();
+  });
+
+  it('attaches a sample credential from the note under the preview', async () => {
+    const user = userEvent.setup();
+    load((project) => {
+      project.branding['de-CH'].light.primaryField = 'Halter: {{given_name}}';
+    });
+    renderPreview();
+    await user.click(screen.getByRole('button', { name: 'Attach sample' }));
+    const dialog = screen.getByRole('dialog', { name: 'Attach a sample credential' });
+    await user.click(within(dialog).getByRole('textbox'));
+    await user.paste('{"given_name": "Seraina"}');
+    await user.click(within(dialog).getByRole('button', { name: 'Attach' }));
+    expect(card()).toHaveTextContent('Halter: Seraina');
+    expect(screen.queryByRole('button', { name: 'Attach sample' })).not.toBeInTheDocument();
+  });
+
+  it('switches the wallet theme from the preview header', async () => {
+    const user = userEvent.setup();
+    renderPreview();
+    expect(pressed('Wallet theme')).toEqual(['Light']);
+    await user.click(within(screen.getByRole('group', { name: 'Wallet theme' })).getByRole('button', { name: 'Dark' }));
+    expect(useStore.getState().brandingTheme).toBe('dark');
+    expect(screen.getByText('No dark branding: both wallets show the light card in dark mode.')).toBeInTheDocument();
   });
 
   it('says when the other wallet resolves the summary differently', async () => {

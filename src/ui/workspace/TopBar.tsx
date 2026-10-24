@@ -43,6 +43,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
   const warnings = groups.length - errors;
   const name = project.meta[editLang]?.name || t.workspace.untitled;
   const blocking = groups.filter(blocksBundle).length;
+  // The Translations view shows every language, so the editing language does nothing there.
+  const langIdle = area === 'oca' && view === 'translations';
   const canDownload = blocking === 0 && exportState.status === 'ready';
 
   return (
@@ -63,6 +65,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
         <Segmented
           className="wide-only"
           label={t.workspace.editingLanguage}
+          disabled={langIdle}
+          title={langIdle ? t.workspace.editingLanguageAll : undefined}
           value={editLang}
           onChange={setEditLang}
           options={project.languages.map((lang) => ({ value: lang, label: lang }))}
@@ -70,6 +74,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
         <select
           className="select select--compact narrow-only"
           aria-label={t.workspace.editingLanguage}
+          disabled={langIdle}
+          title={langIdle ? t.workspace.editingLanguageAll : undefined}
           value={editLang}
           onChange={(event) => setEditLang(event.target.value)}
         >

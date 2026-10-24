@@ -24,6 +24,7 @@ import { DetailsLinkContext } from '../components/detailsLink';
 import { IOS_SCREEN_WIDTH, IosDetailsScreen } from '../components/IosDetailsScreen';
 import { useFitScale } from '../components/useFitScale';
 import { filterHides } from '../lib/palette';
+import { PreviewNotes } from './PreviewNotes';
 
 /** The day after today: when a "Not yet valid" credential becomes valid in the preview. */
 function tomorrow(): Date {
@@ -169,11 +170,17 @@ export function DetailsPreview() {
       <div ref={ref} className={`details-preview__stage details-preview__stage--${platform} details-preview__stage--${theme}`}>
         <DetailsLinkContext.Provider value={link}>{screen}</DetailsLinkContext.Provider>
       </div>
-      {details.noSample && <p className="note">{t.cardPreview.noSample}</p>}
-      {details.orderUndefined && <p className="note">{t.detailsPreview.orderUndefined}</p>}
-      {invalidImage && <p className="note">{t.detailsPreview.invalidImageNote}</p>}
-      {details.undecodableImage && <p className="note">{t.detailsPreview.undecodableImageNote}</p>}
-      <p className="note">{issuer.name ? t.detailsPreview.issuer.named : t.detailsPreview.issuer.missing(issuer.lang && languageLabel(issuer.lang))}</p>
+      <PreviewNotes
+        notes={[
+          invalidImage && { text: t.detailsPreview.invalidImageNote, act: true },
+          details.undecodableImage && { text: t.detailsPreview.undecodableImageNote, act: true },
+          issuer.name
+            ? { text: t.detailsPreview.issuer.named }
+            : { text: t.detailsPreview.issuer.missing(issuer.lang && languageLabel(issuer.lang)), act: true },
+          details.orderUndefined && { text: t.detailsPreview.orderUndefined, act: true },
+          details.noSample && { text: t.cardPreview.noSample, sample: true },
+        ]}
+      />
       {differences.length > 0 && (
         <ul className="card-preview__differences" aria-label={t.detailsPreview.differencesLabel(otherName)}>
           {differences.map((difference, index) => (
@@ -181,7 +188,7 @@ export function DetailsPreview() {
           ))}
         </ul>
       )}
-      <p className="field__hint">{t.detailsPreview.caption(platformName)}</p>
+      <p className="preview-footnote">{t.detailsPreview.caption(platformName)}</p>
     </div>
   );
 }

@@ -148,6 +148,8 @@ export const t = {
     area: 'File',
     areas: { oca: 'OCA', metadata: 'Metadata' },
     editingLanguage: 'Editing language',
+    /** Why the editing-language switch is disabled in the Translations view. */
+    editingLanguageAll: 'The Translations view shows every language',
     view: 'View',
     moreActions: 'More actions',
     resizeStructure: 'Resize the structure pane',
@@ -304,6 +306,8 @@ export const t = {
     description: 'Description',
     descriptionHint: 'Shown under the name when no primary field is set.',
     branding: 'Branding',
+    /** The light or dark wallet the branding is edited for and the preview shows. */
+    walletTheme: 'Wallet theme',
     light: 'Light',
     dark: 'Dark',
     addDark: 'Add dark-mode variant',
@@ -311,6 +315,8 @@ export const t = {
     darkHint: 'Used only when the wallet is in dark mode.',
     logo: 'Logo',
     logoHint: 'PNG or JPEG, square, at most 512×512. The wallet shows it at 24×24 and tints it black or white.',
+    /** The thumbnail before Upload: the logo as the wallet tints it on the background colour. */
+    logoThumbnail: 'Logo as the wallet draws it',
     uploadLogo: 'Upload',
     removeLogo: 'Remove',
     downscale: 'Shrink to 512 px',
@@ -396,7 +402,8 @@ export const t = {
     drawn: { detail: 'detail card', offer: 'offer card', home: 'home row', card: 'card' },
     caption: "Approximation of the swiyu wallets. Uses this app's font and leaves out the demo issuer pattern and badges.",
     lightForDark: 'No dark branding: both wallets show the light card in dark mode.',
-    noSample: "Attach a sample credential under the Output pane's Bundle tab to see real values.",
+    noSample: 'No sample credential, so the preview shows placeholders for the values.',
+    sampleGaps: 'The sample credential has no value for some attributes, so the preview shows placeholders.',
     ink: (platform: string, ink: string) => `${platform}: ${ink} text`,
     background: (platform: string, fallback: string) => `${platform}: colour not supported, shows ${fallback}`,
     accepted: (platform: string, translucent: boolean) => `${platform}: shows this colour${translucent ? ', translucent' : ''}`,
