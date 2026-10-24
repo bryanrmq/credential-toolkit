@@ -8,10 +8,11 @@ function listOf(items: string[]): string {
 
 /** Every piece of interface copy, in one place so the tool can be translated later. */
 export const t = {
-  appName: 'OCA Generator',
+  appName: 'Credential Toolkit',
   beta: 'Beta',
   versionTitle: 'Latest release of this tool: see what changed',
   start: {
+    tagline: 'OCA bundles, type metadata and issuer metadata for swiyu credentials',
     title: 'Design how your credential looks in swiyu',
     intro:
       'Build the OCA bundle for an SD-JWT credential: names, labels, colours, logos and attribute order in every language. Digests and references are computed for you.',
@@ -83,8 +84,8 @@ export const t = {
   projectFile: {
     save: 'Save project file',
     open: 'Open project file',
-    invalid: "This file isn't an OCA generator project.",
-    newer: 'This project was saved by a newer version of the OCA generator. Reload the page to update, then open it again.',
+    invalid: "This file isn't a Credential Toolkit project.",
+    newer: 'This project was saved by a newer version of Credential Toolkit. Reload the page to update, then open it again.',
   },
   baseline: {
     load: 'Load published bundle',
