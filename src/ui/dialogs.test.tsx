@@ -88,6 +88,16 @@ describe('the start screen dialogs', () => {
     expect(card).toHaveFocus();
   });
 
+  it('closes on a click outside it, with focus back on the opener and nothing behind it clicked', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const card = screen.getByRole('button', { name: /Open an OCA bundle/ });
+    await user.click(card);
+    await user.click(document.querySelector<HTMLElement>('.dialog-backdrop')!);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(card).toHaveFocus();
+  });
+
   it('shows invalid JSON under the text field, which is marked invalid', async () => {
     const user = userEvent.setup();
     render(<App />);

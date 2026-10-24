@@ -150,10 +150,12 @@ export function Tour({ pane, onPane }: { pane: WorkspacePane; onPane: (pane: Wor
   }, [target, viewport, index]);
 
   // Focus stays on the card: on the main button when the step's buttons changed under it (Back vanishes on the first step).
+  // Only once the card is placed: until then it is hidden, and a hidden button can't take focus.
+  const placed = position !== null;
   useLayoutEffect(() => {
     const card = cardRef.current;
-    if (card && !card.contains(document.activeElement)) card.querySelector<HTMLElement>('[data-tour-primary]')?.focus();
-  }, [index]);
+    if (placed && card && !card.contains(document.activeElement)) card.querySelector<HTMLElement>('[data-tour-primary]')?.focus();
+  }, [index, placed]);
   useEffect(
     () => () => {
       if (returnFocus instanceof HTMLElement && returnFocus.isConnected) returnFocus.focus();

@@ -64,6 +64,18 @@ describe('Tour', () => {
     expect(loadTourSeen()).toBe(true);
   });
 
+  it('takes focus once its card is placed, as a browser refuses focus to a hidden card', async () => {
+    const focus = HTMLElement.prototype.focus;
+    vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (this: HTMLElement, options?: FocusOptions) {
+      if (!this.closest('[style*="visibility: hidden"]')) focus.call(this, options);
+    });
+    const user = userEvent.setup();
+    render(<Workspace />);
+    expect(within(tour()).getByRole('button', { name: 'Next' })).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Workspace tour' })).not.toBeInTheDocument();
+  });
+
   it('lists what each area can do', async () => {
     const user = userEvent.setup();
     render(<Workspace />);

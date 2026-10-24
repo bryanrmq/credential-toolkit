@@ -239,7 +239,16 @@ export function Dialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   useModal(dialogRef, onClose, backdropRef);
   return (
-    <div ref={backdropRef} className="dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <div
+      ref={backdropRef}
+      className="dialog-backdrop"
+      onMouseDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        // Or the press would move focus to the page after it went back to the opener.
+        event.preventDefault();
+        onClose();
+      }}
+    >
       <div ref={dialogRef} className={`dialog ${className}`.trim()} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
         <h2 className="dialog__title">{title}</h2>
         {intro && <p className="dialog__intro">{intro}</p>}
