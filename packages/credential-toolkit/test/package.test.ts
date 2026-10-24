@@ -25,7 +25,7 @@ function runSmoke(file: string): { status: number; output: Record<string, unknow
   }
 }
 
-describe('@bryanrmq/oca-generator', () => {
+describe('@bryanrmq/credential-toolkit', () => {
   beforeAll(() => {
     execFileSync('npm', ['run', 'build', '--silent'], { cwd: packageDir, stdio: 'pipe' });
   }, 60_000);
@@ -139,12 +139,12 @@ describe('@bryanrmq/oca-generator', () => {
     expect(paths.some((path) => path.includes('.test.'))).toBe(false);
   });
 
-  describe('oca command', () => {
-    const work = mkdtempSync(join(tmpdir(), 'oca-cli-'));
+  describe('credential-toolkit command', () => {
+    const work = mkdtempSync(join(tmpdir(), 'credential-toolkit-cli-'));
     afterAll(() => rmSync(work, { recursive: true, force: true }));
 
-    /** Runs the built `oca` in a child process, as an installed bin would run. */
-    function oca(...args: string[]): { status: number | null; stdout: string; stderr: string } {
+    /** Runs the built `credential-toolkit` in a child process, as an installed bin would run. */
+    function cli(...args: string[]): { status: number | null; stdout: string; stderr: string } {
       const { status, stdout, stderr } = spawnSync(process.execPath, [join(packageDir, 'dist/cli.js'), ...args], { cwd: work, encoding: 'utf8' });
       return { status, stdout, stderr };
     }
@@ -168,7 +168,7 @@ describe('@bryanrmq/oca-generator', () => {
     it('builds the bundle, #integrity and Type Metadata the app exports', async () => {
       const { outputs, vct } = await appExport(fixture);
 
-      const toFiles = oca('build', fixture, '-o', 'bundle.json', '--vct', 'vct.json');
+      const toFiles = cli('build', fixture, '-o', 'bundle.json', '--vct', 'vct.json');
       expect(toFiles.status).toBe(0);
       expect(readFileSync(join(work, 'bundle.json'), 'utf8')).toBe(outputs.json);
       expect(readFileSync(join(work, 'vct.json'), 'utf8')).toBe(vct);
@@ -179,14 +179,14 @@ describe('@bryanrmq/oca-generator', () => {
       expect(toFiles.stderr).toBe('');
 
       // Without -o the bundle is all of stdout, byte for byte; the integrity and the Type Metadata go to stderr.
-      const toStdout = oca('build', fixture);
+      const toStdout = cli('build', fixture);
       expect(toStdout.status).toBe(0);
       expect(toStdout.stdout).toBe(outputs.json);
       expect(toStdout.stderr).toContain(`uri#integrity  ${outputs.integrity}`);
       expect(toStdout.stderr).toContain(vct);
       expect(toStdout.stderr).not.toContain('\x1b['); // no colour when not a terminal
 
-      const checked = oca('check', fixture);
+      const checked = cli('check', fixture);
       expect(checked).toEqual({ status: 0, stdout: 'No issues. The bundle is ready.\n', stderr: '' });
     });
 
@@ -195,11 +195,11 @@ describe('@bryanrmq/oca-generator', () => {
         project.hosting = { mode: 'url', url: 'http://example.org/oca-bundle.json' };
       });
 
-      const checked = oca('check', path);
+      const checked = cli('check', path);
       expect(checked.status).toBe(0);
       expect(checked.stdout).toBe('Warnings (1)\n  ● Hosting: The bundle URL should start with https://.\n\n1 warning.\n');
 
-      const built = oca('build', path, '-o', 'warnings.json');
+      const built = cli('build', path, '-o', 'warnings.json');
       expect(built.status).toBe(0);
       expect(built.stderr).toContain('Hosting: The bundle URL should start with https://.');
       expect(readFileSync(join(work, 'warnings.json'), 'utf8')).toBe((await appExport(path)).outputs.json);
@@ -212,7 +212,7 @@ describe('@bryanrmq/oca-generator', () => {
       });
       const { outputs } = await appExport(path);
 
-      const built = oca('build', path, '-o', 'embedded.json', '--vct', 'embedded.vct.json');
+      const built = cli('build', path, '-o', 'embedded.json', '--vct', 'embedded.vct.json');
       expect(built.status).toBe(0);
       const [entry] = (JSON.parse(readFileSync(join(work, 'embedded.vct.json'), 'utf8')) as TypeMetadata).display;
       // As both wallets check it: SHA-256 over the UTF-8 bytes of the whole data URL, standard base64.
@@ -231,7 +231,7 @@ describe('@bryanrmq/oca-generator', () => {
         project.languages.push('de-CH');
       });
 
-      const checked = oca('check', path);
+      const checked = cli('check', path);
       expect(checked.status).toBe(1);
       expect(checked.stdout).toBe(
         [
@@ -245,7 +245,7 @@ describe('@bryanrmq/oca-generator', () => {
         ].join('\n'),
       );
 
-      const built = oca('build', path, '-o', 'errors.json', '--vct', 'errors-vct.json');
+      const built = cli('build', path, '-o', 'errors.json', '--vct', 'errors-vct.json');
       expect(built.status).toBe(1);
       expect(built.stderr).toContain('Errors (3)');
       expect(built.stderr).toContain('Nothing written: fix the errors first.');
@@ -258,25 +258,28 @@ describe('@bryanrmq/oca-generator', () => {
       const newer = join(work, 'newer.credential-project.json');
       writeFileSync(newer, JSON.stringify({ ...JSON.parse(readFileSync(fixture, 'utf8')), version: 99 }));
 
-      const notProject = oca('check', join(packageDir, 'package.json'));
+      const notProject = cli('check', join(packageDir, 'package.json'));
       expect(notProject.status).toBe(2);
-      expect(notProject.stderr).toContain('is not an OCA Generator project file');
-      expect(oca('build', newer).stderr).toContain('was saved by a newer OCA Generator');
-      expect(oca('build', newer).status).toBe(2);
-      expect(oca('check', 'missing.credential-project.json').status).toBe(2);
-      expect(oca('build', fixture, '--colour').status).toBe(2);
-      expect(oca('check', fixture, '-o', 'bundle.json').status).toBe(2);
-      expect(oca('lint', fixture).status).toBe(2);
-      expect(oca().status).toBe(2);
+      expect(notProject.stderr).toContain('is not a Credential Toolkit project file');
+      expect(cli('build', newer).stderr).toContain('was saved by a newer Credential Toolkit');
+      expect(cli('build', newer).status).toBe(2);
+      expect(cli('check', 'missing.credential-project.json').status).toBe(2);
+      expect(cli('build', fixture, '--colour').status).toBe(2);
+      expect(cli('check', fixture, '-o', 'bundle.json').status).toBe(2);
+      expect(cli('lint', fixture).status).toBe(2);
+      expect(cli().status).toBe(2);
     });
 
     it('prints its help and version', () => {
-      const help = oca('--help');
+      const help = cli('--help');
       expect(help.status).toBe(0);
-      expect(help.stdout).toContain('oca build <project.credential-project.json> [-o bundle.json] [--vct vct.json]');
+      expect(help.stdout).toContain('credential-toolkit build <project.credential-project.json> [-o bundle.json] [--vct vct.json]');
+      expect(help.stdout).toContain('ctk is a short alias');
+      expect(help.stdout).not.toMatch(/\boca\b/); // the old command name
+      expect(help.stdout).not.toContain('Generator'); // nor the old app name
       expect(help.stdout).toContain('Exit codes:');
       const { version } = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8')) as { version: string };
-      expect(oca('--version')).toEqual({ status: 0, stdout: `${version}\n`, stderr: '' });
+      expect(cli('--version')).toEqual({ status: 0, stdout: `${version}\n`, stderr: '' });
     });
   });
 });

@@ -1,6 +1,6 @@
 name: Publish library
 
-# Publishes packages/oca-generator to npm as @bryanrmq/oca-generator, with npm provenance.
+# Publishes packages/credential-toolkit to npm as @bryanrmq/credential-toolkit, with npm provenance.
 # Runs when a lib-v* tag is pushed (the tag must name the version in the package's
 # package.json, e.g. lib-v0.1.0), or by hand from main. Needs the NPM_TOKEN repository
 # secret: an npm automation or granular token that can publish the package.
@@ -39,13 +39,13 @@ jobs:
       - name: Check the tag names the package version
         if: github.ref_type == 'tag'
         run: |
-          version="$(node -p "require('./packages/oca-generator/package.json').version")"
+          version="$(node -p "require('./packages/credential-toolkit/package.json').version")"
           if [[ "$GITHUB_REF_NAME" != "lib-v$version" ]]; then
             echo "::error::Tag $GITHUB_REF_NAME does not match the package version $version (expected lib-v$version)."
             exit 1
           fi
       - name: Publish
-        working-directory: packages/oca-generator
+        working-directory: packages/credential-toolkit
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}

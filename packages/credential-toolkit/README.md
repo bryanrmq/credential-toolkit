@@ -1,8 +1,8 @@
-# @bryanrmq/oca-generator
+# @bryanrmq/credential-toolkit
 
 Build and check the OCA bundle of a swiyu SD-JWT credential outside the browser, in your own tools
-and in CI. This is the logic of the [OCA Generator](https://github.com/bryanrmq/oca-generator) web
-app: it reads the project files the app saves (`*.oca-project.json`), reports the same issues, and
+and in CI. This is the logic of the [Credential Toolkit](https://github.com/bryanrmq/credential-toolkit) web
+app: it reads the project files the app saves (`*.credential-project.json`), reports the same issues, and
 builds the same bundle, `uri#integrity` value, Type Metadata (`vct.json`) and `issuer_metadata.json` for
 the swiyu generic issuer.
 
@@ -11,16 +11,16 @@ ES modules with TypeScript declarations, for Node 20 or later (and browsers). No
 ## Install
 
 ```bash
-npm install @bryanrmq/oca-generator
+npm install @bryanrmq/credential-toolkit
 ```
 
 ## Example
 
 ```js
 import { readFile, writeFile } from 'node:fs/promises';
-import { exportProject, filePlaceholders, parseProjectFile } from '@bryanrmq/oca-generator';
+import { exportProject, filePlaceholders, parseProjectFile } from '@bryanrmq/credential-toolkit';
 
-const file = parseProjectFile(await readFile('pet-permit.oca-project.json', 'utf8'));
+const file = parseProjectFile(await readFile('pet-permit.credential-project.json', 'utf8'));
 if (!file.ok) throw new Error(file.error === 'newer' ? 'Saved by a newer app' : 'Not a project file');
 
 const result = await exportProject(file.project);
@@ -65,21 +65,22 @@ The types (`Project`, `IssuerSettings`, `Issue`, `BundleJson`, `ExportOutputs`, 
 
 ## Command line
 
-The package installs an `oca` command that checks a project file and builds its bundle, for scripts and
-CI. It uses the API above and makes no network request.
+The package installs a `credential-toolkit` command that checks a project file and builds its bundle,
+for scripts and CI, and `ctk` as a short alias for it: `ctk check` is `credential-toolkit check`. It
+uses the API above and makes no network request.
 
 ```bash
-npx -p @bryanrmq/oca-generator oca check pet-permit.oca-project.json   # or, once installed: npx oca check …
+npx -p @bryanrmq/credential-toolkit credential-toolkit check pet-permit.credential-project.json   # or, once installed: npx ctk check …
 ```
 
 ```text
-oca build <project.oca-project.json> [-o bundle.json] [--vct vct.json]
-oca check <project.oca-project.json>
+credential-toolkit build <project.credential-project.json> [-o bundle.json] [--vct vct.json]
+credential-toolkit check <project.credential-project.json>
 ```
 
-- **`oca check`** lists the issues the app's Issues panel lists, in the same words: errors first, then
-  warnings, each with where it is (the attribute's key path, or `Credential`, `Languages`, `Hosting`) and
-  the languages it occurs in.
+- **`credential-toolkit check`** lists the issues the app's Issues panel lists, in the same words: errors
+  first, then warnings, each with where it is (the attribute's key path, or `Credential`, `Languages`,
+  `Hosting`) and the languages it occurs in.
 
   ```text
   Errors (1)
@@ -91,24 +92,25 @@ oca check <project.oca-project.json>
   1 error, 1 warning.
   ```
 
-- **`oca build`** checks the same way, then writes the bundle byte for byte as the app downloads it, to
-  `-o <file>` or to stdout, and prints its `uri#integrity` and the Type Metadata (or writes it byte for
-  byte to `--vct <file>`). When the bundle goes to stdout, everything else goes to stderr, so
-  `oca build project.oca-project.json > oca-bundle.json` works. It writes nothing when there are errors.
+- **`credential-toolkit build`** checks the same way, then writes the bundle byte for byte as the app
+  downloads it, to `-o <file>` or to stdout, and prints its `uri#integrity` and the Type Metadata (or
+  writes it byte for byte to `--vct <file>`). When the bundle goes to stdout, everything else goes to
+  stderr, so `ctk build project.credential-project.json > oca-bundle.json` works. It writes nothing when
+  there are errors.
 
 | Exit code | Meaning |
 | --- | --- |
 | `0` | No errors. Warnings are printed. |
-| `1` | Validation errors: `oca build` wrote nothing. |
+| `1` | Validation errors: `credential-toolkit build` wrote nothing. |
 | `2` | Input it can't use: a file it can't read or write, a file that isn't a project file, one saved by a newer app, or bad arguments. |
 
-Colours are used only on a terminal, and never when `NO_COLOR` is set. `oca --help` and `oca --version`
-work as usual.
+Colours are used only on a terminal, and never when `NO_COLOR` is set. `credential-toolkit --help` and
+`credential-toolkit --version` work as usual.
 
 In CI, for example:
 
 ```yaml
-- run: npx -p @bryanrmq/oca-generator oca build credential.oca-project.json -o public/oca/oca-bundle.json --vct vct.json
+- run: npx -p @bryanrmq/credential-toolkit ctk build pet-permit.credential-project.json -o public/oca/oca-bundle.json --vct vct.json
 ```
 
 ## License
