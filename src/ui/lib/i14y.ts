@@ -29,11 +29,6 @@ export async function searchConcepts(query: string, language: I14yLanguage, sign
   return parseSearchResults(await getJson(`${I14Y_API}/search?${params}`, signal)).slice(0, MAX_HITS);
 }
 
-export function statusTone(status: string): 'green' | 'blue' | 'gray' {
-  if (status === 'PreferredStandard' || status === 'Standard') return 'green';
-  return status === 'Qualified' ? 'blue' : 'gray';
-}
-
 /** "PreferredStandard" → "Preferred standard". */
 export function statusLabel(status: string): string {
   const words = status.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();

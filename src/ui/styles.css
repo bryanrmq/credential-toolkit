@@ -833,6 +833,7 @@ kbd.palette__meta {
   border-radius: var(--radius);
   display: grid;
   place-items: center;
+  background: var(--surface-muted);
   color: var(--text-strong);
 }
 .tour__title {
@@ -977,10 +978,15 @@ kbd.palette__meta {
 .start__privacy {
   display: inline-flex;
   gap: var(--space-2);
-  align-items: center;
-  color: var(--green-text);
+  align-items: flex-start;
+  color: var(--text-muted);
   font-size: var(--text-sm);
   margin: 0;
+}
+/* The line wraps on narrow screens, so the shield stays beside its first line at full size. */
+.start__privacy svg {
+  flex: none;
+  margin-top: 0.2em;
 }
 @media (max-width: 900px) {
   .start__hero {
@@ -1148,6 +1154,8 @@ kbd.palette__meta {
   border-radius: var(--radius-md);
   display: grid;
   place-items: center;
+  background: var(--surface-muted);
+  color: var(--text-strong);
 }
 .bento__title {
   font-size: var(--text-md);

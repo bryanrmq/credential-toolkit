@@ -6,6 +6,9 @@ function listOf(items: string[]): string {
   return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
 }
 
+/** What leaves the browser, said on the start screen and in the tour (main.tsx loads the analytics, latestRelease.ts asks GitHub). */
+const LEAVES_BROWSER = 'Only I14Y searches, a check for the latest release on GitHub and anonymous page-view statistics leave it.';
+
 /** Every piece of interface copy, in one place so the tool can be translated later. */
 export const t = {
   appName: 'Credential Toolkit',
@@ -16,7 +19,7 @@ export const t = {
     title: 'Design how your credential looks in swiyu',
     intro:
       'Build the OCA bundle for an SD-JWT credential: names, labels, colours, logos and attribute order in every language. Digests and references are computed for you.',
-    privacy: 'Everything stays in this browser. Nothing is uploaded.',
+    privacy: `Your project stays in this browser. ${LEAVES_BROWSER}`,
     newTitle: 'Start a new one',
     recent: {
       title: 'Recent projects',
@@ -596,7 +599,7 @@ export const t = {
         title: 'Welcome to the workspace',
         body: 'You build the bundle in three areas: list the attributes in Structure, write their texts and branding in Edit while the wallet preview follows, then copy and download the bundle in Output.',
         features: [
-          'The draft is saved in this browser as you type. Nothing is uploaded.',
+          `The draft is saved in this browser as you type. ${LEAVES_BROWSER}`,
           'Replay this tour any time from the ⋯ menu in the top bar.',
         ],
       },

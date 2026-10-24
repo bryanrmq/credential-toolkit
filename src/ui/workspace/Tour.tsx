@@ -19,7 +19,6 @@ import { type Box, type Size, placeCard, saveTourSeen, spotlightBox } from '../l
 interface TourStep {
   id: keyof typeof t.tour.steps;
   icon: ReactNode;
-  tone: string;
   /** The `data-tour` value of the area to light up; without one the card sits in the middle. */
   target?: string;
   view: View;
@@ -28,13 +27,13 @@ interface TourStep {
 }
 
 const STEPS: TourStep[] = [
-  { id: 'welcome', icon: <CompassIcon />, tone: 'var(--surface-muted)', view: 'editor' },
-  { id: 'structure', icon: <TreeStructureIcon />, tone: 'var(--blue-bg)', target: 'structure', view: 'editor', pane: 'structure' },
-  { id: 'edit', icon: <PencilSimpleIcon />, tone: 'var(--yellow-bg)', target: 'edit', view: 'editor', pane: 'inspector' },
-  { id: 'output', icon: <PackageIcon />, tone: 'var(--green-bg)', target: 'output', view: 'editor', pane: 'output' },
-  { id: 'issues', icon: <WarningCircleIcon />, tone: 'var(--red-bg)', target: 'issues', view: 'editor', pane: 'issues' },
-  { id: 'topbar', icon: <SlidersHorizontalIcon />, tone: 'var(--surface-muted)', target: 'topbar', view: 'editor' },
-  { id: 'translations', icon: <TranslateIcon />, tone: 'var(--blue-bg)', target: 'translations', view: 'translations' },
+  { id: 'welcome', icon: <CompassIcon />, view: 'editor' },
+  { id: 'structure', icon: <TreeStructureIcon />, target: 'structure', view: 'editor', pane: 'structure' },
+  { id: 'edit', icon: <PencilSimpleIcon />, target: 'edit', view: 'editor', pane: 'inspector' },
+  { id: 'output', icon: <PackageIcon />, target: 'output', view: 'editor', pane: 'output' },
+  { id: 'issues', icon: <WarningCircleIcon />, target: 'issues', view: 'editor', pane: 'issues' },
+  { id: 'topbar', icon: <SlidersHorizontalIcon />, target: 'topbar', view: 'editor' },
+  { id: 'translations', icon: <TranslateIcon />, target: 'translations', view: 'translations' },
 ];
 
 function tourKeys(): TourKeys {
@@ -193,7 +192,7 @@ export function Tour({ pane, onPane }: { pane: WorkspacePane; onPane: (pane: Wor
         <div id={contentId} aria-live="polite">
           <div key={step.id} className="tour__content">
             <div className="tour__head">
-              <span className="tour__icon" style={{ background: step.tone }} aria-hidden="true">
+              <span className="tour__icon" aria-hidden="true">
                 {step.icon}
               </span>
               <h2 className="tour__title">{copy.title}</h2>
