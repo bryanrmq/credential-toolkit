@@ -4,7 +4,7 @@ import type { ReportNote } from '../../core/import/report';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Badge, Button, Dialog } from '../components/controls';
-import { fetchConcept, searchConcepts, statusLabel, statusTone } from '../lib/i14y';
+import { fetchConcept, searchConcepts, statusLabel } from '../lib/i14y';
 
 const SEARCH_DELAY_MS = 300;
 
@@ -115,7 +115,7 @@ export function I14yDialog({ groupId, onAdded, onClose }: { groupId: string; onA
                       <span className="i14y-hit__meta">
                         <span className="mono">{hit.identifier}</span>
                         <span>{t.i14y.types[hit.conceptType]}</span>
-                        <Badge tone={statusTone(hit.registrationStatus)}>{statusLabel(hit.registrationStatus)}</Badge>
+                        <Badge tone="gray">{statusLabel(hit.registrationStatus)}</Badge>
                       </span>
                       <span className="i14y-hit__publisher">{textIn(hit.publisher, editLang)}</span>
                     </span>
