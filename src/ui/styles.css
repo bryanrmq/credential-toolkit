@@ -1140,8 +1140,48 @@ kbd.palette__meta {
   color: var(--text-muted);
   font-size: 13px;
 }
+.start__footer p {
+  margin: 0;
+}
 .start__footer a {
   color: inherit;
+}
+.start__footer a:hover {
+  color: var(--text);
+}
+/* One line of credits. Each item carries its separator in the negative margin on its left, so the
+   item that starts a line, the first or one that wrapped, has its separator clipped by the wrapper.
+   The wrapper's padding leaves room for the focus ring. */
+.start__credits {
+  margin: 4px -4px -4px;
+  padding: 4px;
+  overflow: hidden;
+}
+.start__credits ul {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 0 0 -20px;
+  padding: 0;
+  list-style: none;
+}
+.start__credits li {
+  white-space: nowrap;
+}
+.start__credits li::before {
+  content: '·';
+  content: '·' / '';
+  display: inline-block;
+  width: 20px;
+  text-align: center;
+}
+.start__credits a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+}
+.start__credits a:hover {
+  text-decoration: underline;
 }
 
 @media (prefers-reduced-motion: no-preference) {
