@@ -1,8 +1,7 @@
-import { CheckIcon, CopyIcon, DownloadSimpleIcon, SidebarSimpleIcon } from '@phosphor-icons/react';
-import { Fragment, useState } from 'react';
+import { DownloadSimpleIcon, SidebarSimpleIcon } from '@phosphor-icons/react';
+import { Fragment } from 'react';
 import type { ProjectChange } from '../../core/compare';
 import { BUNDLE_FILE_NAME } from '../../core/export/outputs';
-import { buildTypeMetadata } from '../../core/export/typeMetadata';
 import { useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
@@ -10,47 +9,14 @@ import { Button, InlineIssueFixes, Tabs } from '../components/controls';
 import { blocksBundle, useFieldIssues, useIssues } from '../issues';
 import { useBaseline } from '../lib/baseline';
 import { useChanges } from '../lib/changes';
-import { copyText, downloadText } from '../lib/download';
+import { downloadText } from '../lib/download';
 import { ChangesView } from './ChangesView';
+import { CopyButton } from './CopyButton';
 import { SampleControl } from './SampleControl';
 
-function CopyButton({ text, label, iconOnly = false }: { text: string; label: string; iconOnly?: boolean }) {
-  const [copied, setCopied] = useState(false);
-  if (iconOnly) {
-    return (
-      <Button
-        size="icon"
-        variant="ghost"
-        aria-label={copied ? t.output.copied : label}
-        title={copied ? t.output.copied : label}
-        onClick={async () => {
-          if (await copyText(text)) {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          }
-        }}
-      >
-        {copied ? <CheckIcon /> : <CopyIcon />}
-      </Button>
-    );
-  }
-  return (
-    <Button
-      size="small"
-      onClick={async () => {
-        if (await copyText(text)) {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        }
-      }}
-    >
-      <CopyIcon /> {copied ? t.output.copied : label}
-    </Button>
-  );
-}
-
 /**
- * The Output pane: the bundle, its VCT snippet and what changed since the published bundle, under one set of tabs.
+ * The Output pane: the bundle and what changed since the published bundle, under one set of tabs. The Type Metadata
+ * and the Issuer Metadata are on the Metadata page (`MetadataView`).
  * Under Bundle, where the bundle will be hosted and the sample credential sit above the JSON.
  * `onHide`, given on a wide window only, adds a button to the header that hides the pane.
  * `onJump` runs after a click in the Changes tab took the user to a field.
@@ -60,8 +26,6 @@ export function OutputPanel({ exportState, onHide, onJump }: { exportState: Expo
   const tab = useStore((state) => state.outputTab);
   const setOutputTab = useStore((state) => state.setOutputTab);
   const ready = exportState.status === 'ready' ? exportState : null;
-  // The `display` entries of `vct.json`, until the Type metadata tab shows the whole file (#111).
-  const snippet = ready ? JSON.stringify({ display: buildTypeMetadata(project, ready.outputs).metadata.display }, null, 2) : '';
   const baseline = useBaseline();
   const changes = useChanges(project, baseline);
   const changeCount = changes.status === 'ready' ? changes.changes.length : 0;
@@ -75,7 +39,6 @@ export function OutputPanel({ exportState, onHide, onJump }: { exportState: Expo
           onChange={setOutputTab}
           options={[
             { value: 'bundle', label: t.output.bundle },
-            { value: 'vct', label: t.output.vct },
             {
               value: 'changes',
               label: (
@@ -94,15 +57,7 @@ export function OutputPanel({ exportState, onHide, onJump }: { exportState: Expo
         />
         <span className="output__actions">
           {ready && <span className="field__hint">{t.output.size((ready.outputs.json.length / 1024).toFixed(1))}</span>}
-          {ready && tab !== 'changes' && (
-            <CopyButton
-              // One per tab, so a "Copied" from the other tab does not carry over.
-              key={tab}
-              text={tab === 'bundle' ? ready.outputs.json : snippet}
-              label={tab === 'bundle' ? t.output.copyJson : t.output.copySnippet}
-              iconOnly
-            />
-          )}
+          {ready && tab === 'bundle' && <CopyButton text={ready.outputs.json} label={t.output.copyJson} iconOnly />}
           {onHide && (
             <Button size="icon" variant="ghost" aria-label={t.workspace.hideOutput} title={t.workspace.hideOutputTitle} onClick={onHide}>
               <SidebarSimpleIcon mirrored />
@@ -122,7 +77,7 @@ export function OutputPanel({ exportState, onHide, onJump }: { exportState: Expo
               onJump={onJump}
             />
           ) : (
-            <BundleOutput exportState={exportState} tab={tab} snippet={snippet} />
+            <BundleOutput exportState={exportState} />
           )}
         </div>
       </div>
@@ -130,8 +85,8 @@ export function OutputPanel({ exportState, onHide, onJump }: { exportState: Expo
   );
 }
 
-/** The Bundle and VCT tabs: the JSON, its `#integrity` and, under Bundle, the download. */
-function BundleOutput({ exportState, tab, snippet }: { exportState: ExportState; tab: 'bundle' | 'vct'; snippet: string }) {
+/** The Bundle tab: the JSON, its `#integrity` and the download. */
+function BundleOutput({ exportState }: { exportState: ExportState }) {
   const errors = useIssues().filter(blocksBundle);
   const ready = exportState.status === 'ready' ? exportState : null;
   return (
@@ -140,8 +95,7 @@ function BundleOutput({ exportState, tab, snippet }: { exportState: ExportState;
       {exportState.status === 'failed' && <p className="error-text">{t.output.failed(exportState.error)}</p>}
       {ready && (
         <>
-          {tab === 'vct' && <p className="note">{t.output.vctHint}</p>}
-          <pre className="code-block">{tab === 'bundle' ? ready.outputs.json : snippet}</pre>
+          <pre className="code-block">{ready.outputs.json}</pre>
           <div className="integrity">
             <span className="field__label">{t.output.integrity}</span>
             <div className="integrity__value">
@@ -149,20 +103,18 @@ function BundleOutput({ exportState, tab, snippet }: { exportState: ExportState;
               <CopyButton text={ready.outputs.integrity} label={t.output.copyIntegrity} iconOnly />
             </div>
           </div>
-          {tab === 'bundle' && (
-            <div className="row row--wrap">
-              <Button
-                variant="primary"
-                size="small"
-                disabled={errors.length > 0}
-                title={errors.length ? t.workspace.downloadBlocked(errors.length) : undefined}
-                onClick={() => downloadText(BUNDLE_FILE_NAME, ready.outputs.json)}
-              >
-                <DownloadSimpleIcon /> {BUNDLE_FILE_NAME}
-              </Button>
-              <CopyButton text={ready.outputs.dataUrl} label={t.output.copyDataUrl} />
-            </div>
-          )}
+          <div className="row row--wrap">
+            <Button
+              variant="primary"
+              size="small"
+              disabled={errors.length > 0}
+              title={errors.length ? t.workspace.downloadBlocked(errors.length) : undefined}
+              onClick={() => downloadText(BUNDLE_FILE_NAME, ready.outputs.json)}
+            >
+              <DownloadSimpleIcon /> {BUNDLE_FILE_NAME}
+            </Button>
+            <CopyButton text={ready.outputs.dataUrl} label={t.output.copyDataUrl} />
+          </div>
         </>
       )}
     </>

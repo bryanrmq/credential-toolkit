@@ -130,7 +130,7 @@ export function validate(project: Project): Issue[] {
   // Hosting
   if (project.hosting.mode === 'url') {
     const url = project.hosting.url.trim();
-    if (url === '') warn('hosting-url-missing', 'Enter the URL where you will publish the bundle; the VCT snippet points to it.', { kind: 'hosting' });
+    if (url === '') warn('hosting-url-missing', 'Enter the URL where you will publish the bundle; vct.json points to it.', { kind: 'hosting' });
     else if (!url.startsWith('https://')) warn('hosting-url-insecure', 'The bundle URL should start with https://.', { kind: 'hosting' });
   }
 

@@ -361,6 +361,10 @@ export const t = {
     configurationIdHint: 'Key under credential_configurations_supported in the Issuer Metadata.',
     typeKey: 'Type key',
     preview: 'Preview',
+    /** The tabs of the page's right-hand column. */
+    files: 'Preview and files',
+    typeMetadata: 'Type metadata',
+    issuerMetadata: 'Issuer metadata',
     previewNote: 'The details screen in the editing language. The issuer name and logo show under "Issued by".',
   },
   /** The Edit pane when several nodes are selected. */
@@ -443,7 +447,6 @@ export const t = {
     previewCard: 'Preview card',
     views: { card: 'Card', details: 'Details', home: 'Home' },
     bundle: 'Bundle',
-    vct: 'VCT snippet',
     hosting: 'Where will the bundle live?',
     hostedUrl: 'At a URL I host',
     hostedUrlHint: 'Serve the file byte for byte; any change breaks the integrity check.',
@@ -453,13 +456,22 @@ export const t = {
     copyJson: 'Copy JSON',
     copyDataUrl: 'Copy data URL',
     copyIntegrity: 'Copy integrity',
-    copySnippet: 'Copy snippet',
     copied: 'Copied',
     integrity: 'uri#integrity',
     size: (kb: string) => `${kb} KB`,
-    vctHint: 'Add these entries to the "display" array of your SD-JWT VC Type Metadata. The type metadata also needs "profile_version": "swiss-profile-vc:1.0.0".',
     working: 'Building…',
     failed: (message: string) => `The bundle could not be built: ${message}`,
+    /** A generated metadata file (`vct.json`, `issuer_metadata.json`) under its Output tab. */
+    file: {
+      copy: 'Copy',
+      replaceBeforeUse: 'Replace before use',
+      ready: 'Ready',
+      readyTitle: 'No placeholders left: the file can be deployed as it is.',
+      integrityTitle: 'After deploying, compute the integrity',
+      integrityHint: (placeholder: string) =>
+        `Once vct.json is served, run this and put its output in place of ${placeholder}. Or set the Issuer URL on the Metadata page to have it computed.`,
+      copyCommand: 'Copy command',
+    },
   },
   issues: {
     title: 'Issues',
@@ -601,11 +613,10 @@ export const t = {
       },
       output: {
         title: 'Output',
-        body: 'What you publish: the bundle, the display entries for your type metadata and what changed.',
+        body: 'What you publish: the bundle and what changed. The Type Metadata and Issuer Metadata files are on the Metadata page.',
         features: (keys: TourKeys) => [
           'Bundle: copy the JSON and its uri#integrity value. Above it, choose where the bundle will be hosted.',
           'Attach a sample credential there too, to check that every source path exists. It is never exported.',
-          'VCT snippet: the display entries to add to your SD-JWT VC Type Metadata.',
           'Changes: what changed since the published bundle and whether uri#integrity changed. Click a change to jump to its field.',
           `On a wide window, [[${keys.output}]] or the button in its header hides it to give Edit more room. The top bar shows it again.`,
         ],

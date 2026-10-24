@@ -13,7 +13,9 @@ export type View = 'editor' | 'translations';
 /** Which file the workspace edits: the OCA bundle (in the Editor or the Translations view) or the Issuer and Type Metadata. */
 export type Area = 'oca' | 'metadata';
 export type Theme = 'light' | 'dark';
-export type OutputTab = 'bundle' | 'vct' | 'changes';
+export type OutputTab = 'bundle' | 'changes';
+/** The Metadata page's right-hand column: the wallet's details screen, `vct.json` (`'vct'`) or `issuer_metadata.json`. */
+export type MetadataTab = 'preview' | 'vct' | 'issuerMetadata';
 
 /**
  * What the toast reports: how many issues a fix fixed, that it failed, or that the project changed meanwhile;
@@ -69,6 +71,7 @@ export interface AppState {
   languagesOpen: boolean;
   tourOpen: boolean;
   outputTab: OutputTab;
+  metadataTab: MetadataTab;
   /** Whether a wide window shows the Output pane. The workspace remembers it with the pane layout. */
   outputOpen: boolean;
   /** The platform and view the wallet preview shows; a variant the platform lacks shows its detail card (`shownVariant`). */
@@ -111,6 +114,7 @@ export interface AppState {
   setLanguagesOpen: (open: boolean) => void;
   setTourOpen: (open: boolean) => void;
   setOutputTab: (tab: OutputTab) => void;
+  setMetadataTab: (tab: MetadataTab) => void;
   setOutputOpen: (open: boolean) => void;
   setCardPlatform: (platform: CardPlatform) => void;
   setCardVariant: (variant: CardVariant) => void;
@@ -212,6 +216,7 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
   languagesOpen: false,
   tourOpen: false,
   outputTab: 'bundle',
+  metadataTab: 'preview',
   outputOpen: true,
   cardPlatform: 'ios',
   cardVariant: 'detail',
@@ -305,6 +310,7 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
   setLanguagesOpen: (languagesOpen) => set({ languagesOpen }),
   setTourOpen: (tourOpen) => set({ tourOpen }),
   setOutputTab: (outputTab) => set({ outputTab }),
+  setMetadataTab: (metadataTab) => set({ metadataTab }),
   setOutputOpen: (outputOpen) => set({ outputOpen }),
   setCardPlatform: (cardPlatform) => set({ cardPlatform }),
   setCardVariant: (cardVariant) => set({ cardVariant }),

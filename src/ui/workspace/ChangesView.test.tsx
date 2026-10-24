@@ -70,11 +70,11 @@ beforeEach(() => {
 });
 
 describe('Changes tab', () => {
-  it('sits after Bundle and VCT', async () => {
+  it('sits after Bundle', async () => {
     await open(null, published());
     render(<Workspace />);
     const tabs = within(output().getByRole('tablist', { name: 'Output' })).getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Bundle', 'VCT snippet', 'Changes']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Bundle', 'Changes']);
   });
 
   it('asks for the published bundle when there is none', async () => {

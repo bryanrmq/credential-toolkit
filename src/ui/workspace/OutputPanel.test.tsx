@@ -16,7 +16,7 @@ function loadProject(hosting: 'dataUrl' | 'emptyUrl' = 'dataUrl') {
 }
 
 const output = () => within(screen.getByRole('region', { name: 'Output' }));
-/** The JSON the pane shows: the bundle or the VCT snippet. */
+/** The bundle JSON the pane shows. */
 const shownJson = () => screen.getByRole('region', { name: 'Output' }).querySelector('pre')!;
 /** The hosting choice, shown above the JSON under the Bundle tab. */
 const hosting = () => output().queryByRole('group', { name: 'Where will the bundle live?' });
@@ -31,6 +31,13 @@ beforeEach(() => {
 });
 
 describe('Output pane', () => {
+  it('has the Bundle and Changes tabs; the Type and Issuer Metadata are on the Metadata page', () => {
+    render(<Workspace />);
+    expect(output().getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Bundle', 'Changes']);
+    expect(output().queryByRole('tab', { name: 'VCT snippet' })).not.toBeInTheDocument();
+    expect(output().queryByRole('tab', { name: 'Type metadata' })).not.toBeInTheDocument();
+  });
+
   it('shows only the bundle, with no preview, divider or collapse control', async () => {
     render(<Workspace />);
     expect(output().getByRole('tablist', { name: 'Output' })).toBeInTheDocument();
@@ -54,7 +61,7 @@ describe('Output pane', () => {
     // A bundle saved as collapsed shows all the same.
     expect(await built()).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Output' }).querySelector('.output')).not.toHaveAttribute('style');
-    await user.click(output().getByRole('tab', { name: 'VCT snippet' }));
+    await user.click(output().getByRole('tab', { name: /^Changes/ }));
     await user.click(output().getByRole('tab', { name: 'Bundle' }));
     expect(localStorage.getItem('credential-toolkit:preview-height')).toBe('500');
     expect(localStorage.getItem('credential-toolkit:output-halves')).toBe(JSON.stringify({ preview: true, bundle: false }));
@@ -90,14 +97,12 @@ describe('Hosting and the sample credential', () => {
     expect(useStore.getState().project!.hosting).toEqual({ mode: 'url', url: 'https://issuer.example.ch/oca.json' });
   });
 
-  it('leaves them out of the VCT and Changes tabs', async () => {
+  it('leaves them out of the Changes tab', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
-    await user.click(output().getByRole('tab', { name: 'VCT snippet' }));
-    expect(hosting()).not.toBeInTheDocument();
-    expect(output().queryByRole('button', { name: 'Attach sample' })).not.toBeInTheDocument();
     await user.click(output().getByRole('tab', { name: /^Changes/ }));
     expect(hosting()).not.toBeInTheDocument();
+    expect(output().queryByRole('button', { name: 'Attach sample' })).not.toBeInTheDocument();
     await user.click(output().getByRole('tab', { name: 'Bundle' }));
     expect(hosting()).toBeInTheDocument();
   });
@@ -117,7 +122,7 @@ describe('Hosting and the sample credential', () => {
 });
 
 describe('Bundle tab', () => {
-  it('shows the size, copies what the tab shows and puts the integrity line under the JSON', async () => {
+  it('shows the size, copies the JSON and puts the integrity line under it', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
     await built();
@@ -130,16 +135,6 @@ describe('Bundle tab', () => {
     await user.click(output().getByRole('button', { name: 'Copy JSON' }));
     expect(await navigator.clipboard.readText()).toBe(bundleText);
 
-    await user.click(output().getByRole('tab', { name: 'VCT snippet' }));
-    expect(useStore.getState().outputTab).toBe('vct');
-    const snippet = shownJson();
-    expect(snippet.textContent).not.toBe(bundleText);
-    const [entry] = JSON.parse(snippet.textContent!).display;
-    expect(entry).toMatchObject({ lang: 'de-CH', name: 'Hundebewilligung', description: 'Für Hundehalter' });
-    expect(entry).not.toHaveProperty('locale');
-    await user.click(output().getByRole('button', { name: 'Copy snippet' }));
-    expect(await navigator.clipboard.readText()).toBe(snippet.textContent);
-    expect(output().getByText(/Add these entries to the "display" array/)).toBeInTheDocument();
   });
 });
 
