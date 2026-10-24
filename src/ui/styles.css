@@ -23,7 +23,8 @@
  *           segments are --surface with an inset --border-strong ring and 600 weight.
  * Focus     --focus-outline everywhere (:focus-visible); inputs, selects and textareas use --focus-border with
  *           --focus-halo instead. Menu items inset the outline (outline-offset: -2px).
- * Controls  --control-h 30 (top bar controls) · --control-h-sm 26 (small buttons, compact selects).
+ * Controls  --control-h 30 (top bar controls) · --control-h-sm 26 (small buttons, compact selects) ·
+ *           --control-h-touch 40 (top bar controls under a finger: `hover: none` or a phone-wide window).
  * Icons     Phosphor at 12 (carets, inline), 14 (menus, dense rows), 16 (default) and 18 (feature tiles only); the
  *           wallet previews keep the platform sizes.
  *
@@ -109,6 +110,7 @@
   /* Controls */
   --control-h: 30px;
   --control-h-sm: 26px;
+  --control-h-touch: 40px;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   color-scheme: light;
 }
@@ -195,18 +197,22 @@ kbd {
     transform 150ms var(--ease);
   white-space: nowrap;
 }
-.btn:active:not(:disabled) {
+.btn:active:not(:disabled, [aria-disabled='true']) {
   transform: scale(0.98);
 }
 .btn:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }
+/* Blocked but still focusable (the top bar's Download): it looks disabled, and pressing it shows why. */
+.btn[aria-disabled='true'] {
+  opacity: 0.45;
+}
 .btn--primary {
   background: var(--accent);
   color: var(--on-accent);
 }
-.btn--primary:hover:not(:disabled) {
+.btn--primary:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--accent-hover);
 }
 .btn--secondary {
@@ -241,6 +247,24 @@ kbd {
 }
 .btn--icon {
   padding: 5px;
+}
+/* A text action in running text or a list: the one text-button style. */
+.btn--link {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-strong);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: normal;
+}
+.btn--link:hover:not(:disabled) {
+  color: var(--text);
+}
+.btn--link:active:not(:disabled) {
+  transform: none;
 }
 /* The caret of a menu button, such as Structure's Add. */
 .btn__caret {
@@ -1084,19 +1108,9 @@ kbd.palette__meta {
   background: var(--border-strong);
   color: var(--text-strong);
 }
-.recent__more {
-  margin-top: var(--space-2);
-  padding: var(--space-0-5) 0;
-  border: 0;
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
+.recent__footer {
+  margin: var(--space-2) 0 0;
   font-size: var(--text-xs);
-  cursor: pointer;
-}
-.recent__more:hover {
-  color: var(--text-strong);
-  text-decoration: underline;
 }
 @media (max-width: 600px) {
   .recent__languages {
@@ -1328,7 +1342,11 @@ kbd.palette__meta {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
+  /* The name goes last: other things leave the bar before it gets less (TopBar's `useFit`). */
+  min-width: 12ch;
+}
+.topbar:not([data-fit~='brand']) .topbar__name {
+  min-width: 24ch;
 }
 /* The OCA / Metadata switch: which file the workspace edits, like tabs of a document. */
 .topbar__areas {
@@ -1350,6 +1368,50 @@ kbd.palette__meta {
 }
 .topbar__issues {
   padding: 3px var(--space-1);
+}
+/* A control of the OCA (the view toggle, Output) keeps its room on the Metadata page, so the rest doesn't move. */
+.topbar__slot {
+  display: flex;
+}
+.topbar__slot--idle {
+  visibility: hidden;
+}
+/* What leaves a crowded bar, step by step (TopBar's `useFit`): the brand and the search shortcut, then the language
+   switch for its dropdown, then the view toggle for the menu. */
+.topbar[data-fit~='brand'] .wordmark__text--compact,
+.topbar[data-fit~='brand'] .wordmark__beta--compact,
+.topbar[data-fit~='brand'] .wordmark__version--compact,
+.topbar[data-fit~='brand'] .topbar__divider,
+.topbar[data-fit~='brand'] .topbar__palette kbd,
+.topbar[data-fit~='lang'] .topbar__lang,
+.topbar[data-fit~='view'] .topbar__view {
+  display: none;
+}
+.topbar[data-fit~='brand'] .topbar__palette {
+  width: var(--control-h);
+  justify-content: center;
+  padding-inline: 0;
+}
+.topbar[data-fit~='brand'] .menu__item.compact-only,
+.topbar[data-fit~='view'] .menu__item.narrow-only {
+  display: flex;
+}
+.topbar[data-fit~='lang'] .topbar__lang-select {
+  display: initial;
+}
+.topbar[data-fit~='lang'] .topbar__actions {
+  gap: var(--space-2);
+}
+/* Every label Download can show, stacked in one cell: the widest sets the width, only the current one shows. */
+.topbar__download-label {
+  display: inline-grid;
+}
+.topbar__download-label > span {
+  grid-area: 1 / 1;
+  text-align: center;
+}
+.topbar__download-spare {
+  visibility: hidden;
 }
 .select--compact {
   width: auto;
@@ -1496,16 +1558,11 @@ kbd.palette__meta {
 }
 
 /* Responsive helpers: wide (> 960px) vs narrow */
-.narrow-only {
+.narrow-only,
+.compact-only {
   display: none;
 }
-@media (max-width: 1100px) {
-  .wordmark__text--compact,
-  .wordmark__version--compact,
-  .topbar__divider {
-    display: none;
-  }
-}
+
 @media (max-width: 960px) {
   .wide-only {
     display: none;
@@ -1528,6 +1585,10 @@ kbd.palette__meta {
   .hide-phone {
     display: none;
   }
+  /* The name shows as the Edit pane's title instead. */
+  .topbar__name {
+    display: none;
+  }
   .label-phone-hidden {
     position: absolute;
     width: 1px;
@@ -1535,6 +1596,18 @@ kbd.palette__meta {
     overflow: hidden;
     clip: rect(0 0 0 0);
     white-space: nowrap;
+  }
+}
+/* Under a finger, and on a phone-wide window, every top bar control is at least 40px. */
+@media (hover: none), (max-width: 720px) {
+  .topbar .btn,
+  .topbar .segmented,
+  .topbar .select--compact {
+    height: var(--control-h-touch);
+  }
+  .topbar .btn--icon,
+  .topbar[data-fit~='brand'] .topbar__palette {
+    width: var(--control-h-touch);
   }
 }
 /* Autosave ran out of browser storage: a warning under the top bar while the project stays open. */
@@ -3842,17 +3915,6 @@ button.changes__subject {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.i14y-link__unlink {
-  border: 0;
-  padding: 0;
-  background: none;
-  color: var(--text-muted);
-  font: inherit;
-  cursor: pointer;
-}
-.i14y-link__unlink:hover {
-  color: var(--text-strong);
-}
 /* An unlinked "looks like" line: dashed like the tree's I14Y? marker, one per candidate */
 .i14y-matches {
   display: grid;
@@ -3865,16 +3927,6 @@ button.changes__subject {
   padding: 3px 9px;
   border: 1px dashed color-mix(in srgb, var(--blue-text) 50%, transparent);
   background: transparent;
-}
-.text-button {
-  border: 0;
-  padding: 0;
-  background: none;
-  color: var(--text-strong);
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
 }
 .i14y-reset {
   color: var(--blue-text);
@@ -3907,6 +3959,6 @@ button.changes__subject {
   align-items: center;
   gap: var(--space-1) var(--space-2);
 }
-.i14y-review__list li[aria-current='true'] .text-button {
+.i14y-review__list li[aria-current='true'] .btn--link {
   font-weight: 600;
 }

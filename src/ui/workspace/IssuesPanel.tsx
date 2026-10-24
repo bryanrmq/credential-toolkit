@@ -15,7 +15,8 @@ const BODY_ID = 'issues-panel-body';
  * always shows; collapsing it gives the panes the space back. While open, the top edge resizes the list, which
  * scrolls on its own; the height is remembered like the pane widths. On a narrow window the panel is not docked:
  * it is the Issues pane, filling the space with no handle and no collapse button.
- * `focusRequest` moves the focus to the list each time it changes (the top-bar button bumps it);
+ * `focusRequest` moves the focus to the list each time it changes (the top-bar buttons bump it), or to the first
+ * error's summary with `focusFirstError` (the blocked Download);
  * `onJump` runs after a click took the user to an issue's field.
  */
 export function IssuesPanel({
@@ -23,12 +24,14 @@ export function IssuesPanel({
   onOpenChange,
   docked = true,
   focusRequest = 0,
+  focusFirstError = false,
   onJump,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   docked?: boolean;
   focusRequest?: number;
+  focusFirstError?: boolean;
   onJump?: (issue: Issue) => void;
 }) {
   const project = useStore((state) => state.project)!;
@@ -42,8 +45,10 @@ export function IssuesPanel({
   const panelRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   useEffect(() => {
-    if (focusRequest > 0) listRef.current?.focus();
-  }, [focusRequest]);
+    if (focusRequest === 0) return;
+    const firstError = focusFirstError ? listRef.current?.querySelector<HTMLElement>('[data-severity="error"] .issues__summary') : null;
+    (firstError ?? listRef.current)?.focus();
+  }, [focusRequest, focusFirstError]);
   const [height, setHeight] = useState(loadIssuesHeight);
   const heightRef = useRef(height);
   const resize = (value: number) => {
@@ -118,7 +123,7 @@ export function IssuesPanel({
               {groups.map((group, index) => (
                 // The whole row jumps to the field; the summary button makes that reachable by keyboard, and the
                 // chips and fix buttons stop the click so they do their own thing.
-                <li key={index} onClick={() => jump(group.issues[0])}>
+                <li key={index} data-severity={group.severity} onClick={() => jump(group.issues[0])}>
                   {group.severity === 'error' ? (
                     <WarningCircleIcon size={14} className="issue-icon--error" />
                   ) : (

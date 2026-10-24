@@ -70,7 +70,7 @@ export function I14yMatchBanner({ onReview }: { onReview: () => void }) {
             {listOpen ? t.i14yMatch.hideList : t.i14yMatch.showWhich}
           </Button>
           {clear.length > 0 && (
-            <Button size="small" variant="primary" onClick={() => void linkToI14y(clear.map((match) => ({ nodeId: match.nodeId, conceptId: match.clear!.id })))}>
+            <Button size="small" onClick={() => void linkToI14y(clear.map((match) => ({ nodeId: match.nodeId, conceptId: match.clear!.id })))}>
               {t.i14yMatch.linkAll(clear.length)}
             </Button>
           )}
@@ -83,9 +83,9 @@ export function I14yMatchBanner({ onReview }: { onReview: () => void }) {
         <ul className="i14y-review__list" aria-label={t.i14yMatch.listLabel}>
           {pending.map((match, index) => (
             <li key={match.nodeId} aria-current={index === current}>
-              <button type="button" className="text-button" onClick={() => open(index)}>
+              <Button variant="link" onClick={() => open(index)}>
                 <code>{match.path}</code>
-              </button>
+              </Button>
               <span aria-hidden="true">→</span>
               <span>
                 {conceptName(index)} <code className="tag-mono">{match.hits[0].identifier}</code>

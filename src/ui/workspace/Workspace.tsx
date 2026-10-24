@@ -33,7 +33,7 @@ import { OutputPanel } from './OutputPanel';
 import { I14yMatchBanner } from './I14yMatchBanner';
 import { ReportBanner } from './ReportBanner';
 import { StructurePane } from './StructurePane';
-import { TopBar } from './TopBar';
+import { type ShowIssues, TopBar } from './TopBar';
 import { Tour } from './Tour';
 import { TranslationNotice } from './TranslationNotice';
 import { MetadataView } from './MetadataView';
@@ -112,20 +112,22 @@ export function Workspace() {
     />
   );
   const [issuesOpen, setIssuesOpen] = useState(loadIssuesOpen);
-  const [issuesFocus, setIssuesFocus] = useState(0);
+  const [issuesFocus, setIssuesFocus] = useState({ count: 0, firstError: false });
   const openIssues = (open: boolean) => {
     setIssuesOpen(open);
     saveIssuesOpen(open);
   };
-  // The top-bar button: a wide window expands the panel, a narrow one switches to the Issues pane.
-  const showIssues = () => {
+  // The top-bar counts and the blocked Download: a wide window expands the panel, a narrow one switches to the Issues
+  // pane, which only the OCA's editor has.
+  const showIssues: ShowIssues = ({ firstError = false } = {}) => {
     if (wide) {
       openIssues(true);
     } else {
+      useStore.getState().setArea('oca');
       useStore.getState().setView('editor');
       setPane('issues');
     }
-    setIssuesFocus((count) => count + 1);
+    setIssuesFocus(({ count }) => ({ count: count + 1, firstError }));
   };
   const issuesPane = !wide && area === 'oca' && view === 'editor' && pane === 'issues';
   const canSave = useDrafts((state) => state.available);
@@ -202,7 +204,8 @@ export function Workspace() {
             open={issuesOpen}
             onOpenChange={openIssues}
             docked={wide}
-            focusRequest={issuesFocus}
+            focusRequest={issuesFocus.count}
+            focusFirstError={issuesFocus.firstError}
             // On narrow windows only one pane shows: switch to the one that holds the field.
             onJump={(issue) => issue.target.kind !== 'languages' && setPane(issue.target.kind === 'hosting' ? 'output' : 'inspector')}
           />

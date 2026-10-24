@@ -33,7 +33,7 @@ describe('Workspace', () => {
     const user = userEvent.setup();
     render(<Workspace />);
     expect(within(screen.getByRole('region', { name: 'Issues' })).getByText('1 error')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Download bundle' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Fix 1 error' })).toHaveAttribute('aria-disabled', 'true');
 
     await user.click(screen.getByRole('button', { name: /"broken" has no source path/ }));
     expect(screen.getByLabelText('Key')).toHaveValue('broken');

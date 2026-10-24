@@ -158,7 +158,13 @@ export const t = {
     editorView: 'Editor view',
     translationsView: 'Translations view',
     download: 'Download bundle',
+    /** On the Metadata page, whose own files download from the page: the top bar still downloads the OCA bundle. */
+    downloadOcaBundle: 'Download OCA bundle',
     downloadBlocked: (count: number) => `Fix ${count} ${count === 1 ? 'error' : 'errors'} to download`,
+    /** The blocked Download's own label; `downloadBlocked` describes it. */
+    fixErrors: (count: number) => `Fix ${count} ${count === 1 ? 'error' : 'errors'}`,
+    /** The menu's line for the app, its release and the Beta flag, once they leave a crowded top bar. */
+    about: (app: string, release: string | undefined, beta: string) => `${app}${release ? ` ${release}` : ''} (${beta})`,
     errorCount: (count: number) => `${count} ${count === 1 ? 'error' : 'errors'}`,
     warningCount: (count: number) => `${count} ${count === 1 ? 'warning' : 'warnings'}`,
     newProject: 'New project',
