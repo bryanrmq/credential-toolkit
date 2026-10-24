@@ -45,6 +45,7 @@ describe('@bryanrmq/oca-generator', () => {
       uri: 'https://example.org/oca/oca-bundle.json',
       integrity: outputs.integrity,
       vct: buildTypeMetadata(parsed.project, outputs),
+      issuerMetadata: buildIssuerMetadata(parsed.project),
       roundTrip: true,
     });
   });
@@ -72,6 +73,7 @@ describe('@bryanrmq/oca-generator', () => {
       'bundleIntegrity',
       'defaultIdentifiers',
       'exportProject',
+      'filePlaceholders',
       'hasErrors',
       'importBundle',
       'isIssuerLogo',
@@ -79,6 +81,7 @@ describe('@bryanrmq/oca-generator', () => {
       'isProject',
       'issuerIdentifiers',
       'issuerOf',
+      'issuerUrl',
       'parseJsonText',
       'parseProjectFile',
       'projectFileName',
@@ -86,8 +89,12 @@ describe('@bryanrmq/oca-generator', () => {
       'serializeIssuerMetadata',
       'serializeProjectFile',
       'serializeTypeMetadata',
+      'servedTypeMetadataText',
+      'servedTypeMetadataUri',
       'typeMetadataUri',
       'validate',
+      'vctIntegrityCommand',
+      'vctMetadataIntegrity',
     ]);
   });
 
@@ -99,6 +106,24 @@ describe('@bryanrmq/oca-generator', () => {
     expect(built).toEqual(buildIssuerMetadata(parsed.project));
     expect(entry.ISSUER_METADATA_FILE_NAME).toBe('issuer_metadata.json');
     expect(built.metadata.credential_issuer).toBe(entry.EXTERNAL_URL_PLACEHOLDER);
+  });
+
+  it('computes vct_metadata_uri#integrity over vct.json as the generic issuer serves it', async () => {
+    const entry = await import(new URL('../dist/index.js', import.meta.url).href);
+    const parsed = parseProjectFile(readFileSync(fixture, 'utf8'));
+    if (!parsed.ok) throw new Error(parsed.error);
+    const project: Project = { ...parsed.project, issuer: { ...parsed.project.issuer, name: parsed.project.issuer?.name ?? {}, url: 'https://issuer.example.org' } };
+    const result = await entry.exportProject(project);
+    expect(result.ok).toBe(true);
+    const served = result.vct.text.replaceAll('${external-url}', 'https://issuer.example.org');
+    const integrity = `sha256-${createHash('sha256').update(served, 'utf8').digest('base64')}`;
+    const configuration = Object.values(result.issuerMetadata.metadata.credential_configurations_supported)[0] as Record<string, unknown>;
+    expect(configuration['vct_metadata_uri#integrity']).toBe(integrity);
+    expect(entry.filePlaceholders(result).map(({ file, placeholders }: { file: string; placeholders: { text: string }[] }) => [file, placeholders.map(({ text }) => text)])).toEqual([
+      ['oca-bundle.json', []],
+      ['vct.json', ['${external-url}']],
+      ['issuer_metadata.json', ['${external-url}']],
+    ]);
   });
 
   it('packs only the build, the README and package.json', () => {

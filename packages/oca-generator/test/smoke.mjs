@@ -39,6 +39,7 @@ process.stdout.write(
       uri: result.outputs.uri,
       integrity: result.outputs.integrity,
       vct: result.vct,
+      issuerMetadata: result.issuerMetadata,
       roundTrip,
     },
     null,

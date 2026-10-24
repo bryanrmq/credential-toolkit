@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { type Project, emptyProject, newAttribute } from '../model';
 import { buildBundle } from './bundle';
+import { buildIssuerMetadata } from './issuerMetadata';
 import { buildOutputs } from './outputs';
 import { exportProject } from './project';
 import { buildTypeMetadata } from './typeMetadata';
@@ -19,7 +20,17 @@ describe('exportProject', () => {
     const result = await exportProject(project);
     const { bundle } = await buildBundle(project);
     const outputs = await buildOutputs(project, bundle);
-    expect(result).toEqual({ ok: true, issues: [], bundle, outputs, vct: buildTypeMetadata(project, outputs) });
+    expect(result).toEqual({ ok: true, issues: [], bundle, outputs, vct: buildTypeMetadata(project, outputs), issuerMetadata: buildIssuerMetadata(project) });
+  });
+
+  it('computes vct_metadata_uri#integrity when the Issuer URL is set', async () => {
+    const project = clean();
+    project.issuer = { name: { 'de-CH': 'Kanton Bern' }, url: 'https://issuer.example.ch' };
+    const result = await exportProject(project);
+    if (!result.ok) throw new Error('expected an export');
+    const integrity = result.issuerMetadata.metadata.credential_configurations_supported.hundebewilligung_sd_jwt['vct_metadata_uri#integrity'];
+    expect(integrity).toMatch(/^sha256-[A-Za-z0-9+/]{43}=$/);
+    expect(result.issuerMetadata).toEqual(buildIssuerMetadata(project, integrity));
   });
 
   it('builds despite warnings and returns them', async () => {
