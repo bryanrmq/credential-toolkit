@@ -7,8 +7,14 @@ import {
   ISSUER_METADATA_FILE_NAME,
   VCT_INTEGRITY_PLACEHOLDER,
   buildIssuerMetadata,
+  filePlaceholders,
   serializeIssuerMetadata,
+  servedTypeMetadataText,
+  servedTypeMetadataUri,
+  vctIntegrityCommand,
+  vctMetadataIntegrity,
 } from './issuerMetadata';
+import { exportProject } from './project';
 
 const PNG = 'data:image/png;base64,iVBORw0KGgo=';
 const JPEG = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
@@ -152,6 +158,7 @@ describe('buildIssuerMetadata', () => {
       expect(json).toContain(placeholder.text);
       expect(placeholder.explanation).not.toBe('');
     }
+    expect(placeholders[1].command).toBe(vctIntegrityCommand('${external-url}/oid4vci/vct/hundebewilligung-v01'));
     expect(json.match(/\$\{[^}]*\}/g)?.every((text) => placeholders.some((placeholder) => placeholder.text === text))).toBe(true);
   });
 
@@ -182,5 +189,128 @@ describe('buildIssuerMetadata', () => {
     expect(attributes(imported)).toEqual(attributes(project));
     const pets = imported.root.children.find((node): node is GroupLink => node.kind === 'group' && node.key === 'pets');
     expect(pets).toMatchObject({ array: true, source: ['pets', null] });
+  });
+});
+
+const ISSUER_URL = 'https://issuer.example.ch';
+
+/** The fixture project, without its SVG logo (an export error), with the bundle hosted at a URL and, when given, the Issuer URL. */
+function hostedPetPermit(url?: string): Project {
+  const project = petPermit();
+  project.branding['fr-CH'].light = {};
+  project.hosting = { mode: 'url', url: `${ISSUER_URL}/oca/oca-bundle.json` };
+  if (url !== undefined) project.issuer = { ...project.issuer!, url };
+  return project;
+}
+
+/** `exportProject` for a project that has no errors. */
+async function exported(project: Project) {
+  const result = await exportProject(project);
+  if (!result.ok) throw new Error(JSON.stringify(result.issues));
+  return result;
+}
+
+/** `sha256-` + base64 of the SHA-256 of `text` as UTF-8, computed here rather than with the tool's `sriSha256`. */
+async function sri(text: string): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)));
+  return `sha256-${btoa(String.fromCharCode(...digest))}`;
+}
+
+describe('vct_metadata_uri#integrity', () => {
+  it('writes exactly the checked-in issuer_metadata.json with a computed integrity when the Issuer URL is set', async () => {
+    const { issuerMetadata } = await exported(hostedPetPermit(ISSUER_URL));
+    await expect(issuerMetadata.json).toMatchFileSnapshot('./golden/issuer_metadata.json');
+  });
+
+  it('is the SRI hash of vct.json with the Issuer URL for ${external-url}, while vct.json keeps the placeholder', async () => {
+    const { vct, issuerMetadata } = await exported(hostedPetPermit(ISSUER_URL));
+    const served = vct.text.replaceAll('${external-url}', ISSUER_URL);
+    expect(served).toContain('"vct": "https://issuer.example.ch/oid4vci/vct/hundebewilligung-v01"');
+    const integrity = issuerMetadata.metadata.credential_configurations_supported.hundebewilligung_sd_jwt['vct_metadata_uri#integrity'];
+    expect(integrity).toBe(await sri(served));
+    expect(issuerMetadata.json).not.toContain(VCT_INTEGRITY_PLACEHOLDER);
+    expect(vct.text).toContain('"vct": "${external-url}/oid4vci/vct/hundebewilligung-v01"');
+    expect(vct.text).not.toContain(ISSUER_URL + '/oid4vci');
+    // The rest of the file still keeps the generic issuer's placeholder.
+    expect(issuerMetadata.metadata.credential_issuer).toBe('${external-url}');
+  });
+
+  it('changes with anything that changes vct.json, and with the Issuer URL', async () => {
+    const integrityOf = async (edit: (project: Project) => void) => {
+      const project = hostedPetPermit(ISSUER_URL);
+      edit(project);
+      const { issuerMetadata } = await exported(project);
+      return Object.values(issuerMetadata.metadata.credential_configurations_supported)[0]['vct_metadata_uri#integrity'];
+    };
+    const base = await integrityOf(() => {});
+    const changed = await Promise.all([
+      integrityOf((project) => (project.meta['fr-CH'].description = 'Pour les détenteurs')),
+      integrityOf((project) => (project.issuer!.typeKey = 'dog-permit-v02')),
+      integrityOf((project) => (project.hosting = { mode: 'url', url: `${ISSUER_URL}/oca/v2.json` })),
+      integrityOf((project) => (project.root.children.find((node) => node.kind === 'attribute')!.labels['de-CH'] = 'Familienname')),
+      integrityOf((project) => (project.issuer!.url = 'https://other.example.ch')),
+    ]);
+    for (const value of changed) expect(value).not.toBe(base);
+    expect(new Set(changed).size).toBe(changed.length);
+    // The issuer name is not in vct.json, so it leaves the integrity alone.
+    expect(await integrityOf((project) => (project.issuer!.name['de-CH'] = 'Kanton Zürich'))).toBe(base);
+  });
+
+  it('keeps the placeholder and gives the command with the ${external-url} URL without an Issuer URL', async () => {
+    for (const url of [undefined, '', '   ', 'http://issuer.example.ch']) {
+      const project = hostedPetPermit(url);
+      const { vct } = await exported({ ...project, issuer: { ...project.issuer!, url: undefined } });
+      expect(await vctMetadataIntegrity(project, vct.text)).toBeUndefined();
+      const built = buildIssuerMetadata(project);
+      expect(built.metadata.credential_configurations_supported.hundebewilligung_sd_jwt['vct_metadata_uri#integrity']).toBe(VCT_INTEGRITY_PLACEHOLDER);
+      expect(built.placeholders.find((placeholder) => placeholder.integrity)?.command).toBe(
+        `echo "sha256-$(curl -s '\${external-url}/oid4vci/vct/hundebewilligung-v01' | openssl dgst -binary -sha256 | openssl base64 -A)"`,
+      );
+    }
+    const { issuerMetadata } = await exported(hostedPetPermit());
+    expect(issuerMetadata.json).toContain(`"vct_metadata_uri#integrity": "${VCT_INTEGRITY_PLACEHOLDER}"`);
+  });
+
+  it('serves the Type Metadata at the Issuer URL when it is set', () => {
+    expect(servedTypeMetadataUri(hostedPetPermit())).toBe('${external-url}/oid4vci/vct/hundebewilligung-v01');
+    expect(servedTypeMetadataUri(hostedPetPermit(` ${ISSUER_URL} `))).toBe('https://issuer.example.ch/oid4vci/vct/hundebewilligung-v01');
+    // Written in as typed, as the generic issuer writes in EXTERNAL_URL.
+    expect(servedTypeMetadataUri(hostedPetPermit(`${ISSUER_URL}/`))).toBe('https://issuer.example.ch//oid4vci/vct/hundebewilligung-v01');
+    expect(servedTypeMetadataText('{"vct": "${external-url}/a", "b": "${external-url}", "c": "${other}"}', ISSUER_URL)).toBe(
+      '{"vct": "https://issuer.example.ch/a", "b": "https://issuer.example.ch", "c": "${other}"}',
+    );
+  });
+
+  it('quotes the URL in the command so the shell leaves it alone', () => {
+    expect(vctIntegrityCommand('https://issuer.example.ch/oid4vci/vct/a')).toBe(
+      `echo "sha256-$(curl -s 'https://issuer.example.ch/oid4vci/vct/a' | openssl dgst -binary -sha256 | openssl base64 -A)"`,
+    );
+    expect(vctIntegrityCommand("https://issuer.example.ch/it's")).toContain(`curl -s 'https://issuer.example.ch/it'\\''s' |`);
+  });
+});
+
+describe('filePlaceholders', () => {
+  const summary = (files: ReturnType<typeof filePlaceholders>) =>
+    files.map(({ file, placeholders }) => ({ file, placeholders: placeholders.map(({ text, integrity }) => ({ text, integrity })) }));
+  const externalUrl = { text: EXTERNAL_URL_PLACEHOLDER, integrity: false };
+
+  it('lists ${external-url} and the integrity placeholder without an Issuer URL', async () => {
+    const files = filePlaceholders(await exported(hostedPetPermit()));
+    expect(summary(files)).toEqual([
+      { file: 'oca-bundle.json', placeholders: [] },
+      { file: 'vct.json', placeholders: [externalUrl] },
+      { file: 'issuer_metadata.json', placeholders: [externalUrl, { text: VCT_INTEGRITY_PLACEHOLDER, integrity: true }] },
+    ]);
+    const integrity = files[2].placeholders[1];
+    expect(integrity.command).toContain("curl -s '${external-url}/oid4vci/vct/hundebewilligung-v01'");
+    for (const { placeholders } of files) for (const placeholder of placeholders) expect(placeholder.explanation).not.toBe('');
+  });
+
+  it('lists only ${external-url} with the Issuer URL set: the generic issuer still fills it in', async () => {
+    expect(summary(filePlaceholders(await exported(hostedPetPermit(ISSUER_URL))))).toEqual([
+      { file: 'oca-bundle.json', placeholders: [] },
+      { file: 'vct.json', placeholders: [externalUrl] },
+      { file: 'issuer_metadata.json', placeholders: [externalUrl] },
+    ]);
   });
 });

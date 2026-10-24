@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RELEASE_CACHE_KEY, RELEASE_MAX_AGE_MS, RELEASES_API } from './lib/latestRelease';
 import { Wordmark } from './Wordmark';
 
-const releaseUrl = 'https://github.com/bryanrmq/oca-generator/releases/tag/v0.3.0';
+const releaseUrl = 'https://github.com/bryanrmq/credential-toolkit/releases/tag/v0.3.0';
 
 function stubLatestRelease(body: unknown, status = 200) {
   const fetchMock = vi.fn(async () => new Response(JSON.stringify(body), { status }));

@@ -1,0 +1,141 @@
+{
+  "credential_issuer": "${external-url}",
+  "credential_endpoint": "${external-url}/oid4vci/api/credential",
+  "nonce_endpoint": "${external-url}/oid4vci/api/nonce",
+  "deferred_credential_endpoint": "${external-url}/oid4vci/api/deferred_credential",
+  "batch_credential_issuance": {
+    "batch_size": 10
+  },
+  "display": [
+    {
+      "name": "Kanton Bern",
+      "locale": "de-CH",
+      "logo": {
+        "uri": "data:image/jpeg;base64,/9j/4AAQSkZJRg=="
+      }
+    },
+    {
+      "name": "Canton de Berne",
+      "locale": "fr-CH",
+      "logo": {
+        "uri": "data:image/jpeg;base64,/9j/4AAQSkZJRg=="
+      }
+    }
+  ],
+  "credential_configurations_supported": {
+    "hundebewilligung_sd_jwt": {
+      "format": "dc+sd-jwt",
+      "vct": "${external-url}/oid4vci/vct/hundebewilligung-v01",
+      "vct_metadata_uri": "${external-url}/oid4vci/vct/hundebewilligung-v01",
+      "vct_metadata_uri#integrity": "sha256-7RrjFl9W/HSIOqrmVA46AfcHOxR0vq/X9vVDeU5Wh/0=",
+      "credential_signing_alg_values_supported": [
+        "ES256"
+      ],
+      "cryptographic_binding_methods_supported": [
+        "jwk"
+      ],
+      "proof_types_supported": {
+        "jwt": {
+          "proof_signing_alg_values_supported": [
+            "ES256"
+          ]
+        }
+      },
+      "credential_metadata": {
+        "display": [
+          {
+            "name": "Hundebewilligung",
+            "locale": "de-CH",
+            "description": "Für Hundehalter",
+            "background_color": "#2C75E3",
+            "logo": {
+              "uri": "data:image/png;base64,iVBORw0KGgo="
+            }
+          },
+          {
+            "name": "Permis pour chien",
+            "locale": "fr-CH"
+          }
+        ],
+        "claims": [
+          {
+            "path": [
+              "family_name"
+            ],
+            "display": [
+              {
+                "locale": "de-CH",
+                "name": "Nachname"
+              },
+              {
+                "locale": "fr-CH",
+                "name": "Nom de famille"
+              }
+            ]
+          },
+          {
+            "path": [
+              "address",
+              "city"
+            ],
+            "display": [
+              {
+                "locale": "de-CH",
+                "name": "Ort"
+              },
+              {
+                "locale": "fr-CH",
+                "name": "Lieu"
+              }
+            ]
+          },
+          {
+            "path": [
+              "nationalities",
+              null
+            ],
+            "display": [
+              {
+                "locale": "de-CH",
+                "name": "Nationalitäten"
+              }
+            ]
+          },
+          {
+            "path": [
+              "pets",
+              null,
+              "name"
+            ],
+            "display": [
+              {
+                "locale": "de-CH",
+                "name": "Name"
+              },
+              {
+                "locale": "fr-CH",
+                "name": "Nom"
+              }
+            ]
+          },
+          {
+            "path": [
+              "chip"
+            ],
+            "display": [
+              {
+                "locale": "fr-CH",
+                "name": "Puce"
+              }
+            ]
+          },
+          {
+            "path": [
+              "unlabelled"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -27,6 +27,12 @@ async function storeDraft() {
 }
 
 describe('App', () => {
+  it('names the toolkit and its tagline on the start screen', () => {
+    render(<App />);
+    expect(screen.getByText('Credential Toolkit')).toHaveClass('wordmark__text');
+    expect(screen.getByText('OCA bundles, type metadata and issuer metadata for swiyu credentials')).toBeInTheDocument();
+  });
+
   it('starts a blank project and adds an attribute', async () => {
     const user = userEvent.setup();
     render(<App />);

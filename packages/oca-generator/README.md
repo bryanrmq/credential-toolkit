@@ -18,7 +18,7 @@ npm install @bryanrmq/oca-generator
 
 ```js
 import { readFile, writeFile } from 'node:fs/promises';
-import { exportProject, parseProjectFile } from '@bryanrmq/oca-generator';
+import { exportProject, filePlaceholders, parseProjectFile } from '@bryanrmq/oca-generator';
 
 const file = parseProjectFile(await readFile('pet-permit.oca-project.json', 'utf8'));
 if (!file.ok) throw new Error(file.error === 'newer' ? 'Saved by a newer app' : 'Not a project file');
@@ -29,6 +29,10 @@ if (result.ok) {
   await writeFile('oca-bundle.json', result.outputs.json);
   console.log(result.outputs.integrity); // sha256-…
   await writeFile('vct.json', result.vct.text); // the Type Metadata, for the swiyu generic issuer
+  await writeFile('issuer_metadata.json', result.issuerMetadata.json); // its integrity is computed when the Issuer URL is set
+  for (const { file, placeholders } of filePlaceholders(result)) {
+    for (const placeholder of placeholders) console.log(`${file}: ${placeholder.text} ${placeholder.command ?? ''}`);
+  }
 }
 ```
 
@@ -40,17 +44,20 @@ if (result.ok) {
 | `serializeProjectFile(project, baseline?)`, `projectFileName(project)` | Write a project file the app opens, and its file name. |
 | `validate(project)` | The issues the app lists: `{ severity: 'error' \| 'warning', code, message, summary, target, subject? }`. Errors block the export. |
 | `hasErrors(issues)` | Whether any issue is an error. |
-| `exportProject(project)` | Validates, then, when there is no error, builds everything: `{ ok: true, issues, bundle, outputs, vct }`, else `{ ok: false, issues }`. |
+| `exportProject(project)` | Validates, then, when there is no error, builds everything: `{ ok: true, issues, bundle, outputs, vct, issuerMetadata }`, else `{ ok: false, issues }`. `issuerMetadata` has `vct_metadata_uri#integrity` computed when the Issuer URL is set. |
 | `buildBundle(project)` | The bundle object (`{ bundle, digests }`). Throws when two groups would share a digest; `validate` reports that first. |
 | `buildOutputs(project, bundle)` | The bundle text (`json`), its `dataUrl`, the `uri` to reference and its `integrity`. |
 | `bundleIntegrity(json, hosting)` | The `uri#integrity` of bundle text as hosted at a URL or embedded as a data URL. |
 | `buildTypeMetadata(project, outputs)` | The SD-JWT VC Type Metadata (`vct.json`, `VCT_FILE_NAME`) as `{ metadata, text }`, for the swiyu generic issuer: `profile_version`, `vct` (`${external-url}/oid4vci/vct/<type key>`, which the issuer fills in), `name`, `description`, and one `display` entry per language with `lang`, `name`, `description` and `rendering.oca` (`uri` and `uri#integrity` of the bundle). No `claims`, `extends` or schema. `text` is the exact file: 2-space JSON in a fixed key order. |
 | `serializeTypeMetadata(metadata)`, `typeMetadataUri(project)` | That text for a Type Metadata object, and the project's `vct`. |
-| `buildIssuerMetadata(project)` | The generic issuer's `issuer_metadata.json` (`ISSUER_METADATA_FILE_NAME`): `{ metadata, json, placeholders }`. The infrastructure keeps the generic issuer's `${external-url}` (`EXTERNAL_URL_PLACEHOLDER`), which the service fills in; the configuration entry under the Configuration id is the project's: `dc+sd-jwt`, ES256, `jwk`, `vct` and `vct_metadata_uri`, the issuer and credential `display` and one claim per attribute. `vct_metadata_uri#integrity` holds `VCT_INTEGRITY_PLACEHOLDER`, to replace with the SRI hash of `vct.json` as served. `placeholders` lists each placeholder left in `json` (`{ text, explanation, integrity }`). No `profile_version` and no encryption fields: the generic issuer adds them itself. |
+| `buildIssuerMetadata(project, vctIntegrity?)` | The generic issuer's `issuer_metadata.json` (`ISSUER_METADATA_FILE_NAME`): `{ metadata, json, placeholders }`. The infrastructure keeps the generic issuer's `${external-url}` (`EXTERNAL_URL_PLACEHOLDER`), which the service fills in; the configuration entry under the Configuration id is the project's: `dc+sd-jwt`, ES256, `jwk`, `vct` and `vct_metadata_uri`, the issuer and credential `display` and one claim per attribute. `vct_metadata_uri#integrity` holds `vctIntegrity`, else `VCT_INTEGRITY_PLACEHOLDER`. `placeholders` lists each placeholder left in `json` (`{ text, explanation, integrity, command? }`); the integrity one carries the command that computes the value once `vct.json` is deployed. No `profile_version` and no encryption fields: the generic issuer adds them itself. |
+| `vctMetadataIntegrity(project, vctText)` | The `vct_metadata_uri#integrity` for `vct.json` text: `sha256-` + base64 SHA-256 of the text with the Issuer URL for `${external-url}`, which is what the generic issuer serves and the wallets hash. `undefined` without a valid Issuer URL. It only matches if the issuer deploys `vct.json` byte for byte and its `EXTERNAL_URL` is exactly the Issuer URL (a trailing `/` counts). |
+| `servedTypeMetadataUri(project)`, `servedTypeMetadataText(text, url)`, `vctIntegrityCommand(url)` | Where the generic issuer serves `vct.json` (with `${external-url}` when there is no Issuer URL), the text it serves, and the `echo "sha256-$(curl -s '<url>' \| openssl dgst -binary -sha256 \| openssl base64 -A)"` command that prints the integrity from the deployed file. |
+| `filePlaceholders({ outputs, vct, issuerMetadata })` | For each generated file (`oca-bundle.json`, `vct.json`, `issuer_metadata.json`), the placeholders left in it, e.g. for an `exportProject` result. `${external-url}` stays listed with the Issuer URL set, since the generic issuer fills it in; the integrity placeholder goes. |
 | `serializeIssuerMetadata(metadata)` | The file text: 2-space JSON, the same bytes for the same project. |
 | `issuerOf(project)` | The issuer settings (`project.issuer`: issuer name per language, logo, Issuer URL, identifiers), with a name for every language. Projects saved before them read as empty. They never go into the bundle. |
 | `issuerIdentifiers(project)`, `defaultIdentifiers(name)` | The Configuration id and Type key of the generic issuer files: the ones set in the project, else derived from the credential name (`Lernfahrausweis` gives `lernfahrausweis_sd_jwt` and `lernfahrausweis-v01`). Both match `IDENTIFIER_PATTERN` (`^[a-z0-9_-]+$`). |
-| `isIssuerLogo(uri)`, `isIssuerUrl(value)` | Whether a value can be the issuer logo (a PNG or JPEG data URL) or the Issuer URL (a real https URL). |
+| `isIssuerLogo(uri)`, `isIssuerUrl(value)`, `issuerUrl(project)` | Whether a value can be the issuer logo (a PNG or JPEG data URL) or the Issuer URL (a real https URL), and the project's Issuer URL when it is valid. |
 | `importBundle(bundle)` | A project from a parsed bundle, with a report of what was repaired. Throws `ImportError`. |
 | `parseJsonText(text)` | `JSON.parse` that throws an `ImportError` naming the line and column. |
 

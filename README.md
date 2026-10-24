@@ -1,13 +1,24 @@
-# OCA Generator
+# Credential Toolkit
 
-A web app for swiyu issuers to build the OCA bundle of an SD-JWT credential (swiyu
-"Visualisation of Verifiable Credential with OCA 1.0") without writing JSON or computing
-digests by hand. Everything runs in the browser; nothing is uploaded.
+A web app for swiyu issuers to prepare how an SD-JWT credential is described and shown in the
+swiyu wallets, without writing JSON or computing digests by hand. Everything runs in the
+browser; nothing is uploaded.
+
+From one project it builds:
+
+- the **OCA bundle** (swiyu "Visualisation of Verifiable Credential with OCA 1.0"), with its
+  `uri#integrity` value;
+- the **SD-JWT VC Type Metadata** (`vct.json`), which points the wallet to that bundle;
+- the credential's part of the **Issuer Metadata** (`issuer_metadata.json`) for the swiyu
+  generic issuer: its configuration, issuer name and logo.
 
 Start from a sample credential, an existing OCA bundle, OID4VCI Credential Issuer Metadata,
 or a blank project. Edit names, labels, branding, order, clustering and value translations in
-every language, then download the bundle with its `uri#integrity` value and the
-`display` snippet for your SD-JWT VC Type Metadata.
+every language while a preview shows roughly how the iOS and Android wallets draw the card and
+its details. Load the published bundle to compare it with your changes before you publish.
+
+The same logic ships as an [npm package with a CLI](#npm-package), to build and check bundles
+in your own tools and in CI.
 
 Each capture base gets a Data Source overlay for both `vc+sd-jwt` and `dc+sd-jwt`, with the
 same paths. The swiyu wallets look the paths up by format: iOS up to 1.18 only reads

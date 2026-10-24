@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 export const RELEASE_CACHE_KEY = 'credential-toolkit:latest-release';
-export const RELEASES_API = 'https://api.github.com/repos/bryanrmq/oca-generator/releases/latest';
+export const RELEASES_API = 'https://api.github.com/repos/bryanrmq/credential-toolkit/releases/latest';
 /** How long a fetched release is trusted before asking GitHub again (its API allows 60 calls an hour per visitor). */
 export const RELEASE_MAX_AGE_MS = 60 * 60 * 1000;
 
