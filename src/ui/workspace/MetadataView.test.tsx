@@ -2,6 +2,8 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { VCT_INTEGRITY_PLACEHOLDER } from '../../core/export/issuerMetadata';
+import { exportProject } from '../../core/export/project';
 import { emptyProject, ensureIssuer, newAttribute } from '../../core/model';
 import { reviewMarks, suggestText } from '../../core/review';
 import { useStore } from '../../state/store';
@@ -26,6 +28,8 @@ const issuer = () => project().issuer!;
 const page = () => screen.getByRole('region', { name: 'Metadata' });
 const field = (label: string | RegExp) => within(page()).getByText(label, { selector: 'label' }).closest<HTMLElement>('.field')!;
 const areaTabs = () => within(screen.getByRole('tablist', { name: 'File' }));
+/** The page on its own, without the files built: the tests here are about the form and the preview. */
+const working = { status: 'working' } as const;
 const issuesPanel = () => screen.getByRole('region', { name: 'Issues' });
 
 beforeEach(() => {
@@ -73,7 +77,7 @@ describe('OCA / Metadata switch', () => {
 
 describe('Metadata page', () => {
   it('holds the Issuer and Identifiers sections and the details preview', () => {
-    render(<MetadataView />);
+    render(<MetadataView exportState={working} />);
     expect([...page().querySelectorAll('.section__title')].map((title) => title.textContent)).toEqual(['Issuer', 'Identifiers']);
     expect(within(page()).getByText(/^Settings for the Issuer Metadata and the Type Metadata/)).toHaveClass('section__intro');
     expect(within(page()).getAllByText(/./, { selector: 'label.field__label' }).map((label) => label.textContent)).toEqual([
@@ -91,7 +95,7 @@ describe('Metadata page', () => {
   it('lists the issuer name per language, editing language first, empty ones highlighted', async () => {
     useStore.getState().setEditLang('fr-CH');
     const user = userEvent.setup();
-    render(<MetadataView />);
+    render(<MetadataView exportState={working} />);
     const rows = [...field('Issuer name').querySelectorAll<HTMLElement>('.lang-row')];
     expect(rows.map((row) => row.querySelector('.lang-row__code')!.textContent)).toEqual(['fr-CH', 'de-CH']);
     expect(rows[0]).toHaveAttribute('data-editing');
@@ -112,7 +116,7 @@ describe('Metadata page', () => {
     suggestText(draft, { kind: 'issuerName' }, 'fr-CH', 'Canton de Berne', 'translation');
     useStore.getState().load(draft);
     const user = userEvent.setup();
-    render(<MetadataView />);
+    render(<MetadataView exportState={working} />);
     const french = screen.getByLabelText('Issuer name (fr-CH)');
     const row = french.closest<HTMLElement>('.lang-row')!;
     expect(row).toHaveAttribute('data-review', 'translation');
@@ -125,7 +129,7 @@ describe('Metadata page', () => {
 
   it('stores a PNG or JPEG logo as a data URL and rejects other files', async () => {
     const user = userEvent.setup({ applyAccept: false });
-    render(<MetadataView />);
+    render(<MetadataView exportState={working} />);
     const input = field('Issuer logo').querySelector<HTMLInputElement>('input[type="file"]')!;
     expect(input).toHaveAttribute('accept', 'image/png,image/jpeg');
     expect(within(field('Issuer logo')).getByText(/^PNG or JPEG, one logo for all languages\./)).toBeInTheDocument();
@@ -164,7 +168,7 @@ describe('Metadata page', () => {
 
   it('shows the defaults from the credential name in empty identifiers and the Type Metadata path', async () => {
     const user = userEvent.setup();
-    render(<MetadataView />);
+    render(<MetadataView exportState={working} />);
     const configurationId = screen.getByLabelText('Configuration id');
     const typeKey = screen.getByLabelText('Type key');
     expect(configurationId).toHaveValue('');
@@ -263,10 +267,82 @@ describe('Issuer issues in the Issues panel', () => {
   });
 });
 
+describe('Type metadata and Issuer metadata tabs', () => {
+  const column = () => document.querySelector<HTMLElement>('.metadata__preview')!;
+  const fileTabs = () => within(screen.getByRole('tablist', { name: 'Preview and files' }));
+  /** What the core gives for the project as it is now. */
+  const exported = async () => {
+    const result = await exportProject(project());
+    if (!result.ok) throw new Error('the test project has errors');
+    return result;
+  };
+  const shownText = () => column().querySelector('pre')!.textContent;
+
+  beforeEach(() => useStore.setState({ area: 'metadata', metadataTab: 'preview' }));
+
+  it('puts the files beside the preview, Preview first', () => {
+    render(<Workspace />);
+    expect(fileTabs().getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Preview', 'Type metadata', 'Issuer metadata']);
+    expect(fileTabs().getByRole('tab', { name: 'Preview' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('region', { name: 'Preview' }).querySelector('.output-preview')).toBeInTheDocument();
+  });
+
+  it('shows vct.json as the core builds it, with its download and placeholders', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(fileTabs().getByRole('tab', { name: 'Type metadata' }));
+    expect(useStore.getState().metadataTab).toBe('vct');
+    const region = within(screen.getByRole('region', { name: 'Type metadata' }));
+    expect(await region.findByRole('button', { name: 'vct.json' })).toBeEnabled();
+    expect(shownText()).toBe((await exported()).vct.text);
+    expect(region.queryByRole('group', { name: 'Preview platform' })).not.toBeInTheDocument();
+    const list = within(region.getByRole('region', { name: 'Replace before use' }));
+    expect(list.getAllByRole('listitem').map((row) => row.querySelector('code')!.textContent)).toEqual(['${external-url}']);
+    expect(region.queryByRole('region', { name: 'After deploying, compute the integrity' })).not.toBeInTheDocument();
+  });
+
+  it('opens Type metadata when the stored tab is vct', async () => {
+    useStore.setState({ metadataTab: 'vct' });
+    render(<Workspace />);
+    expect(fileTabs().getByRole('tab', { name: 'Type metadata' })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByRole('button', { name: 'vct.json' })).toBeInTheDocument();
+  });
+
+  it('shows the integrity command until the Issuer URL is set, then the integrity in the file', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(fileTabs().getByRole('tab', { name: 'Issuer metadata' }));
+    const region = () => within(screen.getByRole('region', { name: 'Issuer metadata' }));
+    expect(await region().findByRole('button', { name: 'issuer_metadata.json' })).toBeInTheDocument();
+    expect(shownText()).toBe((await exported()).issuerMetadata.json);
+    expect(region().getByRole('region', { name: 'After deploying, compute the integrity' })).toHaveTextContent("curl -s '${external-url}/oid4vci/vct/");
+    expect(within(region().getByRole('region', { name: 'Replace before use' })).getByText('2')).toHaveClass('badge--yellow');
+
+    await user.type(screen.getByLabelText(/^Issuer URL/), 'https://issuer.example.ch');
+    await waitFor(() => expect(region().queryByRole('region', { name: 'After deploying, compute the integrity' })).not.toBeInTheDocument());
+    const { issuerMetadata } = await exported();
+    expect(issuerMetadata.json).not.toContain(VCT_INTEGRITY_PLACEHOLDER);
+    expect(shownText()).toBe(issuerMetadata.json);
+    expect(within(region().getByRole('region', { name: 'Replace before use' })).getAllByRole('listitem')).toHaveLength(1);
+  });
+
+  it('blocks the downloads while the project has an error, issuer ones included', async () => {
+    act(() => useStore.getState().update((draft) => void (ensureIssuer(draft).url = 'http://issuer.example.ch')));
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(fileTabs().getByRole('tab', { name: 'Issuer metadata' }));
+    const download = await screen.findByRole('button', { name: 'issuer_metadata.json' });
+    expect(download).toBeDisabled();
+    expect(download).toHaveAttribute('title', 'Fix 1 error to download');
+    await user.click(fileTabs().getByRole('tab', { name: 'Type metadata' }));
+    expect(await screen.findByRole('button', { name: 'vct.json' })).toBeDisabled();
+  });
+});
+
 describe('undo and redo', () => {
   it('takes back and redoes each Metadata field edit', async () => {
     const user = userEvent.setup();
-    render(<MetadataView />);
+    render(<MetadataView exportState={working} />);
     const { undo, redo } = useStore.getState();
 
     await user.type(screen.getByLabelText('Issuer name'), 'Kanton Bern');

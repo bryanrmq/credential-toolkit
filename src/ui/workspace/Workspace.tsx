@@ -149,7 +149,7 @@ export function Workspace() {
         <ReportBanner />
         <I14yMatchBanner onReview={() => setPane('inspector')} />
         {area === 'metadata' ? (
-          <MetadataView />
+          <MetadataView exportState={exportState} />
         ) : view === 'translations' ? (
           <TranslationsView />
         ) : (

@@ -2884,6 +2884,70 @@ button.tree__toggle:hover {
   margin-bottom: 12px;
 }
 
+/* A generated metadata file (vct.json, issuer_metadata.json): its download bar, the placeholders left to replace,
+   the integrity command while it is missing, then the text. Yellow marks what the issuer still has to fill in. */
+.metadata-file__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.metadata-file__size {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.metadata-file__heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-strong);
+}
+.metadata-file__placeholders,
+.metadata-file__integrity {
+  margin-bottom: 16px;
+}
+.metadata-file__integrity .field__hint {
+  margin: 0 0 6px;
+}
+.metadata-file__ready {
+  margin: 0 0 16px;
+}
+.placeholder-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.placeholder-list__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 8px 0;
+}
+.placeholder-list__row + .placeholder-list__row {
+  border-top: 1px solid var(--border);
+}
+.placeholder-list__why {
+  flex: 1 1 240px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.placeholder {
+  background: var(--yellow-bg);
+  color: var(--yellow-text);
+  border-radius: 4px;
+}
+code.placeholder {
+  padding: 1px 6px;
+  font-size: 12px;
+}
+
 /* Changes tab: what changed since the published bundle. */
 .tabs__count {
   font-family: var(--font-mono);
@@ -3247,15 +3311,45 @@ button.changes__subject {
   background: var(--canvas);
   padding: 16px 20px 32px;
 }
+/* The column's tabs (Preview, Type metadata, Issuer metadata) stay on one line and scroll sideways when the column is
+   too narrow for them. They stay at the top while the column scrolls (to "Issued by", or down a file). */
 .metadata__preview-header {
+  position: sticky;
+  /* Over the column's top padding, so nothing shows above the tabs. */
+  top: -16px;
+  z-index: 2;
+  margin: -16px -20px 16px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--canvas);
+}
+.metadata__preview-header .tabs {
+  border-bottom: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.metadata__preview-header .tabs__tab {
+  flex: none;
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+.metadata__preview-controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
+}
+.metadata__preview-controls .field__hint {
+  flex: 1 1 200px;
+  margin: 0;
 }
 .metadata__preview .output-preview {
   margin-top: 16px;
+}
+/* The column scrolls the whole file; stacked under the form on a narrow window, the block keeps its own scroll. */
+.metadata__preview .code-block {
+  max-height: none;
 }
 @media (max-width: 1000px) {
   .metadata {
@@ -3273,6 +3367,14 @@ button.changes__subject {
     border-left: none;
     border-top: 1px solid var(--border);
     padding: 16px 16px 48px;
+  }
+  .metadata__preview .code-block {
+    max-height: 60vh;
+  }
+  .metadata__preview-header {
+    top: 0;
+    margin: -16px -16px 16px;
+    padding: 0 4px;
   }
 }
 

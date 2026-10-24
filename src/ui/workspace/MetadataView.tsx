@@ -1,16 +1,20 @@
 import { useEffect, useRef } from 'react';
+import { ISSUER_METADATA_FILE_NAME, filePlaceholders } from '../../core/export/issuerMetadata';
+import { VCT_FILE_NAME } from '../../core/export/outputs';
 import { defaultIdentifiers, issuerIdentifiers, issuerOf } from '../../core/issuer';
 import { ensureIssuer } from '../../core/model';
 import type { CredentialField } from '../../core/validate';
-import { useStore } from '../../state/store';
+import { type MetadataTab, useStore } from '../../state/store';
+import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
-import { Field, Segmented } from '../components/controls';
+import { Field, Segmented, Tabs } from '../components/controls';
 import { TextInput } from '../components/inputs';
 import { LogoInput } from '../components/media';
 import { fieldId } from '../issues';
 import { DetailsPreview } from './DetailsPreview';
 import { InspectorHeader } from './InspectorHeader';
 import { LanguageRows } from './LanguageRows';
+import { MetadataFile } from './MetadataFile';
 import { issuerNameRow } from './translationRows';
 
 type OptionalSetting = 'logo' | 'url' | 'configurationId' | 'typeKey';
@@ -20,10 +24,10 @@ const ISSUED_BY = '.ios-details__issuer, .android-section--issuer';
 
 /**
  * Scrolls the preview column to the "Issued by" row, which both wallets draw near the end of the details screen,
- * when the page opens and when the platform changes. Only the column scrolls: where it does not scroll on its own
- * (a narrow window stacks it under the form), nothing moves.
+ * when the page opens, when the platform changes and when the Preview tab comes back. Only the column scrolls: where
+ * it does not scroll on its own (a narrow window stacks it under the form), nothing moves.
  */
-function useIssuedByInView(platform: string) {
+function useIssuedByInView(platform: string, tab: MetadataTab) {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     let frame = requestAnimationFrame(() => {
@@ -31,12 +35,15 @@ function useIssuedByInView(platform: string) {
       frame = requestAnimationFrame(() => {
         const column = ref.current;
         const row = column?.querySelector(ISSUED_BY);
-        if (!column || !row) return;
+        if (!column || !row) {
+          column?.scrollTo?.({ top: 0 });
+          return;
+        }
         column.scrollTop += row.getBoundingClientRect().top - column.getBoundingClientRect().top - column.clientHeight / 3;
       });
     });
     return () => cancelAnimationFrame(frame);
-  }, [platform]);
+  }, [platform, tab]);
   return ref;
 }
 
@@ -44,18 +51,25 @@ function useIssuedByInView(platform: string) {
  * The Metadata page, the top bar's second file next to the OCA: the issuer name and logo the wallets show as
  * "Issued by", the Issuer URL and the identifiers of the swiyu generic issuer's files. All of it goes into the
  * Issuer Metadata and the Type Metadata, never into the OCA bundle. Beside the form, the wallet's details screen
- * shows the "Issued by" row.
+ * shows the "Issued by" row, and its tabs show the two files: `vct.json` and `issuer_metadata.json`, built from the
+ * whole project (`exportState`), each with its download and the placeholders left to replace.
  *
  * Both wallets only draw an issuer logo given as a data URL: iOS v1.19.0 (42e746c) reads `display.logo.uri` with
  * `dataURLData` (`CredentialGenerator.swift`, `createIssuerDisplays`), and Android v1.19.0 (c29a6f3) decodes only
  * the `data` scheme and skips `https` (`GetImageDataFromUriImpl.kt`). So the logo is stored as a PNG or JPEG data URL.
  */
-export function MetadataView() {
+export function MetadataView({ exportState }: { exportState: ExportState }) {
   const project = useStore((state) => state.project)!;
   const lang = useStore((state) => state.editLang);
   const platform = useStore((state) => state.cardPlatform);
-  const { update, setCardPlatform } = useStore.getState();
-  const previewRef = useIssuedByInView(platform);
+  const tab = useStore((state) => state.metadataTab);
+  const { update, setCardPlatform, setMetadataTab } = useStore.getState();
+  const previewRef = useIssuedByInView(platform, tab);
+  const tabs: Array<{ value: MetadataTab; label: string }> = [
+    { value: 'preview', label: t.metadata.preview },
+    { value: 'vct', label: t.metadata.typeMetadata },
+    { value: 'issuerMetadata', label: t.metadata.issuerMetadata },
+  ];
   const issuer = issuerOf(project);
   const defaults = defaultIdentifiers(project.meta[project.languages[0]]?.name ?? '');
   const { typeKey } = issuerIdentifiers(project);
@@ -120,24 +134,48 @@ export function MetadataView() {
       </section>
 
       {/* `data-placement="below"`: the preview does not scroll to the attribute selected in the OCA editor. */}
-      <section ref={previewRef} className="metadata__preview" aria-label={t.metadata.preview} data-placement="below">
+      <section
+        ref={previewRef}
+        className="metadata__preview"
+        aria-label={tabs.find((option) => option.value === tab)!.label}
+        data-placement="below"
+        data-tab={tab}
+      >
         <div className="metadata__preview-header">
-          <span className="pane__title">{t.metadata.preview}</span>
-          <Segmented
-            label={t.output.previewPlatform}
-            value={platform}
-            onChange={setCardPlatform}
-            options={[
-              { value: 'ios', label: t.cardPreview.platforms.ios },
-              { value: 'android', label: t.cardPreview.platforms.android },
-            ]}
-          />
+          <Tabs label={t.metadata.files} value={tab} onChange={setMetadataTab} options={tabs} />
         </div>
-        <p className="field__hint">{t.metadata.previewNote}</p>
-        <div className="output-preview" data-view="details" data-platform={platform}>
-          <DetailsPreview />
-        </div>
+        {tab === 'preview' ? (
+          <>
+            <div className="metadata__preview-controls">
+              <p className="field__hint">{t.metadata.previewNote}</p>
+              <Segmented
+                label={t.output.previewPlatform}
+                value={platform}
+                onChange={setCardPlatform}
+                options={[
+                  { value: 'ios', label: t.cardPreview.platforms.ios },
+                  { value: 'android', label: t.cardPreview.platforms.android },
+                ]}
+              />
+            </div>
+            <div className="output-preview" data-view="details" data-platform={platform}>
+              <DetailsPreview />
+            </div>
+          </>
+        ) : (
+          <MetadataFiles exportState={exportState} file={tab === 'vct' ? VCT_FILE_NAME : ISSUER_METADATA_FILE_NAME} />
+        )}
       </section>
     </div>
   );
+}
+
+/** The `vct.json` or `issuer_metadata.json` tab: the file once the project is built, with the placeholders left in it. */
+function MetadataFiles({ exportState, file }: { exportState: ExportState; file: string }) {
+  if (exportState.status === 'working') return <p className="field__hint">{t.output.working}</p>;
+  if (exportState.status === 'failed') return <p className="error-text">{t.output.failed(exportState.error)}</p>;
+  const text = file === VCT_FILE_NAME ? exportState.vct.text : exportState.issuerMetadata.json;
+  const placeholders = filePlaceholders(exportState).find((entry) => entry.file === file)!.placeholders;
+  // One per file, so a "Copied" does not carry over to the other tab.
+  return <MetadataFile key={file} fileName={file} text={text} placeholders={placeholders} />;
 }
