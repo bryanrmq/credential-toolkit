@@ -19,7 +19,7 @@ export function TranslationNotice() {
         <Button variant="ghost" onClick={cancel}>
           {t.translate.cancel}
         </Button>
-        <Button variant="primary" autoFocus onClick={() => notice.answer(true)}>
+        <Button variant="primary" data-autofocus onClick={() => notice.answer(true)}>
           {t.translate.download}
         </Button>
       </div>

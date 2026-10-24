@@ -82,7 +82,7 @@ export function I14yDialog({ groupId, onAdded, onClose }: { groupId: string; onA
             id="i14y-search"
             className="input"
             type="search"
-            autoFocus
+            data-autofocus
             autoComplete="off"
             placeholder={t.i14y.placeholder}
             value={query}

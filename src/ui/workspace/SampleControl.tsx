@@ -4,7 +4,7 @@ import { ImportError, isPlainObject } from '../../core/import/report';
 import { parseSampleText } from '../../core/import/sample';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
-import { Button, Dialog } from '../components/controls';
+import { Button, Dialog, FieldError } from '../components/controls';
 
 /** Attach or remove the sample credential; it only feeds the "path not found in sample" check. */
 export function SampleControl() {
@@ -84,7 +84,15 @@ export function SampleDialog({
               <FileArrowUpIcon /> {t.importDialog.chooseFile}
             </Button>
           </div>
-          <textarea id="sample-text" className="textarea" value={text} spellCheck={false} onChange={(event) => setText(event.target.value)} />
+          <textarea
+            id="sample-text"
+            className="textarea"
+            value={text}
+            spellCheck={false}
+            aria-invalid={error !== null}
+            aria-describedby={error === null ? undefined : 'sample-text-error'}
+            onChange={(event) => setText(event.target.value)}
+          />
           <input
             ref={fileRef}
             type="file"
@@ -95,12 +103,8 @@ export function SampleDialog({
               if (file) setText(await file.text());
             }}
           />
+          {error !== null && <FieldError id="sample-text-error">{error}</FieldError>}
         </div>
-        {error && (
-          <p className="error-text" role="alert">
-            {error}
-          </p>
-        )}
         <div className="dialog__actions">
           <Button variant="ghost" onClick={onClose}>
             {t.importDialog.cancel}
