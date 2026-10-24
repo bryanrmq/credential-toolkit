@@ -103,8 +103,8 @@ swiyu-issuer 5.0.1.
 ### Export the OCA bundle
 
 - Host the bundle at your own URL, or embed it as a data URL.
+- The Output pane has two tabs: Bundle and Changes.
 - Copy the JSON, the data URL and its `uri#integrity` value, or download the bundle.
-- Copy the display entries to add to your SD-JWT VC Type Metadata.
 - Each capture base gets a Data Source overlay for both `vc+sd-jwt` and `dc+sd-jwt`, with the
   same paths. The swiyu wallets look the paths up by format: iOS up to 1.18 only reads
   `vc+sd-jwt`, and Android only reads the format named in the issuer metadata.
@@ -113,14 +113,21 @@ swiyu-issuer 5.0.1.
 
 - A Metadata page, next to the OCA in the top bar, holds the issuer settings: issuer name in
   every language, issuer logo, issuer URL, and the configuration id and type key the generic
-  issuer uses. The details preview beside it shows the "Issued by" row.
-- The core builds the full `vct.json` and the credential's `issuer_metadata.json` for the swiyu
-  generic issuer.
-- With an Issuer URL set, it computes `vct_metadata_uri#integrity` from the `vct.json` the issuer
-  will serve. Without one, it leaves a placeholder and gives the `curl` and `openssl` command to
-  compute it.
-- Today you get these two files from the [npm package and CLI](#npm-package). Download tabs on the
-  Metadata page are coming soon.
+  issuer uses.
+- Its right-hand column has three tabs: Preview, Type metadata and Issuer metadata. Preview shows
+  the details screen with the "Issued by" row.
+- Type metadata gives the full `vct.json`. Issuer metadata gives the credential's
+  `issuer_metadata.json` for the swiyu generic issuer.
+- Each file tab has a download button named after the file, a Copy button and the file size.
+- A "Replace before use" list names the placeholders left in the file, such as
+  `${external-url}`, and explains each one. The file shows them highlighted. When none are left,
+  the tab shows "Ready".
+- With an Issuer URL set, the toolkit computes `vct_metadata_uri#integrity` from the `vct.json`
+  the issuer will serve. Without one, the tab gives the `curl` and `openssl` command to compute it
+  after deploying.
+- Errors in the project block the metadata downloads. Issuer errors don't block the bundle
+  download.
+- The [npm package](#npm-package) builds both files too.
 
 ### Projects and drafts
 
