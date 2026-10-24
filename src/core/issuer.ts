@@ -87,3 +87,12 @@ export function isIssuerUrl(value: string): boolean {
     return false;
   }
 }
+
+/**
+ * The Issuer URL when it is set and valid (`isIssuerUrl`), trimmed but otherwise as typed: it stands for the generic
+ * issuer's `EXTERNAL_URL`, which the service writes in literally, so `https://x.ch/` and `https://x.ch` differ.
+ */
+export function issuerUrl(project: Project): string | undefined {
+  const url = project.issuer?.url?.trim();
+  return url && isIssuerUrl(url) ? url : undefined;
+}

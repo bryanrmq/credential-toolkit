@@ -1,5 +1,8 @@
-import { isIssuerLogo, issuerIdentifiers, issuerOf } from '../issuer.ts';
+import { sriSha256, utf8 } from '../cesr.ts';
+import { isIssuerLogo, issuerIdentifiers, issuerOf, issuerUrl } from '../issuer.ts';
 import { type ClaimsPath, type LangTag, type Project, walkNodes } from '../model.ts';
+import { BUNDLE_FILE_NAME, type ExportOutputs, VCT_FILE_NAME } from './outputs.ts';
+import type { BuiltTypeMetadata } from './typeMetadata.ts';
 
 /*
  * `issuer_metadata.json`: the OpenID4VCI Credential Issuer Metadata for the swiyu generic issuer
@@ -20,6 +23,16 @@ import { type ClaimsPath, type LangTag, type Project, walkNodes } from '../model
  *   https://github.com/swiyu-admin-ch/swiyu-issuer/blob/05485df636/issuer-service/src/main/java/ch/admin/bj/swiyu/issuer/domain/openid/metadata/IssuerMetadata.java#L78-L88
  *   https://github.com/swiyu-admin-ch/swiyu-issuer/blob/05485df636/issuer-service/src/main/java/ch/admin/bj/swiyu/issuer/service/MetadataService.java#L65-L70
  * - `mandatory` on claims: the Swiss issuance profile does not support it.
+ *
+ * `vct_metadata_uri#integrity` is the SRI hash of `vct.json` as the service serves it. `loadMetadataFiles` keeps the
+ * file's text with each `${external-url}` replaced (`replaceExternalUri`), not a re-serialized copy, and
+ * `CredentialMetadataController` returns that string as the body; iOS v1.19.0 (`TypeMetadataService`) hashes the
+ * body bytes and Android v1.19.0 (`FetchTypeMetadataImpl`) the UTF-8 bytes of the body text, so a hash over our text
+ * with the Issuer URL written in matches, as long as the issuer deploys `vct.json` unchanged. The service copies the
+ * value into every credential (`SdJwtCredential.prepareAlwaysDisclosedData`), and neither wallet accepts the
+ * placeholder as an integrity, so it has to be replaced before issuing.
+ *   https://github.com/swiyu-admin-ch/swiyu-issuer/blob/05485df636/issuer-service/src/main/java/ch/admin/bj/swiyu/issuer/service/credential/OpenIdIssuerConfiguration.java#L106-L126
+ *   https://github.com/swiyu-admin-ch/swiyu-issuer/blob/05485df636/issuer-application/src/main/java/ch/admin/bj/swiyu/issuer/infrastructure/web/signer/CredentialMetadataController.java#L26-L30
  */
 
 export const ISSUER_METADATA_FILE_NAME = 'issuer_metadata.json';
@@ -95,6 +108,8 @@ export interface MetadataPlaceholder {
   explanation: string;
   /** Whether it stands for an integrity value, which the tool can compute once the real URL is known. */
   integrity: boolean;
+  /** For an integrity: the shell command that prints the value once the file it hashes is deployed. */
+  command?: string;
 }
 
 export interface BuiltIssuerMetadata {
@@ -111,11 +126,52 @@ const EXTERNAL_URL: MetadataPlaceholder = {
   integrity: false,
 };
 
-const VCT_INTEGRITY: MetadataPlaceholder = {
-  text: VCT_INTEGRITY_PLACEHOLDER,
-  explanation: 'The SRI hash of vct.json as the generic issuer serves it; replace it once the issuer URL is known.',
-  integrity: true,
-};
+/** The integrity placeholder, with the command that computes the value from the Type Metadata served at `url`. */
+function vctIntegrityPlaceholder(url: string): MetadataPlaceholder {
+  return {
+    text: VCT_INTEGRITY_PLACEHOLDER,
+    explanation:
+      'The SRI hash of vct.json as the generic issuer serves it, which the wallets check; set the Issuer URL to have it computed, or run the command once vct.json is deployed and paste its output.',
+    integrity: true,
+    command: vctIntegrityCommand(url),
+  };
+}
+
+/** The placeholders of `known` that `text` holds, in the order they first appear. */
+function placeholdersIn(text: string, known: MetadataPlaceholder[]): MetadataPlaceholder[] {
+  return known.filter(({ text: placeholder }) => text.includes(placeholder)).sort((a, b) => text.indexOf(a.text) - text.indexOf(b.text));
+}
+
+/**
+ * Where the generic issuer serves `vct.json`: `<Issuer URL>/oid4vci/vct/<type key>` when the Issuer URL is set,
+ * else with `${external-url}` for it.
+ */
+export function servedTypeMetadataUri(project: Project): string {
+  return `${issuerUrl(project) ?? EXTERNAL_URL_PLACEHOLDER}/oid4vci/vct/${issuerIdentifiers(project).typeKey}`;
+}
+
+/** `vct.json` text as the generic issuer at `url` serves it: every `${external-url}` replaced, nothing else changed. */
+export function servedTypeMetadataText(text: string, url: string): string {
+  return text.replaceAll(EXTERNAL_URL_PLACEHOLDER, url);
+}
+
+/**
+ * The shell command that prints the `vct_metadata_uri#integrity` of the Type Metadata served at `url`. The URL is
+ * single-quoted: a shell would expand an unquoted `${external-url}` to `url`.
+ */
+export function vctIntegrityCommand(url: string): string {
+  const quoted = `'${url.replaceAll("'", "'\\''")}'`;
+  return `echo "sha256-$(curl -s ${quoted} | openssl dgst -binary -sha256 | openssl base64 -A)"`;
+}
+
+/**
+ * The `vct_metadata_uri#integrity` for `vct.json` text `text` (`buildTypeMetadata(...).text`): the SRI hash of the
+ * text as served, with the Issuer URL for `${external-url}`. Nothing when the project has no valid Issuer URL.
+ */
+export async function vctMetadataIntegrity(project: Project, text: string): Promise<string | undefined> {
+  const url = issuerUrl(project);
+  return url === undefined ? undefined : sriSha256(utf8(servedTypeMetadataText(text, url)));
+}
 
 /** The data URL when it is a logo the issuer and the wallets accept (PNG or JPEG), else nothing. */
 function logo(uri: string | undefined): { logo?: MetadataLogo } {
@@ -139,14 +195,16 @@ export function serializeIssuerMetadata(metadata: IssuerMetadataJson): string {
 }
 
 /**
- * The Credential Issuer Metadata for `project`, its file text and the placeholders left in it. The issuer
+ * The Credential Issuer Metadata for `project`, its file text and the placeholders left in it. `vctIntegrity`
+ * (`vctMetadataIntegrity`) goes into `vct_metadata_uri#integrity`; without it the field holds
+ * `VCT_INTEGRITY_PLACEHOLDER`, listed with the command that computes the value. The issuer
  * `display` (name per language, one logo) is always there: the wallets take the issuer's name and logo from it
  * even when they show the OCA bundle. A language without an issuer name gets an entry without `name`: iOS v1.19.0
  * (`CredentialDetailView.issuerSection`) and Android v1.19.0 (`CredentialElements.IssuerInfo`) show "Unknown
  * issuer" for a missing name but a blank row for `""`, and swiyu-issuer does not validate the display entries. `credential_metadata.display` is only the wallets' fallback when there is
  * no OCA to show. Keys always come in the same order, so the same project gives the same bytes.
  */
-export function buildIssuerMetadata(project: Project): BuiltIssuerMetadata {
+export function buildIssuerMetadata(project: Project, vctIntegrity?: string): BuiltIssuerMetadata {
   const issuer = issuerOf(project);
   const { configurationId, typeKey } = issuerIdentifiers(project);
   const vct = `${EXTERNAL_URL_PLACEHOLDER}/oid4vci/vct/${typeKey}`;
@@ -155,7 +213,7 @@ export function buildIssuerMetadata(project: Project): BuiltIssuerMetadata {
     format: ISSUER_METADATA_FORMAT,
     vct,
     vct_metadata_uri: vct,
-    'vct_metadata_uri#integrity': VCT_INTEGRITY_PLACEHOLDER,
+    'vct_metadata_uri#integrity': vctIntegrity ?? VCT_INTEGRITY_PLACEHOLDER,
     credential_signing_alg_values_supported: [...SIGNING_ALGORITHMS],
     cryptographic_binding_methods_supported: ['jwk'],
     proof_types_supported: { jwt: { proof_signing_alg_values_supported: [...SIGNING_ALGORITHMS] } },
@@ -182,5 +240,27 @@ export function buildIssuerMetadata(project: Project): BuiltIssuerMetadata {
     credential_configurations_supported: { [configurationId]: configuration },
   };
 
-  return { metadata, json: serializeIssuerMetadata(metadata), placeholders: [EXTERNAL_URL, VCT_INTEGRITY] };
+  const json = serializeIssuerMetadata(metadata);
+  return { metadata, json, placeholders: placeholdersIn(json, [EXTERNAL_URL, vctIntegrityPlaceholder(servedTypeMetadataUri(project))]) };
+}
+
+/** A generated file and the placeholders left in it, for the Output pane. */
+export interface FilePlaceholders {
+  /** `BUNDLE_FILE_NAME`, `VCT_FILE_NAME` or `ISSUER_METADATA_FILE_NAME`. */
+  file: string;
+  /** In the order they first appear in the file; empty when it is ready as it is. */
+  placeholders: MetadataPlaceholder[];
+}
+
+/**
+ * The placeholders left in each generated file: the bundle, `vct.json` and `issuer_metadata.json`, in that order.
+ * `${external-url}` stays in `vct.json` and `issuer_metadata.json` even with the Issuer URL set, since the generic
+ * issuer fills it in; the integrity placeholder is gone once `buildIssuerMetadata` was given the integrity.
+ */
+export function filePlaceholders(files: { outputs: ExportOutputs; vct: BuiltTypeMetadata; issuerMetadata: BuiltIssuerMetadata }): FilePlaceholders[] {
+  return [
+    { file: BUNDLE_FILE_NAME, placeholders: placeholdersIn(files.outputs.json, [EXTERNAL_URL]) },
+    { file: VCT_FILE_NAME, placeholders: placeholdersIn(files.vct.text, [EXTERNAL_URL]) },
+    { file: ISSUER_METADATA_FILE_NAME, placeholders: files.issuerMetadata.placeholders },
+  ];
 }
