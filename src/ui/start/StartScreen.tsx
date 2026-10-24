@@ -6,10 +6,9 @@ import {
   ShieldCheckIcon,
   StackIcon,
 } from '@phosphor-icons/react';
-import { type ReactNode, Suspense, lazy, useRef, useState } from 'react';
+import { type ReactNode, Suspense, lazy, useState } from 'react';
 import { t } from '../../strings';
 import { FixToast } from '../components/FixToast';
-import { useReveal } from '../lib/reveal';
 import { Wordmark } from '../Wordmark';
 import { CredentialSketch } from './CredentialSketch';
 import { ImportDialog, type ImportKind } from './ImportDialog';
@@ -21,54 +20,49 @@ const LICENSE_URL = `${REPOSITORY_URL}/blob/main/LICENSE`;
 
 const Examples = lazy(() => import('./Examples').then((module) => ({ default: module.Examples })));
 
-const ENTRIES: Array<{ kind: ImportKind; icon: ReactNode; tone: string; wide?: boolean }> = [
-  { kind: 'sample', icon: <BracketsCurlyIcon size={18} />, tone: 'var(--blue-bg)', wide: true },
-  { kind: 'bundle', icon: <StackIcon size={18} />, tone: 'var(--green-bg)' },
-  { kind: 'metadata', icon: <IdentificationCardIcon size={18} />, tone: 'var(--yellow-bg)' },
-  { kind: 'blank', icon: <FilePlusIcon size={18} />, tone: 'var(--surface-muted)', wide: true },
+const ENTRIES: Array<{ kind: ImportKind; icon: ReactNode; wide?: boolean }> = [
+  { kind: 'sample', icon: <BracketsCurlyIcon size={18} />, wide: true },
+  { kind: 'bundle', icon: <StackIcon size={18} /> },
+  { kind: 'metadata', icon: <IdentificationCardIcon size={18} /> },
+  { kind: 'blank', icon: <FilePlusIcon size={18} />, wide: true },
 ];
 
 export function StartScreen() {
   const [dialog, setDialog] = useState<ImportKind | null>(null);
-  const innerRef = useRef<HTMLDivElement>(null);
-  useReveal(innerRef);
 
   return (
     <main className="start">
-      <div className="start__inner" ref={innerRef}>
+      <div className="start__inner">
         <header className="start__brand">
           <Wordmark />
           <p className="start__tagline">{t.start.tagline}</p>
         </header>
         <section className="start__hero">
           <div>
-            <h1 className="start__title reveal">{t.start.title}</h1>
-            <p className="start__intro reveal" style={{ ['--index' as string]: 1 }}>
-              {t.start.intro}
-            </p>
-            <p className="start__privacy reveal" style={{ ['--index' as string]: 2 }}>
+            <h1 className="start__title">{t.start.title}</h1>
+            <p className="start__intro">{t.start.intro}</p>
+            <p className="start__privacy">
               <ShieldCheckIcon /> {t.start.privacy}
             </p>
           </div>
-          <div className="reveal" style={{ ['--index' as string]: 2 }}>
+          <div>
             <CredentialSketch />
           </div>
         </section>
         <RecentProjects />
         <section aria-labelledby="start-new-title">
-          <h2 id="start-new-title" className="start__heading reveal" style={{ ['--index' as string]: 3 }}>
+          <h2 id="start-new-title" className="start__heading">
             {t.start.newTitle}
           </h2>
           <div className="bento">
-            {ENTRIES.map((entry, index) => (
+            {ENTRIES.map((entry) => (
               <button
                 key={entry.kind}
                 type="button"
-                className={`bento__card reveal${entry.wide ? ' bento__card--wide' : ''}`}
-                style={{ ['--index' as string]: index + 3 }}
+                className={`bento__card${entry.wide ? ' bento__card--wide' : ''}`}
                 onClick={() => setDialog(entry.kind)}
               >
-                <span className="bento__icon" style={{ background: entry.tone }}>
+                <span className="bento__icon">
                   {entry.icon}
                 </span>
                 <span className="bento__title">{t.start.entries[entry.kind].title}</span>

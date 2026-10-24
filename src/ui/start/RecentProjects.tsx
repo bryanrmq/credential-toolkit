@@ -8,7 +8,6 @@ import { PopupMenu, type PopupMenuItem } from '../components/PopupMenu';
 import { usesCommandKey } from '../lib/platform';
 import { downloadDraftProjectFile, openProjectFile } from '../lib/projectFile';
 import { fullDateTime, relativeTime } from '../lib/relativeTime';
-import { useReveal } from '../lib/reveal';
 
 /** How many drafts show until "Show all". */
 export const RECENT_LIMIT = 8;
@@ -47,7 +46,6 @@ export function RecentProjects() {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [menu, setMenu] = useState<RowMenu | null>(null);
   const now = useNow();
-  const ref = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   // After a rename ended with ⏎ or Escape, its row takes focus back.
   const refocusId = useRef<string | null>(null);
@@ -55,7 +53,6 @@ export function RecentProjects() {
   const focusAfterDelete = useRef<{ id: string; index: number } | null>(null);
 
   const shown = showAll ? drafts : drafts.slice(0, RECENT_LIMIT);
-  useReveal(ref, shown.map((draft) => draft.id).join(' '));
 
   const openButton = (id: string) =>
     [...(listRef.current?.querySelectorAll<HTMLElement>('.recent__row') ?? [])]
@@ -144,8 +141,8 @@ export function RecentProjects() {
   };
 
   return (
-    <section className="recent" ref={ref} aria-labelledby="recent-title">
-      <div className="start__heading-row reveal" style={{ ['--index' as string]: 3 }}>
+    <section className="recent" aria-labelledby="recent-title">
+      <div className="start__heading-row">
         <h2 id="recent-title" className="start__heading">
           {t.start.recent.title}
         </h2>
@@ -174,9 +171,7 @@ export function RecentProjects() {
           return (
             <li
               key={draft.id}
-              className="recent__row reveal"
-              // Rows past the first page come in with the same short stagger when "Show all" adds them.
-              style={{ ['--index' as string]: 4 + (index % RECENT_LIMIT) }}
+              className="recent__row"
               data-draft={draft.id}
               onKeyDown={(event) => onRowKeyDown(draft, index, event)}
               onContextMenu={(event) => onRowContextMenu(draft, index, event)}
