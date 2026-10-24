@@ -3,7 +3,7 @@ import type { Ref } from 'react';
 import { BUNDLE_FILE_NAME } from '../../core/export/outputs';
 import { canFillFromI14y } from '../../core/import/i14y';
 import { hasUnreviewed } from '../../core/review';
-import { type Area, useStore } from '../../state/store';
+import { type Area, isOutputShown, useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
 import { Badge, Button, Menu, type MenuItem, Segmented, Tabs } from '../components/controls';
@@ -32,7 +32,7 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
   const editLang = useStore((state) => state.editLang);
   const view = useStore((state) => state.view);
   const area = useStore((state) => state.area);
-  const outputOpen = useStore((state) => state.outputOpen);
+  const outputOpen = useStore(isOutputShown);
   const { setEditLang, setView, setArea, setLanguagesOpen, setTourOpen, setOutputOpen, close } = useStore.getState();
   const areas = (['oca', 'metadata'] as const).map((value) => ({ value, label: t.workspace.areas[value] }));
   const wide = useWideWindow();

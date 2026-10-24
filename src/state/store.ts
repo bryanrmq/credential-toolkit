@@ -74,6 +74,13 @@ export interface AppState {
   metadataTab: MetadataTab;
   /** Whether a wide window shows the Output pane. The workspace remembers it with the pane layout. */
   outputOpen: boolean;
+  /**
+   * Whether the Output pane, at the user's widths, would leave the Edit pane narrower than it keeps (set by the
+   * workspace as the window is resized). The pane then steps aside unless `outputSqueezed`; see `isOutputShown`.
+   */
+  outputCramped: boolean;
+  /** Whether the Output pane was asked for since it was last hidden, so it shows even when cramped. */
+  outputSqueezed: boolean;
   /** The platform and view the wallet preview shows; a variant the platform lacks shows its detail card (`shownVariant`). */
   cardPlatform: CardPlatform;
   cardVariant: CardVariant;
@@ -115,7 +122,9 @@ export interface AppState {
   setTourOpen: (open: boolean) => void;
   setOutputTab: (tab: OutputTab) => void;
   setMetadataTab: (tab: MetadataTab) => void;
+  /** Shows or hides the Output pane. Showing it is asked for, so it shows even when cramped (the side panes shrink). */
   setOutputOpen: (open: boolean) => void;
+  setOutputCramped: (cramped: boolean) => void;
   setCardPlatform: (platform: CardPlatform) => void;
   setCardVariant: (variant: CardVariant) => void;
   setDraftSaveFailed: (failed: boolean) => void;
@@ -169,6 +178,14 @@ export function endTyping(): void {
   typing = null;
 }
 
+/**
+ * Whether a wide window shows the Output pane: open, and either with room for it beside an Edit pane of its minimum
+ * width or asked for since it last stepped aside. (A narrow window always has it, as one of its pane tabs.)
+ */
+export function isOutputShown(state: Pick<AppState, 'outputOpen' | 'outputCramped' | 'outputSqueezed'>): boolean {
+  return state.outputOpen && (!state.outputCramped || state.outputSqueezed);
+}
+
 /** Restores the last undo (or redo) step and keeps the current project as a step the other way. */
 function travel(state: AppState, direction: 'undo' | 'redo'): Partial<AppState> {
   const back = direction === 'undo';
@@ -218,6 +235,8 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
   outputTab: 'bundle',
   metadataTab: 'preview',
   outputOpen: true,
+  outputCramped: false,
+  outputSqueezed: false,
   cardPlatform: 'ios',
   cardVariant: 'detail',
   draftSaveFailed: false,
@@ -311,7 +330,8 @@ export const useStore = create<AppState>()(revealingSelection((set, get) => ({
   setTourOpen: (tourOpen) => set({ tourOpen }),
   setOutputTab: (outputTab) => set({ outputTab }),
   setMetadataTab: (metadataTab) => set({ metadataTab }),
-  setOutputOpen: (outputOpen) => set({ outputOpen }),
+  setOutputOpen: (outputOpen) => set({ outputOpen, outputSqueezed: outputOpen }),
+  setOutputCramped: (outputCramped) => set({ outputCramped }),
   setCardPlatform: (cardPlatform) => set({ cardPlatform }),
   setCardVariant: (cardVariant) => set({ cardVariant }),
   setDraftSaveFailed: (draftSaveFailed) => set({ draftSaveFailed }),

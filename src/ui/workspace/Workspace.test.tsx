@@ -289,6 +289,31 @@ describe('Workspace', () => {
     expect(topBar().getByRole('button', { name: 'Show output' })).toHaveAttribute('aria-pressed', 'false');
   });
 
+  it('steps the Output pane aside where the Edit pane would get under 440 px, until the top bar shows it', async () => {
+    // A 1060 px window: 300 + 420 px side panes would leave Edit 330 px.
+    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1060);
+    const user = userEvent.setup();
+    const { container, unmount } = render(<Workspace />);
+    expect(screen.queryByRole('region', { name: 'Output' })).not.toBeInTheDocument();
+    expect(container.querySelector('.panes')).toHaveClass('panes--no-output');
+    // Stepping aside is not hiding: the choice stays as it was.
+    expect(localStorage.getItem(OUTPUT_OPEN_KEY)).toBeNull();
+
+    await user.click(topBar().getByRole('button', { name: 'Show output' }));
+    expect(screen.getByRole('region', { name: 'Output' })).toBeInTheDocument();
+    expect(topBar().getByRole('button', { name: 'Hide output' })).toHaveAttribute('aria-pressed', 'true');
+
+    // Opened again in a window as small, it steps aside again; in a window with room it shows.
+    unmount();
+    const again = render(<Workspace />);
+    expect(screen.queryByRole('region', { name: 'Output' })).not.toBeInTheDocument();
+    again.unmount();
+    width.mockReturnValue(1366);
+    render(<Workspace />);
+    expect(screen.getByRole('region', { name: 'Output' })).toBeInTheDocument();
+    width.mockRestore();
+  });
+
   it('shows the hidden Output pane to go to a hosting issue', async () => {
     localStorage.setItem(OUTPUT_OPEN_KEY, 'false');
     const user = userEvent.setup();

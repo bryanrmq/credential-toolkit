@@ -7,8 +7,8 @@ export type PaneWidths = Record<ResizablePane, number>;
 export const PANE_LAYOUT_KEY = 'credential-toolkit:pane-widths';
 export const DEFAULT_PANE_WIDTHS: PaneWidths = { structure: 300, output: 420 };
 export const PANE_LIMITS: Record<ResizablePane, [min: number, max: number]> = { structure: [220, 520], output: [300, 720] };
-/** Room the Edit pane always keeps, and the width of the two resize handles together. */
-const EDIT_PANE_MIN = 420;
+/** Room the Edit pane always keeps (`.panes` in styles.css), and the width of the two resize handles together. */
+export const EDIT_PANE_MIN = 440;
 const HANDLES_WIDTH = 10;
 
 /**
@@ -19,6 +19,14 @@ export function clampPaneWidth(pane: ResizablePane, width: number, room?: { cont
   const [min, max] = PANE_LIMITS[pane];
   const roomMax = room && room.container > 0 ? room.container - room.other - EDIT_PANE_MIN - HANDLES_WIDTH : max;
   return Math.round(Math.max(min, Math.min(width, max, roomMax)));
+}
+
+/**
+ * Whether panes `container` px wide fit both side panes at `widths` and the Edit pane at its minimum. When they do
+ * not, the Output pane steps aside until it is asked for. True while the width is unknown (0).
+ */
+export function outputFits(container: number, widths: PaneWidths): boolean {
+  return container <= 0 || container >= widths.structure + widths.output + EDIT_PANE_MIN + HANDLES_WIDTH;
 }
 
 /** The JSON value saved under `key`, or null when there is none, it is not JSON or storage is unavailable. */

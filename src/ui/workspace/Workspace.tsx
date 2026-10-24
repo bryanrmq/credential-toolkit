@@ -1,6 +1,6 @@
-import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useDrafts } from '../../state/persistence';
-import { useStore } from '../../state/store';
+import { isOutputShown, useStore } from '../../state/store';
 import { useExport } from '../../state/useExport';
 import { t } from '../../strings';
 import { Tabs } from '../components/controls';
@@ -17,6 +17,7 @@ import {
   loadIssuesOpen,
   loadOutputOpen,
   loadPaneWidths,
+  outputFits,
   saveIssuesOpen,
   saveOutputOpen,
   savePaneWidths,
@@ -50,17 +51,35 @@ export function Workspace() {
   const exportState = useExport(project);
   const [pane, setPane] = useState<WorkspacePane>('inspector');
   const panesRef = useRef<HTMLDivElement>(null);
+  const [panesWidth, setPanesWidth] = useState(0);
+  // Measured on mount, before the first paint, and again whenever the panes are resized.
+  const observePanes = useCallback((element: HTMLDivElement | null) => {
+    panesRef.current = element;
+    if (!element) return;
+    setPanesWidth(element.clientWidth);
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => setPanesWidth(element.clientWidth));
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      panesRef.current = null;
+    };
+  }, []);
   const [widths, setWidths] = useState(loadPaneWidths);
   const widthsRef = useRef(widths);
   const wide = useWideWindow();
   // The store holds whether Output shows, so that going to a hosting issue or the tour can show it again.
-  const outputOpen = useStore((state) => state.outputOpen);
+  const outputOpen = useStore(isOutputShown);
   useLayoutEffect(() => {
-    useStore.getState().setOutputOpen(loadOutputOpen());
+    // Not `setOutputOpen`: a remembered choice is not a request to squeeze the pane into a window too small for it.
+    useStore.setState({ outputOpen: loadOutputOpen(), outputSqueezed: false });
     return useStore.subscribe((state, previous) => {
       if (state.outputOpen !== previous.outputOpen) saveOutputOpen(state.outputOpen);
     });
   }, []);
+  // Where Output at the user's widths would leave Edit under its minimum, Output steps aside until it is asked for.
+  const cramped = wide && !outputFits(panesWidth, widths);
+  useLayoutEffect(() => useStore.getState().setOutputCramped(cramped), [cramped]);
   // A narrow window shows one pane at a time, Output among the tabs, so there it is never hidden.
   const outputShown = outputOpen || !wide;
   const topBarRef = useRef<HTMLElement>(null);
@@ -72,10 +91,11 @@ export function Workspace() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   useCommandHost('workspace', {
     toggleOutput: () => {
-      const { outputOpen: open, setOutputOpen } = useStore.getState();
+      const state = useStore.getState();
+      const open = isOutputShown(state);
       // Focus only moves when it was in the pane being hidden.
       if (open && document.activeElement?.closest('.pane--output')) hideOutput();
-      else setOutputOpen(!open);
+      else state.setOutputOpen(!open);
     },
     openPalette: () => setPaletteOpen(true),
   });
@@ -170,7 +190,7 @@ export function Workspace() {
             <div
               className={outputShown ? 'panes' : 'panes panes--no-output'}
               data-pane={pane}
-              ref={panesRef}
+              ref={observePanes}
               style={{ '--structure-width': `${widths.structure}px`, '--output-width': `${widths.output}px` } as CSSProperties}
             >
               <section className="pane pane--structure" aria-label={t.structure.title} data-tour="structure">
