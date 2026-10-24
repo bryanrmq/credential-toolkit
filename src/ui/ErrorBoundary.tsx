@@ -26,10 +26,10 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
       <main className="crash">
         <h1 className="dialog__title">{t.crash.title}</h1>
         <p className="dialog__intro">{t.crash.body}</p>
-        <pre className="code-block" style={{ maxHeight: 160 }}>
+        <pre className="code-block crash__message">
           {this.state.error.message}
         </pre>
-        <div className="row" style={{ marginTop: 24 }}>
+        <div className="row crash__actions">
           <Button variant="primary" onClick={() => downloadText('credential-toolkit-draft.json', rawDraft() ?? '{}')}>
             {t.crash.download}
           </Button>
