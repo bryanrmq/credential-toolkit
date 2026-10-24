@@ -33,6 +33,33 @@ describe('App', () => {
     expect(screen.getByText('OCA bundles, type metadata and issuer metadata for swiyu credentials')).toBeInTheDocument();
   });
 
+  it('credits the author and links the source and license in the start screen footer', () => {
+    render(<App />);
+    const footer = screen.getByRole('contentinfo');
+    const links = [
+      { name: 'Bryan Reymonenq', href: 'https://github.com/bryanrmq' },
+      { name: 'Source on GitHub', href: 'https://github.com/bryanrmq/credential-toolkit' },
+      { name: 'MIT License', href: 'https://github.com/bryanrmq/credential-toolkit/blob/main/LICENSE' },
+    ];
+    expect(within(footer).getByText(/Built by/)).toBeInTheDocument();
+    for (const { name, href } of links) {
+      const link = within(footer).getByRole('link', { name });
+      expect(link).toHaveAttribute('href', href);
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    }
+  });
+
+  it('keeps the start screen footer out of the workspace', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /Start blank/ }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Open in editor' }));
+
+    expect(screen.getByRole('heading', { name: 'Untitled credential' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Source on GitHub' })).not.toBeInTheDocument();
+  });
+
   it('starts a blank project and adds an attribute', async () => {
     const user = userEvent.setup();
     render(<App />);
