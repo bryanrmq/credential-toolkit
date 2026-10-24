@@ -262,7 +262,8 @@ input[type='checkbox'] {
   background-position: right 10px center;
   padding-right: 32px;
 }
-.input[aria-invalid='true'] {
+.input[aria-invalid='true'],
+.textarea[aria-invalid='true'] {
   border-color: var(--red-text);
 }
 .input--mono,

@@ -3,6 +3,7 @@ import { type ButtonHTMLAttributes, Fragment, type ReactNode, useEffect, useRef,
 import type { Issue } from '../../core/validate';
 import { useStore } from '../../state/store';
 import { type IssueGroup, groupFixes, groupIssues, issueFixes, useFieldIssues, useIssues } from '../issues';
+import { useModal } from '../lib/modal';
 import { withKeys } from './keys';
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -46,6 +47,16 @@ export function Field({ id, label, hint, children }: FieldProps) {
         </Fragment>
       ))}
     </div>
+  );
+}
+
+/** An error under the field it is about: link it from the field with `aria-describedby={id}` and `aria-invalid`. */
+export function FieldError({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <p id={id} className="field__issue field__issue--error" role="alert">
+      <WarningCircleIcon size={14} />
+      {children}
+    </p>
   );
 }
 
@@ -206,6 +217,11 @@ export function Menu({ label, items }: { label: string; items: MenuItem[] }) {
   );
 }
 
+/**
+ * A modal dialog: focus goes to the `data-autofocus` element or the first field and stays inside, the
+ * page behind is inert, and Escape or a click on the backdrop closes it. Focus then goes back to the
+ * control that opened it.
+ */
 export function Dialog({
   title,
   intro,
@@ -219,9 +235,12 @@ export function Dialog({
   onClose: () => void;
   className?: string;
 }) {
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useModal(dialogRef, onClose, backdropRef);
   return (
-    <div className="dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <div className={`dialog ${className}`.trim()} role="dialog" aria-modal="true" aria-label={title} onKeyDown={(event) => event.key === 'Escape' && onClose()}>
+    <div ref={backdropRef} className="dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <div ref={dialogRef} className={`dialog ${className}`.trim()} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
         <h2 className="dialog__title">{title}</h2>
         {intro && <p className="dialog__intro">{intro}</p>}
         {children}

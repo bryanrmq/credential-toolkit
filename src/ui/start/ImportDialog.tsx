@@ -9,7 +9,7 @@ import { DEFAULT_LANGUAGES } from '../../core/langs';
 import { type LangTag, emptyProject } from '../../core/model';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
-import { Button, Dialog } from '../components/controls';
+import { Button, Dialog, FieldError } from '../components/controls';
 import { LanguagePicker } from '../components/media';
 
 export type ImportKind = 'sample' | 'bundle' | 'metadata' | 'blank';
@@ -30,7 +30,8 @@ export function ImportDialog({ kind, onClose }: { kind: ImportKind; onClose: () 
   const [text, setText] = useState('');
   const [languages, setLanguages] = useState<LangTag[]>(INITIAL_LANGUAGES);
   const [configuration, setConfiguration] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  // An error shows under the field it is about: the pasted text, or the languages.
+  const [error, setError] = useState<{ message: string; field: 'text' | 'languages' } | null>(null);
   const [busy, setBusy] = useState(false);
   const entry = t.start.entries[kind];
   const needsText = kind !== 'blank';
@@ -39,8 +40,8 @@ export function ImportDialog({ kind, onClose }: { kind: ImportKind; onClose: () 
 
   const submit = async () => {
     setError(null);
-    if (needsText && text.trim() === '') return setError(t.importDialog.empty);
-    if (needsLanguages && languages.length === 0) return setError(t.importDialog.noLanguage);
+    if (needsText && text.trim() === '') return setError({ message: t.importDialog.empty, field: 'text' });
+    if (needsLanguages && languages.length === 0) return setError({ message: t.importDialog.noLanguage, field: 'languages' });
     setBusy(true);
     try {
       let result: ImportResult;
@@ -56,10 +57,13 @@ export function ImportDialog({ kind, onClose }: { kind: ImportKind; onClose: () 
       // A new draft: the drafts stored before stay in Recent projects.
       load(result.project, result.report, { reviewI14y: kind === 'bundle', baseline });
     } catch (caught) {
-      setError(caught instanceof ImportError ? caught.message : `Unexpected error: ${String(caught)}`);
+      const message = caught instanceof ImportError ? caught.message : `Unexpected error: ${String(caught)}`;
+      setError({ message, field: needsText ? 'text' : 'languages' });
       setBusy(false);
     }
   };
+
+  const textError = error?.field === 'text' ? error.message : null;
 
   const readFile = async (file: File | undefined) => {
     if (file) setText(await file.text());
@@ -88,6 +92,8 @@ export function ImportDialog({ kind, onClose }: { kind: ImportKind; onClose: () 
               className="textarea"
               value={text}
               spellCheck={false}
+              aria-invalid={textError !== null}
+              aria-describedby={textError === null ? undefined : 'import-text-error'}
               onChange={(event) => setText(event.target.value)}
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
@@ -96,6 +102,7 @@ export function ImportDialog({ kind, onClose }: { kind: ImportKind; onClose: () 
               }}
             />
             <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(event) => void readFile(event.target.files?.[0])} />
+            {textError !== null && <FieldError id="import-text-error">{textError}</FieldError>}
           </div>
         )}
         {kind === 'metadata' && configurations.length > 1 && (
@@ -122,12 +129,8 @@ export function ImportDialog({ kind, onClose }: { kind: ImportKind; onClose: () 
             <span className="field__label">{t.importDialog.languages}</span>
             <LanguagePicker value={languages} onChange={setLanguages} />
             <p className="field__hint">{t.importDialog.languagesHint}</p>
+            {error?.field === 'languages' && <FieldError id="import-languages-error">{error.message}</FieldError>}
           </div>
-        )}
-        {error && (
-          <p className="error-text" role="alert">
-            {error}
-          </p>
         )}
         <div className="dialog__actions">
           <Button variant="ghost" onClick={onClose}>
