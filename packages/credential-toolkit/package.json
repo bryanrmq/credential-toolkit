@@ -1,16 +1,16 @@
 {
-  "name": "@bryanrmq/oca-generator",
+  "name": "@bryanrmq/credential-toolkit",
   "version": "0.1.0",
-  "description": "Build and check swiyu OCA bundles for SD-JWT credentials: project files, validation, bundle, #integrity and VCT snippet, as a library and the oca command.",
+  "description": "Build and check swiyu OCA bundles for SD-JWT credentials: project files, validation, bundle, #integrity and VCT snippet, as a library and the credential-toolkit (ctk) command.",
   "license": "MIT",
   "author": "Bryan Reymonenq",
-  "homepage": "https://github.com/bryanrmq/oca-generator/tree/main/packages/oca-generator#readme",
+  "homepage": "https://github.com/bryanrmq/credential-toolkit/tree/main/packages/credential-toolkit#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bryanrmq/oca-generator.git",
-    "directory": "packages/oca-generator"
+    "url": "git+https://github.com/bryanrmq/credential-toolkit.git",
+    "directory": "packages/credential-toolkit"
   },
-  "bugs": "https://github.com/bryanrmq/oca-generator/issues",
+  "bugs": "https://github.com/bryanrmq/credential-toolkit/issues",
   "keywords": ["oca", "overlays-capture-architecture", "swiyu", "sd-jwt", "verifiable-credentials"],
   "type": "module",
   "exports": {
@@ -22,7 +22,8 @@
   },
   "types": "./dist/index.d.ts",
   "bin": {
-    "oca": "./dist/cli.js"
+    "credential-toolkit": "./dist/cli.js",
+    "ctk": "./dist/cli.js"
   },
   "files": ["dist"],
   "sideEffects": false,

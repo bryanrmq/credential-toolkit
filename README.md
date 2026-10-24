@@ -144,8 +144,9 @@ swiyu-issuer 5.0.1.
 
 ### In your own tools
 
-The same logic ships as the npm package `@bryanrmq/oca-generator`, with an `oca` command to
-build and check bundles in scripts and CI. See [npm package](#npm-package).
+The same logic ships as the npm package `@bryanrmq/credential-toolkit`, with a
+`credential-toolkit` command (or `ctk` for short) to build and check bundles in scripts and CI.
+See [npm package](#npm-package).
 
 ## Development
 
@@ -157,7 +158,7 @@ npm run e2e        # browser smoke test (Playwright; run `npx playwright install
 npm run lint       # oxlint
 npm run typecheck  # tsc -b
 npm run build      # static site in dist/
-npm run build:lib  # the npm package in packages/oca-generator/dist
+npm run build:lib  # the npm package in packages/credential-toolkit/dist
 ```
 
 ### Stack
@@ -173,21 +174,21 @@ oxlint.
 - `src/state`: the store, drafts and persistence.
 - `src/ui`: the start screen, the workspace and the wallet previews.
 - `src/strings.ts`: every piece of interface copy.
-- `packages/oca-generator`: the npm package and its CLI.
+- `packages/credential-toolkit`: the npm package and its CLI.
 
 Test fixtures in `src/test/fixtures` come from the swiyu wallet and issuer repositories.
 
 ## npm package
 
-The core is also published as [`@bryanrmq/oca-generator`](packages/oca-generator), to build and
-check bundles from project files in your own tools and in CI. It runs in Node 20 or later.
+The core is also published as [`@bryanrmq/credential-toolkit`](packages/credential-toolkit), to
+build and check bundles from project files in your own tools and in CI. It runs in Node 20 or later.
 
 ```bash
-npm install @bryanrmq/oca-generator
+npm install @bryanrmq/credential-toolkit
 ```
 
 ```js
-import { exportProject, parseProjectFile } from '@bryanrmq/oca-generator';
+import { exportProject, parseProjectFile } from '@bryanrmq/credential-toolkit';
 
 const file = parseProjectFile(text); // a *.credential-project.json saved by the app
 const result = file.ok && (await exportProject(file.project));
@@ -196,22 +197,23 @@ const result = file.ok && (await exportProject(file.project));
 ```
 
 Its entry point is `src/core/index.ts`, which lists the public API; the
-[package README](packages/oca-generator/README.md) documents it. `packages/oca-generator` compiles
-`src/core` with `tsc` (`npm run build:lib`) against Node's types only, so browser globals can't slip
-in. That's also why relative imports in `src/core` name their `.ts` file.
+[package README](packages/credential-toolkit/README.md) documents it. `packages/credential-toolkit`
+compiles `src/core` with `tsc` (`npm run build:lib`) against Node's types only, so browser globals
+can't slip in. That's also why relative imports in `src/core` name their `.ts` file.
 
-The package also has an `oca` command, for scripts and CI (`packages/oca-generator/src/cli.ts`,
-compiled after the library and importing it by its package name, so it only uses the public API):
+The package also has a `credential-toolkit` command, with the short alias `ctk`, for scripts and
+CI (`packages/credential-toolkit/src/cli.ts`, compiled after the library and importing it by its
+package name, so it only uses the public API):
 
 ```bash
-npx -p @bryanrmq/oca-generator oca check pet-permit.credential-project.json
-npx -p @bryanrmq/oca-generator oca build pet-permit.credential-project.json -o oca-bundle.json --vct vct.json
+npx -p @bryanrmq/credential-toolkit credential-toolkit check pet-permit.credential-project.json
+npx -p @bryanrmq/credential-toolkit ctk build pet-permit.credential-project.json -o oca-bundle.json --vct vct.json
 ```
 
 Both commands exit with 0 when there are no errors, 1 when there are validation errors and 2 for
 anything else, such as an unreadable file or bad arguments.
 
-To release it, set `version` in `packages/oca-generator/package.json`, merge, then push a
+To release it, set `version` in `packages/credential-toolkit/package.json`, merge, then push a
 `lib-v<version>` tag (`git tag lib-v0.1.0 && git push origin lib-v0.1.0`).
 `.github/workflows/publish-lib.yml` checks the tag against the version, runs the tests and
 publishes with npm provenance, using the `NPM_TOKEN` repository secret. It can also run by hand,

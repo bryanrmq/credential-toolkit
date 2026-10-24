@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * `oca`: builds and checks the bundle of an OCA Generator project file (`*.credential-project.json`) from the command
- * line, for scripts and CI. It imports the package by its own name, so it only reaches the public API, and it
- * makes no network request. `oca --help` describes the commands; the exit codes are in `EXIT`.
+ * `credential-toolkit` (or its alias `ctk`): builds and checks the bundle of a Credential Toolkit project file
+ * (`*.credential-project.json`) from the command line, for scripts and CI. It imports the package by its own name,
+ * so it only reaches the public API, and it makes no network request. `credential-toolkit --help` describes the
+ * commands; the exit codes are in `EXIT`.
  */
 import { readFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -15,19 +16,24 @@ import {
   exportProject,
   parseProjectFile,
   validate,
-} from '@bryanrmq/oca-generator';
+} from '@bryanrmq/credential-toolkit';
 
 /** 0: no errors (warnings are printed). 1: validation errors. 2: input that can't be used, or bad arguments. */
 const EXIT = { ok: 0, errors: 1, input: 2 } as const;
 
+/** The command's name in its messages. The package installs it as `ctk` too. */
+const NAME = 'credential-toolkit';
+
 const USAGE = `Usage:
-  oca build <project.credential-project.json> [-o bundle.json] [--vct vct.json]
-  oca check <project.credential-project.json>
+  ${NAME} build <project.credential-project.json> [-o bundle.json] [--vct vct.json]
+  ${NAME} check <project.credential-project.json>
 `;
 
-const HELP = `oca: build and check swiyu OCA bundles from OCA Generator project files.
+const HELP = `${NAME}: build and check swiyu OCA bundles from Credential Toolkit project files.
 
 ${USAGE}
+ctk is a short alias: ctk build and ctk check work the same.
+
 Commands:
   build   Validate the project and write its bundle (to stdout without -o), then
           print its uri#integrity and its Type Metadata (vct.json). Writes
@@ -80,9 +86,9 @@ async function readProject(file: string): Promise<Project> {
   const parsed = parseProjectFile(text);
   if (parsed.ok) return parsed.project;
   if (parsed.error === 'newer') {
-    throw new InputError(`${file} was saved by a newer OCA Generator; this oca opens project files up to version ${PROJECT_FILE_VERSION}. Update oca.`);
+    throw new InputError(`${file} was saved by a newer Credential Toolkit; this ${NAME} opens project files up to version ${PROJECT_FILE_VERSION}. Update ${NAME}.`);
   }
-  throw new InputError(`${file} is not an OCA Generator project file (*.credential-project.json). Save one from the app: menu → Save project file.`);
+  throw new InputError(`${file} is not a Credential Toolkit project file (*.credential-project.json). Save one from the app: menu → Save project file.`);
 }
 
 async function write(file: string, text: string): Promise<void> {
@@ -195,7 +201,7 @@ async function main(args: string[]): Promise<number> {
   try {
     parsed = parseCommandLine(args);
   } catch (error) {
-    process.stderr.write(`oca: ${(error as Error).message}\nRun oca --help for usage.\n`);
+    process.stderr.write(`${NAME}: ${(error as Error).message}\nRun ${NAME} --help for usage.\n`);
     return EXIT.input;
   }
   const { values, positionals } = parsed;
@@ -209,15 +215,15 @@ async function main(args: string[]): Promise<number> {
   }
   const [command, file, ...extra] = positionals;
   const usage = (message: string) => {
-    process.stderr.write(`oca: ${message}\n\n${USAGE}Run oca --help for more.\n`);
+    process.stderr.write(`${NAME}: ${message}\n\n${USAGE}Run ${NAME} --help for more.\n`);
     return EXIT.input;
   };
   if (command === undefined) return usage('missing command.');
   if (command !== 'build' && command !== 'check') return usage(`unknown command "${command}".`);
-  if (file === undefined) return usage(`missing project file: oca ${command} <project.credential-project.json>.`);
+  if (file === undefined) return usage(`missing project file: ${NAME} ${command} <project.credential-project.json>.`);
   if (extra.length > 0) return usage(`unexpected argument "${extra[0]}".`);
   if (command === 'check' && (values.output !== undefined || values.vct !== undefined)) {
-    return usage(`${values.output !== undefined ? '--output' : '--vct'} only goes with oca build.`);
+    return usage(`${values.output !== undefined ? '--output' : '--vct'} only goes with ${NAME} build.`);
   }
 
   try {
@@ -225,7 +231,7 @@ async function main(args: string[]): Promise<number> {
   } catch (error) {
     // Anything else comes from a project file with the right shape on top but broken inside.
     const message = error instanceof InputError ? error.message : `Can't use ${file}: ${(error as Error).message}`;
-    process.stderr.write(`oca: ${message}\n`);
+    process.stderr.write(`${NAME}: ${message}\n`);
     return EXIT.input;
   }
 }

@@ -1,5 +1,5 @@
 {
-  // Compiles the `oca` command to dist/cli.js. It imports the package by its own name, which resolves to the
+  // Compiles the `credential-toolkit` command to dist/cli.js. It imports the package by its own name, which resolves to the
   // dist/ that tsconfig.json builds first, so the command can only use the public API.
   "extends": "./tsconfig.json",
   "compilerOptions": {

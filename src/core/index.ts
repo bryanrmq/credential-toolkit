@@ -1,6 +1,6 @@
 /**
- * The public API of the OCA logic, published as the npm package `@bryanrmq/oca-generator`
- * (`packages/oca-generator`). The web app imports the modules of `src/core` directly; this entry is what
+ * The public API of the OCA logic, published as the npm package `@bryanrmq/credential-toolkit`
+ * (`packages/credential-toolkit`). The web app imports the modules of `src/core` directly; this entry is what
  * other tools get. It runs in Node 20+ and in browsers: the only platform features it uses are Web Crypto,
  * `TextEncoder`, `atob` and `btoa`. Relative imports in `src/core` name their `.ts` file so the package
  * compiles to ES modules Node can load.
