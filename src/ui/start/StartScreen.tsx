@@ -25,7 +25,10 @@ export function StartScreen() {
   return (
     <main className="start">
       <div className="start__inner" ref={innerRef}>
-        <Wordmark />
+        <header className="start__brand">
+          <Wordmark />
+          <p className="start__tagline">{t.start.tagline}</p>
+        </header>
         <section className="start__hero">
           <div>
             <h1 className="start__title reveal">{t.start.title}</h1>

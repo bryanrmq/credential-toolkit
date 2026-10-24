@@ -145,7 +145,7 @@ describe('opening a project file', () => {
     const before = createDraft(project('Hundebewilligung'));
     for (const text of ['not json', '{"format":"oca-bundle","version":1,"project":{}}', JSON.stringify(project('x'))]) {
       expect(await openProjectFileFrom(projectFile(text))).toBe(false);
-      expect(useStore.getState().fixNotice).toEqual({ kind: 'error', message: "This file isn't an OCA generator project." });
+      expect(useStore.getState().fixNotice).toEqual({ kind: 'error', message: "This file isn't a Credential Toolkit project." });
     }
     expect(useStore.getState().draftId).toBe(before);
   });
@@ -155,7 +155,7 @@ describe('opening a project file', () => {
     expect(await openProjectFileFrom(projectFile(text))).toBe(false);
     expect(useStore.getState().fixNotice).toEqual({
       kind: 'error',
-      message: 'This project was saved by a newer version of the OCA generator. Reload the page to update, then open it again.',
+      message: 'This project was saved by a newer version of Credential Toolkit. Reload the page to update, then open it again.',
     });
     expect(useStore.getState().project).toBeNull();
   });
@@ -197,7 +197,7 @@ describe('in the app', () => {
     await user.click(screen.getByRole('button', { name: 'More actions' }));
     await user.click(screen.getByRole('menuitem', { name: 'Open project file' }));
     expect(picked.input).toBeDefined();
-    await waitFor(() => expect(toast()).toHaveTextContent("This file isn't an OCA generator project."));
+    await waitFor(() => expect(toast()).toHaveTextContent("This file isn't a Credential Toolkit project."));
   });
 
   it('saves with ⌘S and opens with Ctrl+O, instead of the browser', async () => {
@@ -234,6 +234,6 @@ describe('in the app', () => {
   it('shows the error toast on the start screen too', async () => {
     render(<App />);
     await act(async () => void (await openProjectFileFrom(projectFile('{}'))));
-    expect(toast()).toHaveTextContent("This file isn't an OCA generator project.");
+    expect(toast()).toHaveTextContent("This file isn't a Credential Toolkit project.");
   });
 });

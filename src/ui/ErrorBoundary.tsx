@@ -30,7 +30,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
           {this.state.error.message}
         </pre>
         <div className="row" style={{ marginTop: 24 }}>
-          <Button variant="primary" onClick={() => downloadText('oca-generator-draft.json', rawDraft() ?? '{}')}>
+          <Button variant="primary" onClick={() => downloadText('credential-toolkit-draft.json', rawDraft() ?? '{}')}>
             {t.crash.download}
           </Button>
           <Button
