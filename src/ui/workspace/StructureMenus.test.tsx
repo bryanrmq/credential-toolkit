@@ -407,3 +407,66 @@ describe('Structure right-click menus', () => {
     expect(queryMenu()).not.toBeInTheDocument();
   });
 });
+
+describe('the ⋯ button of a row (touch screens, where no right-click menu opens)', () => {
+  const more = (key: string) => within(row(key)).getByRole('button', { name: `Actions for ${key}` });
+
+  it('is out of the tab order and opens the row’s menu below it, right-aligned', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    expect(more('a')).toHaveAttribute('tabindex', '-1');
+    expect(more('a')).toHaveAttribute('aria-haspopup', 'menu');
+    await user.click(more('a'));
+    expect(selectedKeys()).toEqual(['a']);
+    expect(menu()).toHaveAccessibleName('Actions for a');
+    expect(menuContents()).toContain('Duplicate [Ctrl+D]');
+    expect(item('Group selection')).toHaveFocus();
+    // Escape hands focus back to the row.
+    await user.keyboard('{Escape}');
+    expect(queryMenu()).not.toBeInTheDocument();
+    expect(row('a')).toHaveFocus();
+  });
+
+  it('works under 1000 px, without the keys and without leaving the Structure pane', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
+    const user = userEvent.setup();
+    const { container } = render(<Workspace />);
+    await user.click(screen.getByRole('tab', { name: 'Structure' }));
+    await user.click(more('d'));
+    expect(selectedKeys()).toEqual(['d']);
+    expect(container.querySelector('.panes')).toHaveAttribute('data-pane', 'structure');
+    expect(menuContents()).toEqual(['Group selection', 'Duplicate', 'Add attribute below', '—', 'Move up', 'Move down', '—', 'Cut', 'Copy', '—', 'Delete']);
+    await user.click(item('Move up'));
+    expect(keys()).toEqual(['a', 'd', 'person', 'items']);
+    expect(container.querySelector('.panes')).toHaveAttribute('data-pane', 'structure');
+
+    await user.click(more('d'));
+    await user.click(item('Copy'));
+    await user.click(more('a'));
+    await user.click(item('Paste'));
+    expect(keys()).toEqual(['a', 'd_2', 'd', 'person', 'items']);
+  });
+
+  it('acts on the whole selection when its row is in it', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('a'));
+    await user.keyboard('{Control>}');
+    await user.click(row('d'));
+    await user.keyboard('{/Control}');
+    await user.click(more('d'));
+    expect(selectedKeys()).toEqual(['a', 'd']);
+    expect(menuContents()).toContain('Delete 2 items [Del]');
+  });
+
+  it('does not open while the tour or a dialog is open', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    act(() => useStore.getState().setTourOpen(true));
+    fireEvent.click(more('a'));
+    expect(queryMenu()).not.toBeInTheDocument();
+    act(() => useStore.getState().setTourOpen(false));
+    await user.click(more('a'));
+    expect(menu()).toBeInTheDocument();
+  });
+});

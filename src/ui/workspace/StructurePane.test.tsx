@@ -829,6 +829,19 @@ describe('collapse and expand', () => {
   });
 });
 
+describe('empty structure', () => {
+  it('offers one primary and two secondary buttons, each with an icon, under a one-line hint', () => {
+    useStore.getState().load(emptyProject(['de-CH']));
+    render(<Workspace />);
+    const actions = document.querySelector('.empty-structure__actions')!;
+    const buttons = within(actions as HTMLElement).getAllByRole('button');
+    expect(buttons.map((button) => button.textContent?.trim())).toEqual(['Add attribute', 'Fill from a sample', 'Add attributes from I14Y']);
+    expect(buttons.map((button) => button.classList.contains('btn--primary'))).toEqual([true, false, false]);
+    for (const button of buttons) expect(button.querySelector('svg')).not.toBeNull();
+    expect(screen.getByText('Add attributes, or fill them from a sample or I14Y.')).toBeInTheDocument();
+  });
+});
+
 describe('filter box', () => {
   const filterBox = () => screen.getByRole<HTMLInputElement>('searchbox', { name: 'Filter the structure' });
   const rowKeys = () => within(tree()).getAllByRole('treeitem').map((item) => item.querySelector('.tree__key')?.textContent);
@@ -866,10 +879,53 @@ describe('filter box', () => {
   it('says so when nothing matches', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
-    expect(screen.queryByText('No matches')).toBeNull();
-    await user.type(filterBox(), 'zzz');
+    expect(screen.queryByRole('button', { name: 'Clear filter' })).toBeNull();
+    await user.type(filterBox(), ' zzz ');
     expect(rowKeys()).toEqual(['Credential']);
-    expect(screen.getByText('No matches')).toHaveAttribute('role', 'status');
+    expect(screen.getByText('No key or label contains “zzz”')).toHaveAttribute('role', 'status');
+    // Clear filter brings every row back and leaves focus in the filter box.
+    await user.click(screen.getByRole('button', { name: 'Clear filter' }));
+    expect(filterBox()).toHaveValue('');
+    expect(filterBox()).toHaveFocus();
+    expect(rowKeys()).toEqual(['Credential', 'a', 'person', 'b', 'c', 'd']);
+  });
+
+  it('marks where the text occurs in keys and labels, and nowhere without a filter', async () => {
+    setLabel('b', 'Vorname');
+    setLabel('person', 'Person');
+    const user = userEvent.setup();
+    render(<Workspace />);
+    const marks = () => [...tree().querySelectorAll('mark.tree__match')].map((mark) => `${mark.closest('[data-row]')!.querySelector('.tree__key')!.textContent}:${mark.textContent}`);
+    await user.type(filterBox(), 'O');
+    // `person` matches on its key and its label; `b` on its label only.
+    expect(marks()).toEqual(['person:o', 'person:o', 'b:o']);
+    expect(row('b').querySelector('.tree__label')).toHaveTextContent('Vorname');
+    await user.clear(filterBox());
+    expect(marks()).toEqual([]);
+  });
+
+  it('says in the Edit pane how many selected nodes the filter hides', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('a'));
+    await user.keyboard('{Control>}');
+    await user.click(row('b'));
+    await user.click(row('d'));
+    await user.keyboard('{/Control}');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('3 items selected');
+    expect(screen.queryByText(/hidden by the filter/)).toBeNull();
+    await user.type(filterBox(), 'b');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('3 items selected');
+    expect(screen.getByText('2 hidden by the filter')).toBeInTheDocument();
+    await user.clear(filterBox());
+    expect(screen.queryByText(/hidden by the filter/)).toBeNull();
+  });
+
+  it('gives each row its full key and label as a tooltip', () => {
+    setLabel('b', 'Vorname');
+    render(<Workspace />);
+    expect(row('b')).toHaveAttribute('title', 'b · Vorname');
+    expect(row('a')).toHaveAttribute('title', 'a');
   });
 
   it('shows matches inside collapsed groups without expanding them for good', async () => {

@@ -1,6 +1,7 @@
 import { findNode } from '../../core/model';
 import { moveNodesInto } from '../../core/operations';
 import { useStore } from '../../state/store';
+import { filteredIds } from '../../state/treeView';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
 import { ariaKeyShortcuts, command, commandLabel, shortcutLabel } from '../lib/commands';
@@ -15,10 +16,15 @@ const DeleteIcon = command('tree.delete').icon;
 /**
  * The Edit pane for several selected nodes (`ids`, the selection): their count and keys, and the actions
  * that apply to all of them. Group and Delete are the tree's own actions, so they select what the tree would.
+ * While the tree's filter hides some of them, it says how many: the actions still apply to those too.
  */
 export function SelectionInspector({ ids }: { ids: string[] }) {
   const project = useStore((state) => state.project)!;
+  const filter = useStore((state) => state.treeFilter);
+  const editLang = useStore((state) => state.editLang);
   const { update } = useStore.getState();
+  const shown = filteredIds(project, filter, editLang);
+  const hidden = shown ? ids.filter((id) => !shown.has(id)).length : 0;
   const nodes = ids.flatMap((id) => findNode(project.root, id)?.node ?? []);
   const targets = moveTargets(project.root, nodes);
 
@@ -26,6 +32,7 @@ export function SelectionInspector({ ids }: { ids: string[] }) {
     <>
       <header className="inspector__header">
         <h1 className="inspector__title">{t.selection.count(ids.length)}</h1>
+        {hidden > 0 && <p className="field__hint selection-hidden">{t.selection.hidden(hidden)}</p>}
         <ul className="selection-keys" aria-label={t.selection.keys}>
           {nodes.slice(0, SHOWN_KEYS).map((node) => (
             <li key={node.id} className="mono">
