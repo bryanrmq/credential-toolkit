@@ -1,4 +1,11 @@
-import { BracketsCurlyIcon, FilePlusIcon, IdentificationCardIcon, ShieldCheckIcon, StackIcon } from '@phosphor-icons/react';
+import {
+  BracketsCurlyIcon,
+  FilePlusIcon,
+  GithubLogoIcon,
+  IdentificationCardIcon,
+  ShieldCheckIcon,
+  StackIcon,
+} from '@phosphor-icons/react';
 import { type ReactNode, Suspense, lazy, useRef, useState } from 'react';
 import { t } from '../../strings';
 import { FixToast } from '../components/FixToast';
@@ -7,6 +14,10 @@ import { Wordmark } from '../Wordmark';
 import { CredentialSketch } from './CredentialSketch';
 import { ImportDialog, type ImportKind } from './ImportDialog';
 import { RecentProjects } from './RecentProjects';
+
+const AUTHOR_URL = 'https://github.com/bryanrmq';
+const REPOSITORY_URL = 'https://github.com/bryanrmq/credential-toolkit';
+const LICENSE_URL = `${REPOSITORY_URL}/blob/main/LICENSE`;
 
 const Examples = lazy(() => import('./Examples').then((module) => ({ default: module.Examples })));
 
@@ -70,10 +81,34 @@ export function StartScreen() {
           <Examples />
         </Suspense>
         <footer className="start__footer">
-          {t.start.footer}{' '}
-          <a href="https://swiyu-admin-ch.github.io/specifications/oca-v1-0/" target="_blank" rel="noreferrer">
-            swiyu OCA 1.0
-          </a>
+          <p>
+            {t.start.footer}{' '}
+            <a href="https://swiyu-admin-ch.github.io/specifications/oca-v1-0/" target="_blank" rel="noreferrer">
+              swiyu OCA 1.0
+            </a>
+          </p>
+          {/* The wrapper clips the separator in front of whichever item starts a line. */}
+          <div className="start__credits">
+            <ul aria-label={t.start.credits.label}>
+              <li>
+                {t.start.credits.builtBy}{' '}
+                <a href={AUTHOR_URL} target="_blank" rel="noopener noreferrer">
+                  {t.start.credits.author}
+                </a>
+              </li>
+              <li>
+                <a href={REPOSITORY_URL} target="_blank" rel="noopener noreferrer">
+                  <GithubLogoIcon aria-hidden="true" />
+                  {t.start.credits.source}
+                </a>
+              </li>
+              <li>
+                <a href={LICENSE_URL} target="_blank" rel="noopener noreferrer">
+                  {t.start.credits.license}
+                </a>
+              </li>
+            </ul>
+          </div>
         </footer>
       </div>
       {dialog && <ImportDialog kind={dialog} onClose={() => setDialog(null)} />}

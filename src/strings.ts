@@ -34,6 +34,14 @@ export const t = {
       yesterday: 'Yesterday',
     },
     footer: 'Follows the swiyu "Visualisation of Verifiable Credential with OCA 1.0" specification.',
+    /** The credits line under it; the author and license as LICENSE names them. */
+    credits: {
+      label: 'About this project',
+      builtBy: 'Built by',
+      author: 'Bryan Reymonenq',
+      source: 'Source on GitHub',
+      license: 'MIT License',
+    },
     entries: {
       sample: {
         title: 'Start from a sample credential',
