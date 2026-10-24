@@ -9,7 +9,10 @@ computes the digests and `#integrity` values for you. A preview shows roughly ho
 Android wallets draw the card and its details while you type, so you catch layout and
 translation problems before you issue anything.
 
-Your project stays in your browser. Nothing is uploaded.
+Your project stays in your browser. Only these requests leave it: I14Y searches and concept
+lookups (api.i14y.admin.ch), a check for the latest release (api.github.com), anonymous page-view
+statistics (Vercel Web Analytics) and, when you ask for it, a download of your published bundle
+from its hosting URL.
 
 **[Open Credential Toolkit](https://oca-generator.vercel.app)**
 

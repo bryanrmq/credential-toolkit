@@ -3,9 +3,9 @@ import { type RefObject, useEffect } from 'react';
 /**
  * Adds `is-visible` to the `.reveal` elements inside `ref` once they scroll into view, so they fade
  * in (styles.css; skipped under reduced motion). Without IntersectionObserver they show at once.
- * When `content` changes, the `.reveal` elements added since are watched too.
+ * Only for content below the fold (the examples list): what the first screen shows never waits on it.
  */
-export function useReveal(ref: RefObject<HTMLElement | null>, content?: unknown): void {
+export function useReveal(ref: RefObject<HTMLElement | null>): void {
   useEffect(() => {
     const elements = [...(ref.current?.querySelectorAll<HTMLElement>('.reveal:not(.is-visible)') ?? [])];
     if (typeof IntersectionObserver === 'undefined') {
@@ -24,5 +24,5 @@ export function useReveal(ref: RefObject<HTMLElement | null>, content?: unknown)
     );
     for (const element of elements) observer.observe(element);
     return () => observer.disconnect();
-  }, [ref, content]);
+  }, [ref]);
 }

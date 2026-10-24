@@ -3,7 +3,7 @@ import { type I14yHit, compareWithI14y, i14yLanguage, textIn } from '../../core/
 import type { I14yLink, LangTag } from '../../core/model';
 import { t } from '../../strings';
 import { Badge, Button } from '../components/controls';
-import { conceptPageUrl, statusLabel, statusTone } from '../lib/i14y';
+import { conceptPageUrl, statusLabel } from '../lib/i14y';
 
 /** The tag, lead, concept name (publisher in its tooltip), identifier and status shared by the linked and "looks like" lines. */
 function I14yConceptLine({ lead, maybe, concept, lang }: { lead: string; maybe?: boolean; concept: I14yLink | I14yHit; lang: LangTag }) {
@@ -16,7 +16,7 @@ function I14yConceptLine({ lead, maybe, concept, lang }: { lead: string; maybe?:
         {textIn(concept.name, lang) || concept.identifier}
       </span>
       <code className="i14y-link__id">{concept.identifier}</code>
-      {concept.registrationStatus && <Badge tone={statusTone(concept.registrationStatus)}>{statusLabel(concept.registrationStatus)}</Badge>}
+      {concept.registrationStatus && <Badge tone="gray">{statusLabel(concept.registrationStatus)}</Badge>}
     </>
   );
 }
