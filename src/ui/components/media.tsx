@@ -101,7 +101,7 @@ export function LanguagePicker({ value, onChange }: { value: LangTag[]; onChange
           </label>
         ))}
       </div>
-      <div className="row" style={{ marginTop: 12 }}>
+      <div className="row checkbox-list__custom">
         <input
           className="input input--mono"
           aria-label={t.languagesDialog.custom}

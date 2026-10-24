@@ -109,7 +109,7 @@ export function IssuesPanel({
         <div className="issues-panel__body" id={BODY_ID} style={docked ? { height } : undefined}>
           {groups.length === 0 ? (
             <p className="empty-state">
-              <CheckCircleIcon size={20} style={{ color: 'var(--green-text)' }} />
+              <CheckCircleIcon size={18} className="empty-state__icon" />
               <br />
               {t.issues.empty}
             </p>

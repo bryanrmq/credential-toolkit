@@ -60,7 +60,7 @@ export function CredentialInspector() {
             { value: 'dark', label: t.inspector.dark },
           ]}
         />
-        <div style={{ paddingTop: 20 }}>
+        <div className="inspector__branding">
           {!branding ? (
             <>
               <p className="note">{t.inspector.darkHint}</p>

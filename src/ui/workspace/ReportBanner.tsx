@@ -21,7 +21,7 @@ export function ReportBanner() {
             {note.level === 'warning' ? (
               <WarningIcon className="issue-icon--warning" />
             ) : (
-              <InfoIcon style={{ color: 'var(--blue-text)', flex: 'none', marginTop: 3 }} />
+              <InfoIcon className="issue-icon--info" />
             )}
             <span>{note.message}</span>
           </li>
