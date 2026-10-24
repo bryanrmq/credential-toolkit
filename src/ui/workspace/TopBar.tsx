@@ -11,6 +11,7 @@ import { blocksBundle, groupIssues, useIssues } from '../issues';
 import { setDownloadedBaseline } from '../lib/baseline';
 import { type CommandId, applies, ariaKeyShortcuts, commandLabel, runCommand, shortcutLabel } from '../lib/commands';
 import { downloadText } from '../lib/download';
+import { THEMES, setTheme, useTheme } from '../lib/theme';
 import { useTranslationState } from '../lib/translate';
 import { useWideWindow } from '../lib/wideWindow';
 import { Wordmark } from '../Wordmark';
@@ -33,6 +34,7 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
   const view = useStore((state) => state.view);
   const area = useStore((state) => state.area);
   const outputOpen = useStore((state) => state.outputOpen);
+  const theme = useTheme((state) => state.theme);
   const { setEditLang, setView, setArea, setLanguagesOpen, setTourOpen, setOutputOpen, close } = useStore.getState();
   const areas = (['oca', 'metadata'] as const).map((value) => ({ value, label: t.workspace.areas[value] }));
   const wide = useWideWindow();
@@ -173,6 +175,12 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
             { label: t.workspace.editorView, className: 'narrow-only', onSelect: () => setView('editor') },
             { label: t.workspace.translationsView, className: 'narrow-only', onSelect: () => setView('translations') },
             { label: t.tour.start, onSelect: () => setTourOpen(true) },
+            ...THEMES.map((value, index) => ({
+              label: t.workspace.theme[value],
+              checked: value === theme,
+              separatorBefore: index === 0,
+              onSelect: () => setTheme(value),
+            })),
             { ...commandItem('workspace.saveProjectFile'), separatorBefore: true },
             commandItem('workspace.openProjectFile'),
             {

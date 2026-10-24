@@ -1,15 +1,16 @@
 /**
  * A loose line drawing of a credential card (logo, name, summary, attributes) over one offset pastel
- * shape, for the start screen. Decorative only.
+ * shape, for the start screen. Decorative only. Its ink, card and shape take their colours from
+ * styles.css (`.start__sketch`), so they follow the theme.
  */
 export function CredentialSketch() {
-  const ink = { stroke: '#111111', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  const ink = { stroke: 'currentColor', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   return (
     <svg className="start__sketch" viewBox="0 0 360 260" fill="none" aria-hidden="true">
-      <rect x="82" y="62" width="250" height="166" rx="18" fill="#E1F3FE" />
+      <rect className="start__sketch-shape" x="82" y="62" width="250" height="166" rx="18" />
       <path
         d="M60 40c62-2 142-1 212 1 7 0 11 4 11 11l1 138c0 7-4 11-11 11-74 2-150 1-212-1-7 0-11-4-11-11L49 51c0-7 4-11 11-11z"
-        fill="#FFFFFF"
+        className="start__sketch-card"
         strokeWidth="1.6"
         {...ink}
       />

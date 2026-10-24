@@ -6,6 +6,7 @@ import { sriSha256, utf8 } from '../../core/cesr';
 import { emptyProject, newAttribute } from '../../core/model';
 import { useStore } from '../../state/store';
 import { downloadText } from '../lib/download';
+import { THEME_KEY, setTheme } from '../lib/theme';
 import { TOUR_SEEN_KEY } from '../lib/tour';
 import { Workspace } from './Workspace';
 
@@ -22,7 +23,10 @@ beforeEach(() => {
   useStore.getState().load(project);
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  setTheme('system');
+});
 
 describe('Download', () => {
   it('downloads the bundle and makes it the published baseline', async () => {
@@ -38,6 +42,27 @@ describe('Download', () => {
     const [, json] = vi.mocked(downloadText).mock.calls[0];
     expect(useStore.getState().baseline).toMatchObject({ json, source: 'download', integrity: await sriSha256(utf8(json)) });
     expect(useStore.getState().project).toBe(project);
+  });
+});
+
+describe('theme', () => {
+  it('offers System, Light and Dark in the ⋯ menu, ticking the current one', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    const choices = async () => {
+      await user.click(screen.getByRole('button', { name: 'More actions' }));
+      return within(screen.getByRole('menu')).getAllByRole('menuitemradio');
+    };
+    const options = await choices();
+    expect(options.map((item) => [item.textContent, item.getAttribute('aria-checked')])).toEqual([
+      ['System theme', 'true'],
+      ['Light theme', 'false'],
+      ['Dark theme', 'false'],
+    ]);
+    await user.click(options[2]);
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(localStorage.getItem(THEME_KEY)).toBe('dark');
+    expect((await choices()).map((item) => item.getAttribute('aria-checked'))).toEqual(['false', 'false', 'true']);
   });
 });
 

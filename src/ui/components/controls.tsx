@@ -1,4 +1,4 @@
-import { DotsThreeIcon, WarningCircleIcon, WarningIcon } from '@phosphor-icons/react';
+import { CheckIcon, DotsThreeIcon, WarningCircleIcon, WarningIcon } from '@phosphor-icons/react';
 import { type ButtonHTMLAttributes, Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
 import type { Issue } from '../../core/validate';
 import { useStore } from '../../state/store';
@@ -158,6 +158,8 @@ export interface MenuItem {
   /** The item's keys, as `shortcutLabel` shows them, and for `aria-keyshortcuts`. */
   shortcut?: string;
   ariaKeyShortcuts?: string;
+  /** Makes the item one of a set of choices (`menuitemradio`), ticked when it is the current one. */
+  checked?: boolean;
 }
 
 /** A "⋯" button with a small list of actions. Closes on selection, outside click or Escape. */
@@ -191,7 +193,8 @@ export function Menu({ label, items }: { label: string; items: MenuItem[] }) {
               {item.separatorBefore && <div role="separator" className="menu__separator" />}
               <button
                 type="button"
-                role="menuitem"
+                role={item.checked === undefined ? 'menuitem' : 'menuitemradio'}
+                aria-checked={item.checked}
                 className={`menu__item ${item.className ?? ''}`.trim()}
                 aria-keyshortcuts={item.ariaKeyShortcuts}
                 onClick={() => {
@@ -203,6 +206,7 @@ export function Menu({ label, items }: { label: string; items: MenuItem[] }) {
                 }}
               >
                 {item.label}
+                {item.checked && <CheckIcon size={14} aria-hidden="true" />}
                 {item.shortcut && (
                   <span aria-hidden="true">
                     <kbd>{item.shortcut}</kbd>
