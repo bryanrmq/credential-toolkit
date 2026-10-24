@@ -127,21 +127,24 @@ export function IssuesPanel({
                   <button type="button" className="issues__summary">
                     {group.summary}
                   </button>
-                  {group.langs.length > 0 && (
-                    <span className="issues__langs" onClick={(event) => event.stopPropagation()}>
-                      {group.langs.map((lang) => (
-                        <button
-                          key={lang}
-                          type="button"
-                          className="chip"
-                          onClick={() => jump(group.issues.find((issue) => 'lang' in issue.target && issue.target.lang === lang)!)}
-                        >
-                          {lang}
-                        </button>
-                      ))}
-                    </span>
-                  )}
-                  <span className="issues__location">{issueLocation(group.issues[0], project)}</span>
+                  {/* Every row has the same four cells (icon, summary, where, fixes), even when one is empty. */}
+                  <span className="issues__where">
+                    <span className="issues__location">{issueLocation(group.issues[0], project)}</span>
+                    {group.langs.length > 0 && (
+                      <span className="issues__langs" onClick={(event) => event.stopPropagation()}>
+                        {group.langs.map((lang) => (
+                          <button
+                            key={lang}
+                            type="button"
+                            className="chip"
+                            onClick={() => jump(group.issues.find((issue) => 'lang' in issue.target && issue.target.lang === lang)!)}
+                          >
+                            {lang}
+                          </button>
+                        ))}
+                      </span>
+                    )}
+                  </span>
                   <span className="issues__fixes" onClick={(event) => event.stopPropagation()}>
                     <IssueFixes group={group} />
                   </span>
