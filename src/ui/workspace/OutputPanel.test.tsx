@@ -124,7 +124,7 @@ describe('Hosting and the sample credential', () => {
 });
 
 describe('Bundle tab', () => {
-  it('shows the size, copies the JSON and puts the integrity line under it', async () => {
+  it('shows the file header (name, size, Copy, Download) above the JSON and the integrity line under it', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
     await built();
@@ -134,7 +134,9 @@ describe('Bundle tab', () => {
     const integrity = output().getByText('uri#integrity');
     expect(json.compareDocumentPosition(integrity) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    await user.click(output().getByRole('button', { name: 'Copy JSON' }));
+    expect(output().getByText('oca-bundle.json')).toHaveClass('file-header__name');
+    expect(output().getByRole('button', { name: 'Download oca-bundle.json' })).toHaveClass('btn--secondary');
+    await user.click(output().getByRole('button', { name: 'Copy' }));
     expect(await navigator.clipboard.readText()).toBe(bundleText);
 
   });
@@ -148,7 +150,9 @@ describe('Output pane on a narrow window', () => {
     const user = userEvent.setup();
     render(<Workspace />);
     await user.click(within(screen.getByRole('tablist', { name: 'Panes' })).getByRole('tab', { name: 'Output' }));
-    expect(output().getByRole('tablist', { name: 'Output' })).toBeInTheDocument();
+    // Under the pane tabs, Bundle and Changes are a segmented switch, not a second row of tabs.
+    expect(output().queryByRole('tablist')).not.toBeInTheDocument();
+    expect(within(output().getByRole('group', { name: 'Output' })).getByRole('button', { name: 'Bundle' })).toHaveAttribute('aria-pressed', 'true');
     expect(hosting()).toBeInTheDocument();
     expect(output().queryByRole('figure')).not.toBeInTheDocument();
     expect(output().queryByRole('button', { name: 'Hide output' })).not.toBeInTheDocument();

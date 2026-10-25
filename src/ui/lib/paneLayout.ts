@@ -1,6 +1,8 @@
 
 /** The pane a narrow window shows (below 1000 px only one fits); there the Issues panel is a pane too. */
 export type WorkspacePane = 'structure' | 'inspector' | 'output' | 'issues';
+/** The Metadata page's panes on a narrow window: Preview and Files are its right column's tabs. */
+export type MetadataPane = 'form' | 'preview' | 'files' | 'issues';
 export type ResizablePane = 'structure' | 'output';
 export type PaneWidths = Record<ResizablePane, number>;
 

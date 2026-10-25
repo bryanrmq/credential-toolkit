@@ -287,9 +287,11 @@ describe('Issues tab on a narrow window', () => {
     const user = userEvent.setup();
     const { container } = render(<Workspace />);
     expect(screen.queryByRole('region', { name: 'Issues' })).not.toBeInTheDocument();
-    expect(panesTabs().getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Structure', 'Edit', 'Output', 'Issues']);
+    // The Issues tab carries the number of issues, red while one is an error.
+    expect(panesTabs().getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Structure', 'Edit', 'Output', 'Issues 2']);
+    expect(panesTabs().getByText('2')).toHaveClass('tabs__count--error');
 
-    await user.click(panesTabs().getByRole('tab', { name: 'Issues' }));
+    await user.click(panesTabs().getByRole('tab', { name: /^Issues/ }));
     expect(container.querySelector('.panes')).toHaveAttribute('data-pane', 'issues');
     expect(within(panel()).getAllByRole('listitem')).toHaveLength(2);
     expect(within(panel()).queryByRole('separator')).not.toBeInTheDocument();
@@ -307,7 +309,7 @@ describe('Issues tab on a narrow window', () => {
     useStore.getState().load(warningProject());
     const user = userEvent.setup();
     render(<Workspace />);
-    await user.click(panesTabs().getByRole('tab', { name: 'Issues' }));
+    await user.click(panesTabs().getByRole('tab', { name: /^Issues/ }));
     expect(within(panel()).getByRole('list')).toBeInTheDocument();
   });
 
@@ -321,7 +323,7 @@ describe('Issues tab on a narrow window', () => {
 
     await user.click(topBarButton());
     expect(useStore.getState().view).toBe('editor');
-    expect(panesTabs().getByRole('tab', { name: 'Issues' })).toHaveAttribute('aria-selected', 'true');
+    expect(panesTabs().getByRole('tab', { name: /^Issues/ })).toHaveAttribute('aria-selected', 'true');
     expect(within(panel()).getByRole('list')).toHaveFocus();
   });
 });

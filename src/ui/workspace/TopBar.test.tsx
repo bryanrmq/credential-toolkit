@@ -90,14 +90,31 @@ describe('blocked Download', () => {
     expect(screen.getByRole('button', { name: /"broken" has no source path/ })).toHaveFocus();
   });
 
-  it('on a narrow Metadata page, goes to the Issues pane of the OCA', async () => {
+  it("on a narrow Metadata page, goes to the page's own Issues pane", async () => {
     narrow();
     const user = userEvent.setup();
     useStore.getState().setArea('metadata');
     render(<Workspace />);
     await user.click(screen.getByRole('button', { name: 'Fix 1 error' }));
-    expect(useStore.getState().area).toBe('oca');
+    expect(useStore.getState().area).toBe('metadata');
+    expect(within(screen.getByRole('tablist', { name: 'Panes' })).getByRole('tab', { selected: true })).toHaveTextContent(/^Issues/);
     expect(screen.getByRole('button', { name: /"broken" has no source path/ })).toHaveFocus();
+  });
+});
+
+describe('issue counts', () => {
+  it('stay in the bar on a phone, in either area, as one icon with the number of issues, red with an error', async () => {
+    const project = useStore.getState().project!;
+    project.root.children.push(newAttribute('broken', { source: [] }));
+    useStore.getState().load(project);
+    useStore.getState().setArea('metadata');
+    render(<Workspace />);
+    const button = screen.getByRole('button', { name: /^Show issues:/ });
+    expect(button).not.toHaveClass('hide-phone');
+    expect(button).toHaveClass('topbar__issues--error');
+    // The badges leave on a phone (`.hide-phone`); the compact count takes their place.
+    expect(button.querySelector('.topbar__issue-badges')).toHaveClass('hide-phone');
+    expect(button.querySelector('.topbar__issue-count')).toHaveTextContent(/^\d+$/);
   });
 });
 
@@ -110,7 +127,7 @@ describe('one primary action', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Metadata' }));
     await user.click(screen.getByRole('tab', { name: 'Type metadata' }));
-    await screen.findByRole('button', { name: 'vct.json' });
+    await screen.findByRole('button', { name: 'Download vct.json' });
     expect([...container.querySelectorAll('.btn--primary')]).toEqual([screen.getByRole('button', { name: 'Download OCA bundle' })]);
   });
 });
@@ -124,6 +141,20 @@ describe('crowded bar', () => {
     const { container } = render(<Workspace />);
     expect(container.querySelector('.topbar')).toHaveAttribute('data-fit', 'brand lang');
     scrollWidth.mockRestore();
+  });
+
+  it('on a phone, takes out the ring mark, then moves search to the menu, until the actions fit the bar', async () => {
+    // The actions run past the bar's right edge until search has left (jsdom has no layout of its own).
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const crowded = this.classList.contains('topbar__actions') && !this.parentElement?.dataset.fit?.split(' ').includes('search');
+      return { right: crowded ? 10 : 0 } as DOMRect;
+    });
+    const user = userEvent.setup();
+    const { container } = render(<Workspace />);
+    expect(container.querySelector('.topbar')).toHaveAttribute('data-fit', 'brand lang view mark search');
+    rect.mockRestore();
+    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getByRole('menuitem', { name: /^Search and commands/ })).toHaveClass('search-only');
   });
 });
 

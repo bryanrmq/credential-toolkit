@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VCT_INTEGRITY_PLACEHOLDER } from '../../core/export/issuerMetadata';
 import { exportProject } from '../../core/export/project';
 import { emptyProject, ensureIssuer, newAttribute } from '../../core/model';
@@ -266,7 +266,7 @@ describe('Issuer issues in the Issues panel', () => {
     expect(within(issuesPanel()).getByText('1 warning')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Download bundle' })).toBeEnabled());
     expect(screen.getByRole('button', { name: 'Download bundle' })).not.toHaveAttribute('title');
-    expect(screen.getByRole('button', { name: 'oca-bundle.json' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Download oca-bundle.json' })).toBeEnabled();
   });
 });
 
@@ -296,7 +296,7 @@ describe('Type metadata and Issuer metadata tabs', () => {
     await user.click(fileTabs().getByRole('tab', { name: 'Type metadata' }));
     expect(useStore.getState().metadataTab).toBe('vct');
     const region = within(screen.getByRole('region', { name: 'Type metadata' }));
-    expect(await region.findByRole('button', { name: 'vct.json' })).toBeEnabled();
+    expect(await region.findByRole('button', { name: 'Download vct.json' })).toBeEnabled();
     expect(shownText()).toBe((await exported()).vct.text);
     expect(region.queryByRole('group', { name: 'Preview platform' })).not.toBeInTheDocument();
     const list = within(region.getByRole('region', { name: 'Replace before use' }));
@@ -308,7 +308,7 @@ describe('Type metadata and Issuer metadata tabs', () => {
     useStore.setState({ metadataTab: 'vct' });
     render(<Workspace />);
     expect(fileTabs().getByRole('tab', { name: 'Type metadata' })).toHaveAttribute('aria-selected', 'true');
-    expect(await screen.findByRole('button', { name: 'vct.json' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Download vct.json' })).toBeInTheDocument();
   });
 
   it('shows the integrity command until the Issuer URL is set, then the integrity in the file', async () => {
@@ -316,7 +316,7 @@ describe('Type metadata and Issuer metadata tabs', () => {
     render(<Workspace />);
     await user.click(fileTabs().getByRole('tab', { name: 'Issuer metadata' }));
     const region = () => within(screen.getByRole('region', { name: 'Issuer metadata' }));
-    expect(await region().findByRole('button', { name: 'issuer_metadata.json' })).toBeInTheDocument();
+    expect(await region().findByRole('button', { name: 'Download issuer_metadata.json' })).toBeInTheDocument();
     expect(shownText()).toBe((await exported()).issuerMetadata.json);
     expect(region().getByRole('region', { name: 'After deploying, compute the integrity' })).toHaveTextContent("curl -s '${external-url}/oid4vci/vct/");
     expect(within(region().getByRole('region', { name: 'Replace before use' })).getByText('2')).toHaveClass('badge--yellow');
@@ -334,11 +334,83 @@ describe('Type metadata and Issuer metadata tabs', () => {
     const user = userEvent.setup();
     render(<Workspace />);
     await user.click(fileTabs().getByRole('tab', { name: 'Issuer metadata' }));
-    const download = await screen.findByRole('button', { name: 'issuer_metadata.json' });
+    const download = await screen.findByRole('button', { name: 'Download issuer_metadata.json' });
     expect(download).toBeDisabled();
     expect(download).toHaveAttribute('title', 'Fix 1 error to download');
     await user.click(fileTabs().getByRole('tab', { name: 'Type metadata' }));
-    expect(await screen.findByRole('button', { name: 'vct.json' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Download vct.json' })).toBeDisabled();
+  });
+});
+
+describe('Metadata page on a narrow window', () => {
+  beforeEach(() => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
+    useStore.setState({ area: 'metadata', metadataTab: 'preview' });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+  const panesTabs = () => within(screen.getByRole('tablist', { name: 'Panes' }));
+  const shownPane = () => document.querySelector('.metadata')!.getAttribute('data-pane');
+  /** An http Issuer URL (an issuer issue) and an http hosting URL (an OCA issue that Fix all repairs). */
+  const loadHttpUrl = () =>
+    act(() =>
+      useStore.getState().update((draft) => {
+        ensureIssuer(draft).url = 'http://issuer.example.ch';
+        draft.hosting = { mode: 'url', url: 'http://issuer.example.ch/oca-bundle.json' };
+      }),
+    );
+
+  it("has the OCA's pane tabs: Form, Preview, Files and Issues with its count", async () => {
+    loadHttpUrl();
+    const user = userEvent.setup();
+    render(<Workspace />);
+    expect(panesTabs().getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Form', 'Preview', 'Files', expect.stringMatching(/^Issues \d+$/)]);
+    expect(shownPane()).toBe('form');
+    // The I14Y banner is about the OCA's attributes: the Metadata page leaves it out.
+    expect(screen.queryByRole('region', { name: /I14Y/ })).not.toBeInTheDocument();
+
+    await user.click(panesTabs().getByRole('tab', { name: 'Preview' }));
+    expect(shownPane()).toBe('preview');
+    expect(screen.queryByRole('tablist', { name: 'Preview and files' })).not.toBeInTheDocument();
+
+    // Under Files, the two files are a segmented switch, not a second row of tabs.
+    await user.click(panesTabs().getByRole('tab', { name: 'Files' }));
+    expect(shownPane()).toBe('files');
+    expect(useStore.getState().metadataTab).toBe('vct');
+    const files = within(screen.getByRole('group', { name: 'Metadata file' }));
+    expect(files.getByRole('button', { name: 'Type metadata' })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(files.getByRole('button', { name: 'Issuer metadata' }));
+    expect(useStore.getState().metadataTab).toBe('issuerMetadata');
+    expect(panesTabs().getByRole('tab', { name: 'Files' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('reaches the Issues from the pane tabs, fixes them there, and goes to the form for an issuer field', async () => {
+    loadHttpUrl();
+    const user = userEvent.setup();
+    render(<Workspace />);
+    expect(screen.queryByRole('region', { name: 'Issues' })).not.toBeInTheDocument();
+    await user.click(panesTabs().getByRole('tab', { name: /^Issues/ }));
+    expect(shownPane()).toBe('issues');
+    expect(useStore.getState().area).toBe('metadata');
+
+    await user.click(within(issuesPanel()).getByRole('button', { name: /^The Issuer URL must be an https URL/ }));
+    expect(shownPane()).toBe('form');
+    await waitFor(() => expect(screen.getByLabelText(/^Issuer URL/)).toHaveFocus());
+
+    await user.click(panesTabs().getByRole('tab', { name: /^Issues/ }));
+    await user.click(within(issuesPanel()).getByRole('button', { name: /^Fix all/ }));
+    await waitFor(() => expect(project().hosting).toEqual({ mode: 'url', url: 'https://issuer.example.ch/oca-bundle.json' }));
+    expect(useStore.getState().area).toBe('metadata');
+  });
+
+  it("takes the integrity hint's Issuer URL button to the field in the form", async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(panesTabs().getByRole('tab', { name: 'Files' }));
+    await user.click(within(screen.getByRole('group', { name: 'Metadata file' })).getByRole('button', { name: 'Issuer metadata' }));
+    const block = await screen.findByRole('region', { name: 'After deploying, compute the integrity' });
+    await user.click(within(block).getByRole('button', { name: 'Issuer URL' }));
+    expect(shownPane()).toBe('form');
+    await waitFor(() => expect(screen.getByLabelText(/^Issuer URL/)).toHaveFocus());
   });
 });
 

@@ -34,10 +34,10 @@ async function files(issuerUrl?: string) {
 
 const anError = { severity: 'error', code: 'issuer-url-invalid', message: 'Enter a valid URL', summary: 'Enter a valid URL' } as unknown as Issue;
 
-function show(file: Awaited<ReturnType<typeof files>>['vct'], issues: Issue[] = []) {
+function show(file: Awaited<ReturnType<typeof files>>['vct'], issues: Issue[] = [], onIssuerUrl = () => {}) {
   return render(
     <IssuesContext.Provider value={issues}>
-      <MetadataFile {...file} />
+      <MetadataFile {...file} onIssuerUrl={onIssuerUrl} />
     </IssuesContext.Provider>,
   );
 }
@@ -62,8 +62,11 @@ describe('A metadata file', () => {
     const user = userEvent.setup();
     show(vct);
 
-    const download = screen.getByRole('button', { name: 'vct.json' });
-    expect(download.querySelector('.mono')).toHaveTextContent('vct.json');
+    // The header every output file shares: name, size, then Copy and Download, both secondary.
+    expect(screen.getByText('vct.json')).toHaveClass('file-header__name');
+    const download = screen.getByRole('button', { name: 'Download vct.json' });
+    expect(download).toHaveTextContent('Download');
+    expect(download).toHaveClass('btn--secondary');
     await user.click(download);
     expect(saved).toHaveLength(1);
     expect(await saved[0].text()).toBe(vct.text);
@@ -115,6 +118,18 @@ describe('A metadata file', () => {
     expect(await navigator.clipboard.readText()).toBe(command);
   });
 
+  it('offers the Issuer URL field instead of the command, without naming the page you are on', async () => {
+    const { issuer } = await files();
+    const onIssuerUrl = vi.fn();
+    const user = userEvent.setup();
+    show(issuer, [], onIssuerUrl);
+    const block = integrityBlock()!;
+    expect(block).toHaveTextContent('Or fill in Issuer URL to have it computed.');
+    expect(block).not.toHaveTextContent('Metadata page');
+    await user.click(within(block).getByRole('button', { name: 'Issuer URL' }));
+    expect(onIssuerUrl).toHaveBeenCalledOnce();
+  });
+
   it('leaves the integrity command out with an Issuer URL, where the file has the integrity', async () => {
     const { issuer } = await files('https://issuer.example.ch');
     show(issuer);
@@ -128,7 +143,7 @@ describe('A metadata file', () => {
     const { vct } = await files();
     const user = userEvent.setup();
     show(vct, [anError]);
-    const download = screen.getByRole('button', { name: 'vct.json' });
+    const download = screen.getByRole('button', { name: 'Download vct.json' });
     expect(download).toBeDisabled();
     expect(download).toHaveAttribute('title', 'Fix 1 error to download');
     await user.click(download);

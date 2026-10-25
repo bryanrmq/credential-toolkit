@@ -10,7 +10,8 @@ import { Workspace } from './Workspace';
 
 const tour = () => screen.getByRole('dialog', { name: 'Workspace tour' });
 const heading = () => within(tour()).getByRole('heading').textContent;
-const shownPane = () => within(screen.getByRole('tablist', { name: 'Panes' })).getByRole('tab', { selected: true }).textContent;
+// Without the Issues tab's count.
+const shownPane = () => within(screen.getByRole('tablist', { name: 'Panes' })).getByRole('tab', { selected: true }).textContent?.replace(/ \d+$/, '');
 const features = () => within(tour()).getAllByRole('listitem').map((item) => item.textContent);
 const keys = () => within(tour()).queryAllByRole('listitem').flatMap((item) => [...item.querySelectorAll('kbd')].map((key) => key.textContent));
 async function next(user: ReturnType<typeof userEvent.setup>, times = 1) {
