@@ -30,9 +30,9 @@ export function I14yLinkLine({ link, lang, onUnlink }: { link: I14yLink; lang: L
         <a className="i14y-link__open" href={conceptPageUrl(link.conceptId, i14yLanguage(lang))} target="_blank" rel="noreferrer">
           {t.i14yLink.open} <ArrowSquareOutIcon />
         </a>
-        <button type="button" className="i14y-link__unlink" title={t.i14yLink.unlinkTitle} onClick={onUnlink}>
+        <Button variant="link" title={t.i14yLink.unlinkTitle} onClick={onUnlink}>
           {t.i14yLink.unlink}
-        </button>
+        </Button>
       </span>
     </section>
   );
@@ -51,9 +51,9 @@ export function I14yLabelHint({ current, i14yText, onReset }: { current: string;
   return (
     <span className="i14y-hint">
       {status === 'edited' ? t.i14yLink.edited(i14yText) : t.i14yLink.empty(i14yText)}{' '}
-      <button type="button" className="text-button" onClick={() => onReset(i14yText)}>
+      <Button variant="link" onClick={() => onReset(i14yText)}>
         {status === 'edited' ? t.i14yLink.reset : t.i14yLink.use}
-      </button>
+      </Button>
     </span>
   );
 }

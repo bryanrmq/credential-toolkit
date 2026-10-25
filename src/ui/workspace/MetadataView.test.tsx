@@ -50,6 +50,9 @@ describe('OCA / Metadata switch', () => {
     expect(useStore.getState().area).toBe('metadata');
     expect(page()).toBeInTheDocument();
     expect(screen.queryByRole('group', { name: 'View' })).not.toBeInTheDocument();
+    // The OCA's own controls keep their room in the top bar, hidden, so the language, search and Download stay put.
+    expect(document.querySelector('.topbar [aria-label="View"]')!.closest('.topbar__slot')).toHaveClass('topbar__slot--idle');
+    expect(document.querySelector('[data-output-toggle]')).toHaveClass('topbar__slot--idle');
     expect(screen.queryByRole('region', { name: 'Structure' })).not.toBeInTheDocument();
     // The Issues panel stays docked under the page.
     expect(issuesPanel()).toBeInTheDocument();
