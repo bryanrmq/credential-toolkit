@@ -7,6 +7,7 @@ import {
   ClipboardTextIcon,
   CopyIcon,
   CopySimpleIcon,
+  DesktopIcon,
   FloppyDiskIcon,
   FolderOpenIcon,
   FolderSimpleDashedIcon,
@@ -15,11 +16,13 @@ import {
   FunnelSimpleIcon,
   type Icon,
   MagnifyingGlassIcon,
+  MoonIcon,
   PencilSimpleIcon,
   PlusIcon,
   ScissorsIcon,
   SidebarSimpleIcon,
   StackIcon,
+  SunIcon,
   TextboxIcon,
   TranslateIcon,
   TrashIcon,
@@ -33,6 +36,7 @@ import { t } from '../../strings';
 import { fillMissingFromI14y } from './i14y';
 import { usesCommandKey } from './platform';
 import { openProjectFile, saveProjectFile } from './projectFile';
+import { type Theme, setTheme, useTheme } from './theme';
 import { missingTexts, translateMissing, useTranslationState } from './translate';
 import { hasTranslator } from './translator';
 import {
@@ -87,7 +91,8 @@ export type CommandId =
   | 'workspace.fillFromI14y'
   | 'workspace.translateMissing'
   | 'workspace.confirmSuggestions'
-  | 'workspace.palette';
+  | 'workspace.palette'
+  | `workspace.theme.${Theme}`;
 
 /** Where a command's keys work: on a row of the Structure tree (`tree`), or anywhere in the workspace, text fields included. */
 export type CommandScope = 'tree' | 'workspace';
@@ -190,6 +195,15 @@ export function useCommandHost<S extends CommandScope>(scope: S, host: Hosts[S])
 const count = () => selectedIds(useStore.getState().selection).length;
 const always = () => true;
 const mod = (letter: string, extra: Partial<Keys> = {}): Keys => ({ key: [letter], mod: true, ...extra, show: letter.toUpperCase() });
+/** Switches to `theme`; it applies whenever another theme is current. */
+const themeCommand = (theme: Theme, icon: Icon): Command => ({
+  id: `workspace.theme.${theme}`,
+  label: t.workspace.theme[theme],
+  icon,
+  scope: 'workspace',
+  appliesWhen: () => useTheme.getState().theme !== theme,
+  run: () => setTheme(theme),
+});
 
 /** Every command, tree commands in the order the menus list them, then the workspace ones. */
 export const COMMANDS: readonly Command[] = [
@@ -481,6 +495,9 @@ export const COMMANDS: readonly Command[] = [
       if (!overlayOpen()) hosts.workspace?.openPalette();
     },
   },
+  themeCommand('system', DesktopIcon),
+  themeCommand('light', SunIcon),
+  themeCommand('dark', MoonIcon),
 ];
 
 const BY_ID = new Map(COMMANDS.map((entry) => [entry.id, entry]));

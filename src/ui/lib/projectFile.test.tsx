@@ -187,8 +187,8 @@ describe('in the app', () => {
     const names = items.map((item) => item.firstChild?.textContent);
     expect(names.slice(-3)).toEqual(['Save project file', 'Open project file', 'New project']);
     expect(keys.slice(-3, -1)).toEqual([expect.stringMatching(/^(Meta|Control)\+S$/), expect.stringMatching(/^(Meta|Control)\+O$/)]);
-    const separator = within(menu).getByRole('separator');
-    expect(separator.nextElementSibling).toBe(within(menu).getByRole('menuitem', { name: 'Save project file' }));
+    const separators = within(menu).getAllByRole('separator');
+    expect(separators.map((separator) => separator.nextElementSibling)).toContain(within(menu).getByRole('menuitem', { name: 'Save project file' }));
 
     await user.click(within(menu).getByRole('menuitem', { name: 'Save project file' }));
     expect(downloadText).toHaveBeenCalledWith('hundebewilligung.credential-project.json', expect.stringContaining('"format": "credential-toolkit-project"'));

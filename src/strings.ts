@@ -158,6 +158,8 @@ export const t = {
     hideOutputTitle: 'Hide output (⌥⌘B)',
     resizeHint: 'Drag to resize. Double-click to reset.',
     manageLanguages: 'Manage languages',
+    /** The ⋯ menu's and the palette's theme choices. */
+    theme: { system: 'System theme', light: 'Light theme', dark: 'Dark theme' },
     editorView: 'Editor view',
     translationsView: 'Translations view',
     download: 'Download bundle',

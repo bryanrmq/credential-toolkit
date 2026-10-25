@@ -87,6 +87,9 @@ describe('the command list', () => {
         'workspace.translateMissing',
         'workspace.confirmSuggestions',
         'workspace.palette',
+        'workspace.theme.system',
+        'workspace.theme.light',
+        'workspace.theme.dark',
       ].sort(),
     );
     for (const entry of COMMANDS) {

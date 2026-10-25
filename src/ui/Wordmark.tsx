@@ -13,7 +13,7 @@ export function Wordmark({ compact = false }: { compact?: boolean }) {
     <span className="wordmark">
       <svg className="wordmark__mark" viewBox="0 0 32 32" aria-hidden="true">
         <rect width="32" height="32" rx="7" fill="currentColor" />
-        <circle cx="16" cy="16" r="7" fill="none" stroke="#ffffff" strokeWidth="3" />
+        <circle className="wordmark__ring" cx="16" cy="16" r="7" fill="none" strokeWidth="3" />
       </svg>
       <span className={compact ? 'wordmark__text wordmark__text--compact' : 'wordmark__text'}>{t.appName}</span>
       {compact ? (
