@@ -83,7 +83,7 @@ describe('App', () => {
     await user.paste('{"iss":"did:example","given_name":"Seraina","birth_date":"1988-04-05"}');
     await user.click(within(dialog).getByRole('button', { name: 'Open in editor' }));
 
-    expect(screen.getByText('Import report')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Import report' })).toBeInTheDocument();
     const structure = screen.getByRole('region', { name: 'Structure' });
     expect(within(structure).getByText('given_name')).toBeInTheDocument();
     expect(within(structure).getByText('birth_date')).toBeInTheDocument();
@@ -181,7 +181,7 @@ describe('App', () => {
     expect(example).toHaveTextContent('17 attributes');
     await user.click(example);
 
-    expect(await screen.findByText('Import report')).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Import report' })).toBeInTheDocument();
     expect(screen.getByText('licenceNumber')).toBeInTheDocument();
   });
 
@@ -192,7 +192,7 @@ describe('App', () => {
     render(<App />);
     await user.click(await screen.findByRole('button', { name: /Learner-driver permit/ }));
 
-    expect(await screen.findByText('Import report')).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Import report' })).toBeInTheDocument();
     expect(confirm).not.toHaveBeenCalled();
     await waitFor(() => expect(useDrafts.getState().drafts).toHaveLength(2));
     expect((await getDraft('saved'))?.project.meta['de-CH'].name).toBe('Hundebewilligung');
