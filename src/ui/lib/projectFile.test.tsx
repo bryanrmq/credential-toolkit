@@ -184,7 +184,7 @@ describe('in the app', () => {
     const menu = screen.getByRole('menu');
     const items = within(menu).getAllByRole('menuitem');
     const keys = items.map((item) => item.getAttribute('aria-keyshortcuts') ?? '');
-    const names = items.map((item) => item.firstChild?.textContent);
+    const names = items.map((item) => item.querySelector('.popup-menu__label')?.textContent);
     expect(names.slice(-3)).toEqual(['Save project file', 'Open project file', 'New project']);
     expect(keys.slice(-3, -1)).toEqual([expect.stringMatching(/^(Meta|Control)\+S$/), expect.stringMatching(/^(Meta|Control)\+O$/)]);
     const separators = within(menu).getAllByRole('separator');

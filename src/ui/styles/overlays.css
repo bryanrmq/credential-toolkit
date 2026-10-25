@@ -437,53 +437,8 @@ kbd.palette__meta {
   }
 }
 
-/* Menu */
-.menu {
-  position: relative;
-}
-.menu__list {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: 20;
-  min-width: 200px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: var(--space-1);
-  box-shadow: var(--shadow-overlay);
-  display: grid;
-}
-.menu__separator {
-  border-top: 1px solid var(--border);
-  margin: var(--space-1) 0;
-}
-.menu__item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-4);
-  white-space: nowrap;
-  text-align: left;
-  border: none;
-  background: none;
-  border-radius: var(--radius-xs);
-  padding: 7px var(--space-2-5);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  color: var(--text);
-}
-.menu__item:hover,
-.menu__item:focus-visible {
-  background: var(--surface-hover);
-  color: var(--text-strong);
-}
-.menu__item:focus-visible,
-.popup-menu__item:focus-visible {
-  outline-offset: -2px;
-}
-
-/* Popup menu: right-click menus and dropdowns (PopupMenu), on the same surface as the ⋯ menu. */
+/* Menus: right-click menus and dropdowns (PopupMenu), and the ⋯ menu (Menu). Every item has an icon column, a label
+   and a key column; the ⋯ menu's icon column holds the tick of a chosen option. */
 .popup-menu {
   position: fixed;
   z-index: 30;
@@ -493,6 +448,16 @@ kbd.palette__meta {
   border-radius: var(--radius-md);
   padding: var(--space-1);
   box-shadow: var(--shadow-overlay);
+}
+/* The ⋯ menu: under its button (`.menu`), right-aligned with it, instead of at a point of the window. */
+.menu {
+  position: relative;
+}
+.popup-menu--anchored {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  transform-origin: top right;
 }
 .popup-menu__separator {
   border-top: 1px solid var(--border);
@@ -550,6 +515,9 @@ kbd.palette__meta {
 .popup-menu__item--danger,
 .popup-menu__item--danger .popup-menu__icon {
   color: var(--red-text);
+}
+.popup-menu__item:focus-visible {
+  outline-offset: -2px;
 }
 .popup-menu__item--danger:hover,
 .popup-menu__item--danger:focus-visible,
