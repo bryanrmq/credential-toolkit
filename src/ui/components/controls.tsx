@@ -7,7 +7,8 @@ import { useModal } from '../lib/modal';
 import { withKeys } from './keys';
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  /** `link` is a text action inside running text or a list: no box, underlined. */
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'link';
   size?: 'normal' | 'small' | 'icon';
 };
 

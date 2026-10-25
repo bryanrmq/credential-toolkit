@@ -203,9 +203,11 @@ export function RecentProjects() {
         })}
       </ul>
       {!showAll && drafts.length > RECENT_LIMIT && (
-        <button type="button" className="recent__more" onClick={() => setShowAll(true)}>
-          {t.start.recent.showAll(drafts.length)}
-        </button>
+        <p className="recent__footer">
+          <Button variant="link" onClick={() => setShowAll(true)}>
+            {t.start.recent.showAll(drafts.length)}
+          </Button>
+        </p>
       )}
       {menu && (
         <PopupMenu

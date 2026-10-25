@@ -43,7 +43,6 @@ export function MetadataFile({ fileName, text, placeholders }: { fileName: strin
     <div className="metadata-file">
       <div className="metadata-file__bar">
         <Button
-          variant="primary"
           size="small"
           disabled={errors.length > 0}
           title={errors.length ? t.workspace.downloadBlocked(errors.length) : undefined}
