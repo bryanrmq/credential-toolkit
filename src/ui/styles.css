@@ -23,7 +23,8 @@
  *           segments are --surface with an inset --border-strong ring and 600 weight.
  * Focus     --focus-outline everywhere (:focus-visible); inputs, selects and textareas use --focus-border with
  *           --focus-halo instead. Menu items inset the outline (outline-offset: -2px).
- * Controls  --control-h 30 (top bar controls) · --control-h-sm 26 (small buttons, compact selects).
+ * Controls  --control-h 30 (top bar controls) · --control-h-sm 26 (small buttons, compact selects) ·
+ *           --control-h-touch 40 (top bar controls under a finger: `hover: none` or a phone-wide window).
  * Icons     Phosphor at 12 (carets, inline), 14 (menus, dense rows), 16 (default) and 18 (feature tiles only); the
  *           wallet previews keep the platform sizes.
  *
@@ -109,6 +110,7 @@
   /* Controls */
   --control-h: 30px;
   --control-h-sm: 26px;
+  --control-h-touch: 40px;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   color-scheme: light;
 }
@@ -195,18 +197,22 @@ kbd {
     transform 150ms var(--ease);
   white-space: nowrap;
 }
-.btn:active:not(:disabled) {
+.btn:active:not(:disabled, [aria-disabled='true']) {
   transform: scale(0.98);
 }
 .btn:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }
+/* Blocked but still focusable (the top bar's Download): it looks disabled, and pressing it shows why. */
+.btn[aria-disabled='true'] {
+  opacity: 0.45;
+}
 .btn--primary {
   background: var(--accent);
   color: var(--on-accent);
 }
-.btn--primary:hover:not(:disabled) {
+.btn--primary:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--accent-hover);
 }
 .btn--secondary {
@@ -241,6 +247,24 @@ kbd {
 }
 .btn--icon {
   padding: 5px;
+}
+/* A text action in running text or a list: the one text-button style. */
+.btn--link {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-strong);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: normal;
+}
+.btn--link:hover:not(:disabled) {
+  color: var(--text);
+}
+.btn--link:active:not(:disabled) {
+  transform: none;
 }
 /* The caret of a menu button, such as Structure's Add. */
 .btn__caret {
@@ -1090,19 +1114,9 @@ kbd.palette__meta {
   background: var(--border-strong);
   color: var(--text-strong);
 }
-.recent__more {
-  margin-top: var(--space-2);
-  padding: var(--space-0-5) 0;
-  border: 0;
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
+.recent__footer {
+  margin: var(--space-2) 0 0;
   font-size: var(--text-xs);
-  cursor: pointer;
-}
-.recent__more:hover {
-  color: var(--text-strong);
-  text-decoration: underline;
 }
 @media (max-width: 600px) {
   .recent__languages {
@@ -1336,7 +1350,11 @@ kbd.palette__meta {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
+  /* The name goes last: other things leave the bar before it gets less (TopBar's `useFit`). */
+  min-width: 12ch;
+}
+.topbar:not([data-fit~='brand']) .topbar__name {
+  min-width: 24ch;
 }
 /* The OCA / Metadata switch: which file the workspace edits, like tabs of a document. */
 .topbar__areas {
@@ -1358,6 +1376,50 @@ kbd.palette__meta {
 }
 .topbar__issues {
   padding: 3px var(--space-1);
+}
+/* A control of the OCA (the view toggle, Output) keeps its room on the Metadata page, so the rest doesn't move. */
+.topbar__slot {
+  display: flex;
+}
+.topbar__slot--idle {
+  visibility: hidden;
+}
+/* What leaves a crowded bar, step by step (TopBar's `useFit`): the brand and the search shortcut, then the language
+   switch for its dropdown, then the view toggle for the menu. */
+.topbar[data-fit~='brand'] .wordmark__text--compact,
+.topbar[data-fit~='brand'] .wordmark__beta--compact,
+.topbar[data-fit~='brand'] .wordmark__version--compact,
+.topbar[data-fit~='brand'] .topbar__divider,
+.topbar[data-fit~='brand'] .topbar__palette kbd,
+.topbar[data-fit~='lang'] .topbar__lang,
+.topbar[data-fit~='view'] .topbar__view {
+  display: none;
+}
+.topbar[data-fit~='brand'] .topbar__palette {
+  width: var(--control-h);
+  justify-content: center;
+  padding-inline: 0;
+}
+.topbar[data-fit~='brand'] .menu__item.compact-only,
+.topbar[data-fit~='view'] .menu__item.narrow-only {
+  display: flex;
+}
+.topbar[data-fit~='lang'] .topbar__lang-select {
+  display: initial;
+}
+.topbar[data-fit~='lang'] .topbar__actions {
+  gap: var(--space-2);
+}
+/* Every label Download can show, stacked in one cell: the widest sets the width, only the current one shows. */
+.topbar__download-label {
+  display: inline-grid;
+}
+.topbar__download-label > span {
+  grid-area: 1 / 1;
+  text-align: center;
+}
+.topbar__download-spare {
+  visibility: hidden;
 }
 .select--compact {
   width: auto;
@@ -1504,16 +1566,11 @@ kbd.palette__meta {
 }
 
 /* Responsive helpers: wide (> 960px) vs narrow */
-.narrow-only {
+.narrow-only,
+.compact-only {
   display: none;
 }
-@media (max-width: 1100px) {
-  .wordmark__text--compact,
-  .wordmark__version--compact,
-  .topbar__divider {
-    display: none;
-  }
-}
+
 @media (max-width: 960px) {
   .wide-only {
     display: none;
@@ -1536,6 +1593,10 @@ kbd.palette__meta {
   .hide-phone {
     display: none;
   }
+  /* The name shows as the Edit pane's title instead. */
+  .topbar__name {
+    display: none;
+  }
   .label-phone-hidden {
     position: absolute;
     width: 1px;
@@ -1543,6 +1604,18 @@ kbd.palette__meta {
     overflow: hidden;
     clip: rect(0 0 0 0);
     white-space: nowrap;
+  }
+}
+/* Under a finger, and on a phone-wide window, every top bar control is at least 40px. */
+@media (hover: none), (max-width: 720px) {
+  .topbar .btn,
+  .topbar .segmented,
+  .topbar .select--compact {
+    height: var(--control-h-touch);
+  }
+  .topbar .btn--icon,
+  .topbar[data-fit~='brand'] .topbar__palette {
+    width: var(--control-h-touch);
   }
 }
 /* Autosave ran out of browser storage: a warning under the top bar while the project stays open. */
@@ -1589,14 +1662,16 @@ kbd.palette__meta {
   flex: 1;
   min-height: 0;
   display: grid;
-  /* Side panes follow the user's widths (saved in localStorage) but give way on small windows. */
+  /* Side panes follow the user's widths (saved in localStorage) but give way first on small windows: the Edit pane
+     keeps 440px (EDIT_PANE_MIN in paneLayout.ts). Where Output at its width would take that, it steps aside until the
+     top bar shows it again, and then both side panes shrink towards their minimums. */
   grid-template-columns:
-    min(var(--structure-width, 300px), 32vw) 5px minmax(0, 1fr) 5px
-    min(var(--output-width, 420px), 40vw);
+    minmax(220px, var(--structure-width, 300px)) 5px minmax(440px, 1fr) 5px
+    minmax(300px, var(--output-width, 420px));
 }
 /* The Output pane is hidden (wide windows only): the Edit pane takes its space. */
 .panes--no-output {
-  grid-template-columns: min(var(--structure-width, 300px), 32vw) 5px minmax(0, 1fr);
+  grid-template-columns: minmax(220px, var(--structure-width, 300px)) 5px minmax(440px, 1fr);
 }
 .pane {
   min-height: 0;
@@ -1928,7 +2003,7 @@ button.tree__toggle:hover {
   font-weight: 500;
   color: var(--text-strong);
 }
-/* Three equal full-width buttons, one primary. */
+/* Three equal full-width buttons, all secondary: the top bar's Download is the workspace's one primary. */
 .empty-structure__actions {
   display: grid;
   gap: var(--space-2);
@@ -2022,7 +2097,8 @@ button.tree__toggle:hover {
 }
 
 /* Inspector: the form, at most 640px wide, and the wallet preview. The pane is a size container: layouts depend on
-   its width, and the preview column beside the form is at most its height. */
+   its width, and the preview column beside the form is at most its height. The form is a container of its own, so
+   its narrow layouts follow its width, which the preview column takes from. */
 .pane--inspector {
   container-type: size;
 }
@@ -2033,13 +2109,15 @@ button.tree__toggle:hover {
   padding: var(--space-2) var(--space-7) 64px;
 }
 .inspector__main {
+  container-type: inline-size;
   min-width: 0;
   max-width: 640px;
 }
 
 /* The wallet preview in the Edit pane. Below the form it is a section under a 1px line, and its header collapses it.
-   From a pane 840px wide (PREVIEW_BESIDE_WIDTH in EditPreview.tsx) it is a column beside the form, behind a 1px
-   divider, that stays in view while the form scrolls and scrolls on its own when taller than the pane. */
+   From a pane 600px wide (PREVIEW_BESIDE_WIDTH in EditPreview.tsx) it is a column beside the form, at least 280px
+   wide and behind a 1px divider, that stays in view while the form scrolls and scrolls on its own when taller than
+   the pane. The cards scale to the column (useFitScale). The gap and the divider's padding open up from 840px. */
 .edit-preview {
   min-width: 0;
   max-width: 640px;
@@ -2072,9 +2150,10 @@ button.tree__toggle:hover {
 .edit-preview .output-preview {
   padding: var(--space-1) 0 var(--space-5);
 }
-@container (min-width: 840px) {
+@container (min-width: 600px) {
   .inspector {
-    grid-template-columns: minmax(0, 640px) minmax(300px, 1fr);
+    grid-template-columns: minmax(0, 640px) minmax(280px, 1fr);
+    column-gap: var(--space-5);
     align-items: start;
   }
   .edit-preview {
@@ -2087,7 +2166,7 @@ button.tree__toggle:hover {
     /* A row scrolled into view clears the sticky header (its height is measured, as the pickers can wrap). */
     scroll-padding: calc(var(--edit-preview-header, 0px) + 8px) 0 8px;
     margin-top: 0;
-    padding-left: var(--space-6);
+    padding-left: var(--space-4);
     border-top: none;
     border-left: 1px solid var(--border);
   }
@@ -2095,6 +2174,14 @@ button.tree__toggle:hover {
     position: sticky;
     top: 0;
     z-index: 1;
+  }
+}
+@container (min-width: 840px) {
+  .inspector {
+    column-gap: 40px;
+  }
+  .edit-preview {
+    padding-left: var(--space-6);
   }
 }
 
@@ -3439,17 +3526,28 @@ button.changes__subject {
 .issues-panel .empty-state {
   padding: var(--space-5) var(--space-2);
 }
+/*
+ * One grid for every row: icon, summary, where (location, then language chips) and fixes. The list holds the columns
+ * and each row is a subgrid of it, so the location and fix columns line up across rows, and a row without a fix keeps
+ * the empty cell. A subgrid's padding lands on its edge items, so the icon column also holds the row's inset; the where
+ * column stops at 40% so one long key path wraps instead of squeezing every summary.
+ */
 .issues {
   list-style: none;
   margin: 0;
   padding: 0;
+  display: grid;
+  grid-template-columns: calc(var(--space-5) + 16px) minmax(0, 1fr) fit-content(40%) auto;
+  column-gap: var(--space-2-5);
 }
 .issues li {
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-template-areas: 'icon text where fix';
   align-items: center;
-  gap: var(--space-1) var(--space-2-5);
+  row-gap: var(--space-1);
+  border-bottom: 1px solid var(--border);
   min-height: 32px;
   padding: var(--space-1) var(--space-5);
   cursor: pointer;
@@ -3459,10 +3557,13 @@ button.changes__subject {
 }
 .issues li .issue-icon--error,
 .issues li .issue-icon--warning {
+  grid-area: icon;
   margin-top: 0;
 }
 .issues__summary {
+  grid-area: text;
   min-width: 0;
+  overflow-wrap: anywhere;
   text-align: left;
   border: none;
   background: none;
@@ -3471,19 +3572,41 @@ button.changes__subject {
   font-size: var(--text-sm);
   color: var(--text);
 }
+.issues__where {
+  grid-area: where;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
 .issues__langs {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
 }
 .issues__location {
-  margin-left: auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
-.issues__fixes:empty {
-  display: none;
+.issues__fixes {
+  grid-area: fix;
+}
+/*
+ * Narrow: the summary takes the first line next to the icon; location and fixes share the second, under the text.
+ * Each row has its own columns here, so one wide fix button doesn't squeeze every row's location.
+ */
+@media (max-width: 720px) {
+  .issues li {
+    grid-template-columns: 16px minmax(0, 1fr) auto;
+    column-gap: var(--space-2-5);
+    grid-template-areas:
+      'icon text text'
+      '. where fix';
+  }
 }
 .issue-fixes {
   display: flex;
@@ -3928,17 +4051,6 @@ button.changes__subject {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.i14y-link__unlink {
-  border: 0;
-  padding: 0;
-  background: none;
-  color: var(--text-muted);
-  font: inherit;
-  cursor: pointer;
-}
-.i14y-link__unlink:hover {
-  color: var(--text-strong);
-}
 /* An unlinked "looks like" line: dashed like the tree's I14Y? marker, one per candidate */
 .i14y-matches {
   display: grid;
@@ -3951,16 +4063,6 @@ button.changes__subject {
   padding: 3px 9px;
   border: 1px dashed color-mix(in srgb, var(--blue-text) 50%, transparent);
   background: transparent;
-}
-.text-button {
-  border: 0;
-  padding: 0;
-  background: none;
-  color: var(--text-strong);
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
 }
 .i14y-reset {
   color: var(--blue-text);
@@ -3993,6 +4095,6 @@ button.changes__subject {
   align-items: center;
   gap: var(--space-1) var(--space-2);
 }
-.i14y-review__list li[aria-current='true'] .text-button {
+.i14y-review__list li[aria-current='true'] .btn--link {
   font-weight: 600;
 }

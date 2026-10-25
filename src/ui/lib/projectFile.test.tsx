@@ -224,7 +224,7 @@ describe('in the app', () => {
     const broken = project('Hundebewilligung');
     broken.root.children.push(newAttribute('broken', { source: [] }));
     await openWorkspace(broken);
-    expect(screen.getByRole('button', { name: 'Download bundle' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Fix 1 error' })).toHaveAttribute('aria-disabled', 'true');
     act(() => useStore.getState().setDraftSaveFailed(true));
     const banner = screen.getByText(/This browser is out of space/).closest<HTMLElement>('[role="status"]')!;
     await user.click(within(banner).getByRole('button', { name: 'Save project file' }));

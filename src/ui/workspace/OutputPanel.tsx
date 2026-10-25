@@ -105,13 +105,12 @@ function BundleOutput({ exportState }: { exportState: ExportState }) {
           </div>
           <div className="row row--wrap">
             <Button
-              variant="primary"
               size="small"
               disabled={errors.length > 0}
               title={errors.length ? t.workspace.downloadBlocked(errors.length) : undefined}
               onClick={() => downloadText(BUNDLE_FILE_NAME, ready.outputs.json)}
             >
-              <DownloadSimpleIcon /> {BUNDLE_FILE_NAME}
+              <DownloadSimpleIcon /> <span className="mono">{BUNDLE_FILE_NAME}</span>
             </Button>
             <CopyButton text={ready.outputs.dataUrl} label={t.output.copyDataUrl} />
           </div>

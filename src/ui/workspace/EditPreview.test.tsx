@@ -172,9 +172,9 @@ describe('Wallet preview below the form (a narrow Edit pane)', () => {
   });
 });
 
-describe('Wallet preview beside the form (an Edit pane 840px wide or more)', () => {
+describe('Wallet preview beside the form (an Edit pane 600px wide or more)', () => {
   it('sits in a column of its own, always shown, with no collapse control', () => {
-    paneWidth(840);
+    paneWidth(600);
     localStorage.setItem(EDIT_PREVIEW_OPEN_KEY, 'false');
     render(<Inspector />);
     expect(screen.getByRole('region', { name: 'Preview' })).toHaveAttribute('data-placement', 'beside');
@@ -204,13 +204,13 @@ describe('Wallet preview beside the form (an Edit pane 840px wide or more)', () 
     render(<Inspector />);
     expect(screen.getByRole('region', { name: 'Preview' })).toHaveAttribute('data-placement', 'beside');
 
-    width.mockReturnValue(839);
+    width.mockReturnValue(599);
     act(() => resized());
     expect(screen.getByRole('region', { name: 'Preview' })).toHaveAttribute('data-placement', 'below');
     expect(preview().getByRole('button', { name: 'Expand preview' })).toBeInTheDocument();
     expect(preview().queryByRole('figure')).not.toBeInTheDocument();
 
-    width.mockReturnValue(900);
+    width.mockReturnValue(640);
     act(() => resized());
     expect(preview().getByRole('figure', { name: 'iOS card' })).toBeInTheDocument();
   });

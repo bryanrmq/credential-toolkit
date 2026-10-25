@@ -815,7 +815,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
             <p className="empty-structure__title">{t.structure.empty}</p>
             <p className="field__hint">{t.structure.emptyHint}</p>
             <div className="empty-structure__actions">
-              <Button size="small" variant="primary" onClick={() => add('attribute')}>
+              <Button size="small" onClick={() => add('attribute')}>
                 <PlusIcon /> {t.structure.addFirst}
               </Button>
               <Button size="small" onClick={() => setFilling(true)}>

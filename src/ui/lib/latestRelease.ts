@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 
 export const RELEASE_CACHE_KEY = 'credential-toolkit:latest-release';
 export const RELEASES_API = 'https://api.github.com/repos/bryanrmq/credential-toolkit/releases/latest';
+/** Every release's notes, for when no release is known yet. */
+export const RELEASES_PAGE = 'https://github.com/bryanrmq/credential-toolkit/releases';
 /** How long a fetched release is trusted before asking GitHub again (its API allows 60 calls an hour per visitor). */
 export const RELEASE_MAX_AGE_MS = 60 * 60 * 1000;
 

@@ -830,13 +830,13 @@ describe('collapse and expand', () => {
 });
 
 describe('empty structure', () => {
-  it('offers one primary and two secondary buttons, each with an icon, under a one-line hint', () => {
+  it('offers three secondary buttons, each with an icon, under a one-line hint', () => {
     useStore.getState().load(emptyProject(['de-CH']));
     render(<Workspace />);
     const actions = document.querySelector('.empty-structure__actions')!;
     const buttons = within(actions as HTMLElement).getAllByRole('button');
     expect(buttons.map((button) => button.textContent?.trim())).toEqual(['Add attribute', 'Fill from a sample', 'Add attributes from I14Y']);
-    expect(buttons.map((button) => button.classList.contains('btn--primary'))).toEqual([true, false, false]);
+    expect(buttons.map((button) => button.classList.contains('btn--primary'))).toEqual([false, false, false]);
     for (const button of buttons) expect(button.querySelector('svg')).not.toBeNull();
     expect(screen.getByText('Add attributes, or fill them from a sample or I14Y.')).toBeInTheDocument();
   });

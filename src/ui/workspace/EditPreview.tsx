@@ -7,7 +7,7 @@ import { OutputPreview } from './OutputPreview';
 import { PreviewControls } from './PreviewControls';
 
 /** The Edit pane width from which the preview sits beside the form; keep in step with `src/ui/styles.css`. */
-export const PREVIEW_BESIDE_WIDTH = 840;
+export const PREVIEW_BESIDE_WIDTH = 600;
 
 /** Keeps `--edit-preview-header` on the preview at its header's height, for the scroll padding beside the form. */
 function useHeaderHeight() {
