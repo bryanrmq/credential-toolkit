@@ -15,6 +15,7 @@ import {
   loadIssuesOpen,
   loadOutputOpen,
   loadPaneWidths,
+  outputFits,
   saveEditPreviewOpen,
   saveIssuesHeight,
   saveIssuesOpen,
@@ -43,8 +44,17 @@ describe('pane widths', () => {
   it('clamps one pane to its limits and to the room the window leaves', () => {
     expect(clampPaneWidth('structure', 100)).toBe(220);
     expect(clampPaneWidth('output', 900)).toBe(720);
-    // 1200 px window, output 420 px, edit pane needs 420 px: structure can take at most 360 px.
-    expect(clampPaneWidth('structure', 500, { container: 1200, other: 420 })).toBe(350);
+    // 1200 px window, output 420 px, edit pane needs 440 px: structure can take at most 330 px.
+    expect(clampPaneWidth('structure', 500, { container: 1200, other: 420 })).toBe(330);
+  });
+
+  it('fits the Output pane only where the Edit pane keeps 440 px beside it', () => {
+    // Default widths: 300 + 420 + 440 + two 5 px handles = 1170 px.
+    expect(outputFits(1170, DEFAULT_PANE_WIDTHS)).toBe(true);
+    expect(outputFits(1169, DEFAULT_PANE_WIDTHS)).toBe(false);
+    expect(outputFits(1060, { structure: 220, output: 300 })).toBe(true);
+    // Not measured yet.
+    expect(outputFits(0, DEFAULT_PANE_WIDTHS)).toBe(true);
   });
 });
 

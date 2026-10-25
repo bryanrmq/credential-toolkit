@@ -4,7 +4,8 @@ import { useLatestRelease } from './lib/latestRelease';
 
 /**
  * The ring mark (same as the favicon), the app name, a Beta flag and the latest release, linked to
- * its notes. `compact` hides the name and release on narrower screens; the Beta flag always stays.
+ * its notes. `compact`, for the top bar, lets the bar hide all but the mark when it runs short of room;
+ * its menu then lists the release and the Beta flag instead.
  */
 export function Wordmark({ compact = false }: { compact?: boolean }) {
   const release = useLatestRelease();
@@ -15,7 +16,13 @@ export function Wordmark({ compact = false }: { compact?: boolean }) {
         <circle className="wordmark__ring" cx="16" cy="16" r="7" fill="none" strokeWidth="3" />
       </svg>
       <span className={compact ? 'wordmark__text wordmark__text--compact' : 'wordmark__text'}>{t.appName}</span>
-      <Badge tone="blue">{t.beta}</Badge>
+      {compact ? (
+        <span className="wordmark__beta--compact">
+          <Badge tone="blue">{t.beta}</Badge>
+        </span>
+      ) : (
+        <Badge tone="blue">{t.beta}</Badge>
+      )}
       {release && (
         <a
           className={compact ? 'wordmark__version wordmark__version--compact' : 'wordmark__version'}

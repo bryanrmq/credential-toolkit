@@ -25,10 +25,10 @@ describe('Wordmark', () => {
     expect(JSON.parse(localStorage.getItem(RELEASE_CACHE_KEY) ?? 'null')).toMatchObject({ tag: 'v0.3.0', url: releaseUrl });
   });
 
-  it('keeps the beta flag in the compact top bar version', async () => {
+  it('lets the compact top bar version hide the beta flag and the release when the bar runs short of room', async () => {
     stubLatestRelease({ tag_name: 'v0.3.0', html_url: releaseUrl });
     render(<Wordmark compact />);
-    expect(screen.getByText('Beta')).toBeInTheDocument();
+    expect(screen.getByText('Beta').parentElement).toHaveClass('wordmark__beta--compact');
     expect(await screen.findByText('v0.3.0')).toHaveClass('wordmark__version--compact');
   });
 

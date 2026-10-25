@@ -6,6 +6,7 @@ import { sriSha256, utf8 } from '../../core/cesr';
 import { emptyProject, newAttribute } from '../../core/model';
 import { useStore } from '../../state/store';
 import { downloadText } from '../lib/download';
+import { RELEASES_PAGE } from '../lib/latestRelease';
 import { THEME_KEY, setTheme } from '../lib/theme';
 import { TOUR_SEEN_KEY } from '../lib/tour';
 import { Workspace } from './Workspace';
@@ -63,6 +64,80 @@ describe('theme', () => {
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(localStorage.getItem(THEME_KEY)).toBe('dark');
     expect((await choices()).map((item) => item.getAttribute('aria-checked'))).toEqual(['false', 'false', 'true']);
+  });
+});
+
+describe('blocked Download', () => {
+  beforeEach(() => {
+    const project = useStore.getState().project!;
+    project.root.children.push(newAttribute('broken', { source: [] }));
+    useStore.getState().load(project);
+  });
+  const narrow = () => vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
+
+  it('stays reachable by Tab, says why it is blocked, and shows the first error when pressed', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    const download = screen.getByRole('button', { name: 'Fix 1 error' });
+    expect(download).toHaveAttribute('aria-disabled', 'true');
+    expect(download).toHaveAccessibleDescription('Fix 1 error to download');
+    screen.getByRole('button', { name: 'Search and commands' }).focus();
+    await user.tab();
+    expect(download).toHaveFocus();
+
+    await user.keyboard('{Enter}');
+    expect(downloadText).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /"broken" has no source path/ })).toHaveFocus();
+  });
+
+  it('on a narrow Metadata page, goes to the Issues pane of the OCA', async () => {
+    narrow();
+    const user = userEvent.setup();
+    useStore.getState().setArea('metadata');
+    render(<Workspace />);
+    await user.click(screen.getByRole('button', { name: 'Fix 1 error' }));
+    expect(useStore.getState().area).toBe('oca');
+    expect(screen.getByRole('button', { name: /"broken" has no source path/ })).toHaveFocus();
+  });
+});
+
+describe('one primary action', () => {
+  it('is the Download in the top bar, on the OCA and on the Metadata page', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<Workspace />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Download bundle' })).toBeEnabled());
+    expect([...container.querySelectorAll('.btn--primary')]).toEqual([screen.getByRole('button', { name: 'Download bundle' })]);
+
+    await user.click(screen.getByRole('tab', { name: 'Metadata' }));
+    await user.click(screen.getByRole('tab', { name: 'Type metadata' }));
+    await screen.findByRole('button', { name: 'vct.json' });
+    expect([...container.querySelectorAll('.btn--primary')]).toEqual([screen.getByRole('button', { name: 'Download OCA bundle' })]);
+  });
+});
+
+describe('crowded bar', () => {
+  it('takes out the brand, then the language switch, until the project name has its room', () => {
+    // The lead overflows until the language switch has become a dropdown (jsdom has no layout of its own).
+    const scrollWidth = vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('topbar__lead') && !this.parentElement?.dataset.fit?.split(' ').includes('lang') ? 100 : 0;
+    });
+    const { container } = render(<Workspace />);
+    expect(container.querySelector('.topbar')).toHaveAttribute('data-fit', 'brand lang');
+    scrollWidth.mockRestore();
+  });
+});
+
+describe('menu', () => {
+  it('lists the app, its release and the Beta flag for windows too narrow to show them', async () => {
+    const open = vi.fn();
+    vi.stubGlobal('open', open);
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    const about = screen.getByRole('menuitem', { name: 'Credential Toolkit (Beta)' });
+    expect(about).toHaveClass('compact-only');
+    await user.click(about);
+    expect(open).toHaveBeenCalledWith(RELEASES_PAGE, '_blank', 'noopener,noreferrer');
   });
 });
 

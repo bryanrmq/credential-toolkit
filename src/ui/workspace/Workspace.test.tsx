@@ -33,7 +33,7 @@ describe('Workspace', () => {
     const user = userEvent.setup();
     render(<Workspace />);
     expect(within(screen.getByRole('region', { name: 'Issues' })).getByText('1 error')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Download bundle' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Fix 1 error' })).toHaveAttribute('aria-disabled', 'true');
 
     await user.click(screen.getByRole('button', { name: /"broken" has no source path/ }));
     expect(screen.getByLabelText('Key')).toHaveValue('broken');
@@ -287,6 +287,31 @@ describe('Workspace', () => {
     render(<Workspace />);
     expect(screen.queryByRole('region', { name: 'Output' })).not.toBeInTheDocument();
     expect(topBar().getByRole('button', { name: 'Show output' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('steps the Output pane aside where the Edit pane would get under 440 px, until the top bar shows it', async () => {
+    // A 1060 px window: 300 + 420 px side panes would leave Edit 330 px.
+    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1060);
+    const user = userEvent.setup();
+    const { container, unmount } = render(<Workspace />);
+    expect(screen.queryByRole('region', { name: 'Output' })).not.toBeInTheDocument();
+    expect(container.querySelector('.panes')).toHaveClass('panes--no-output');
+    // Stepping aside is not hiding: the choice stays as it was.
+    expect(localStorage.getItem(OUTPUT_OPEN_KEY)).toBeNull();
+
+    await user.click(topBar().getByRole('button', { name: 'Show output' }));
+    expect(screen.getByRole('region', { name: 'Output' })).toBeInTheDocument();
+    expect(topBar().getByRole('button', { name: 'Hide output' })).toHaveAttribute('aria-pressed', 'true');
+
+    // Opened again in a window as small, it steps aside again; in a window with room it shows.
+    unmount();
+    const again = render(<Workspace />);
+    expect(screen.queryByRole('region', { name: 'Output' })).not.toBeInTheDocument();
+    again.unmount();
+    width.mockReturnValue(1366);
+    render(<Workspace />);
+    expect(screen.getByRole('region', { name: 'Output' })).toBeInTheDocument();
+    width.mockRestore();
   });
 
   it('shows the hidden Output pane to go to a hosting issue', async () => {

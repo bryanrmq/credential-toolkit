@@ -31,7 +31,7 @@ import { type RefObject, useEffect, useLayoutEffect } from 'react';
 import { canFillFromI14y } from '../../core/import/i14y';
 import { confirmReview, hasUnreviewed } from '../../core/review';
 import { selectedIds } from '../../state/selection';
-import { endTyping, useStore } from '../../state/store';
+import { endTyping, isOutputShown, useStore } from '../../state/store';
 import { t } from '../../strings';
 import { fillMissingFromI14y } from './i14y';
 import { usesCommandKey } from './platform';
@@ -400,7 +400,7 @@ export const COMMANDS: readonly Command[] = [
   },
   {
     id: 'workspace.toggleOutput',
-    label: () => (useStore.getState().outputOpen ? t.workspace.hideOutput : t.workspace.showOutput),
+    label: () => (isOutputShown(useStore.getState()) ? t.workspace.hideOutput : t.workspace.showOutput),
     icon: SidebarSimpleIcon,
     // As ⌥⌘B toggles VS Code's secondary side bar.
     keys: { code: 'KeyB', mod: true, alt: true, show: 'B' },
