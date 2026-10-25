@@ -9,7 +9,7 @@ export type PaneWidths = Record<ResizablePane, number>;
 export const PANE_LAYOUT_KEY = 'credential-toolkit:pane-widths';
 export const DEFAULT_PANE_WIDTHS: PaneWidths = { structure: 300, output: 420 };
 export const PANE_LIMITS: Record<ResizablePane, [min: number, max: number]> = { structure: [220, 520], output: [300, 720] };
-/** Room the Edit pane always keeps (`.panes` in styles.css), and the width of the two resize handles together. */
+/** Room the Edit pane always keeps (`.panes` in styles/workspace.css), and the width of the two resize handles together. */
 export const EDIT_PANE_MIN = 440;
 const HANDLES_WIDTH = 10;
 

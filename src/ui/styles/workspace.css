@@ -1,0 +1,463 @@
+/* The workspace frame: the top bar, the banners, the panes and their headers. */
+
+/* Workspace */
+.workspace {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2-5) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  background: var(--topbar-bg);
+  backdrop-filter: blur(8px);
+  /* backdrop-filter creates a stacking context; lift it above the sticky pane headers so the menu shows on top. */
+  position: relative;
+  z-index: 10;
+}
+.topbar__lead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  flex: 1;
+  min-width: 0;
+}
+.topbar__divider {
+  color: var(--border-strong);
+}
+.topbar__name {
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* The name goes last: other things leave the bar before it gets less (TopBar's `useFit`). */
+  min-width: 12ch;
+}
+.topbar:not([data-fit~='brand']) .topbar__name {
+  min-width: 24ch;
+}
+/* The OCA / Metadata switch: which file the workspace edits, like tabs of a document. */
+.topbar__areas {
+  margin-left: var(--space-2);
+}
+.topbar__areas .tabs {
+  border-bottom: none;
+}
+.topbar__areas .tabs__tab {
+  padding: var(--space-1) var(--space-1-5);
+  font-size: var(--text-sm);
+  border-bottom-width: 1px;
+}
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: none;
+}
+.topbar__issues {
+  padding: 3px var(--space-1);
+}
+.topbar__issue-badges {
+  display: contents;
+}
+/* On a phone, one icon with the number of issues (`.hide-phone` takes the badges away), red while one is an error. */
+.topbar__issue-count {
+  display: none;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--yellow-text);
+}
+.topbar__issues--error .topbar__issue-count {
+  color: var(--red-text);
+}
+/* A control of the OCA (the view toggle, Output) keeps its room on the Metadata page, so the rest doesn't move. */
+.topbar__slot {
+  display: flex;
+}
+.topbar__slot--idle {
+  visibility: hidden;
+}
+/* What leaves a crowded bar, step by step (TopBar's `useFit`): the brand and the search shortcut, then the language
+   switch for its dropdown, then the view toggle for the menu, and on a phone the ring mark, then search for the menu. */
+.topbar[data-fit~='brand'] .wordmark__text--compact,
+.topbar[data-fit~='brand'] .wordmark__beta--compact,
+.topbar[data-fit~='brand'] .wordmark__version--compact,
+.topbar[data-fit~='brand'] .topbar__divider,
+.topbar[data-fit~='brand'] .topbar__palette kbd,
+.topbar[data-fit~='lang'] .topbar__lang,
+.topbar[data-fit~='view'] .topbar__view,
+.topbar[data-fit~='mark'] .wordmark,
+.topbar[data-fit~='search'] .topbar__palette {
+  display: none;
+}
+.topbar[data-fit~='brand'] .topbar__palette {
+  width: var(--control-h);
+  justify-content: center;
+  padding-inline: 0;
+}
+.topbar[data-fit~='brand'] .menu__item.compact-only,
+.topbar[data-fit~='view'] .menu__item.narrow-only,
+.topbar[data-fit~='search'] .menu__item.search-only {
+  display: flex;
+}
+.topbar[data-fit~='lang'] .topbar__lang-select {
+  display: initial;
+}
+.topbar[data-fit~='lang'] .topbar__actions {
+  gap: var(--space-2);
+}
+/* Every label Download can show, stacked in one cell: the widest sets the width, only the current one shows. */
+.topbar__download-label {
+  display: inline-grid;
+}
+.topbar__download-label > span {
+  grid-area: 1 / 1;
+  text-align: center;
+}
+.topbar__download-spare {
+  visibility: hidden;
+}
+.select--compact {
+  width: auto;
+  padding: var(--space-1) 28px var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+}
+/* Every top bar control is one height. */
+.topbar .btn,
+.topbar .segmented,
+.topbar .select--compact {
+  height: var(--control-h);
+  padding-block: 0;
+}
+.topbar .segmented {
+  padding-block: var(--space-0-5);
+}
+.topbar .segmented button {
+  padding-block: 0;
+}
+.topbar .btn--icon {
+  width: var(--control-h);
+  justify-content: center;
+  padding-inline: 0;
+}
+
+/* Responsive helpers: wide (> 960px) vs narrow */
+.narrow-only,
+.compact-only,
+.search-only {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .wide-only {
+    display: none;
+  }
+  .narrow-only {
+    display: initial;
+  }
+  .menu__item.narrow-only {
+    display: flex;
+  }
+}
+@media (max-width: 720px) {
+  .topbar {
+    padding: var(--space-2) var(--space-3);
+    gap: var(--space-2);
+  }
+  .topbar__actions,
+  .topbar[data-fit] .topbar__actions {
+    gap: var(--space-1);
+  }
+  .hide-phone {
+    display: none;
+  }
+  .topbar__issue-count {
+    display: inline-flex;
+  }
+  .topbar__issues {
+    min-width: var(--control-h-touch);
+    justify-content: center;
+  }
+  /* The name shows as the Edit pane's title instead. */
+  .topbar__name {
+    display: none;
+  }
+  .label-phone-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+/* Under a finger, and on a phone-wide window, every top bar control is at least 40px. */
+@media (hover: none), (max-width: 720px) {
+  .topbar .btn,
+  .topbar .segmented,
+  .topbar .select--compact {
+    height: var(--control-h-touch);
+  }
+  .topbar .btn--icon,
+  .topbar[data-fit~='brand'] .topbar__palette {
+    width: var(--control-h-touch);
+  }
+}
+/* Autosave ran out of browser storage: a warning under the top bar while the project stays open. */
+.space-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: var(--space-3) var(--space-5) 0;
+  padding: var(--space-2-5) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--yellow-bg);
+  color: var(--yellow-text);
+  font-size: var(--text-sm);
+}
+.space-banner > svg {
+  flex: none;
+}
+.space-banner__text {
+  flex: 1 1 240px;
+  margin: 0;
+}
+/* The workspace notice: one line above the panes (the import report and the I14Y matches), the rest behind Show
+   details. The summary is cut with an ellipsis rather than wrapping to a second line. */
+.report {
+  margin: var(--space-3) var(--space-5) 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3-5);
+}
+.report__line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-h-sm);
+}
+.report__line > svg,
+.report__line > .btn {
+  flex: none;
+}
+.report__summary {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* A phone has no room for the line: the summary takes up to two lines there, still with the rest behind Show details. */
+@media (max-width: 600px) {
+  .report__summary {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+}
+.report__details {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+  border-top: 1px solid var(--border);
+  padding: var(--space-2-5) var(--space-2-5) var(--space-2-5) 0;
+}
+.report__details > ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-1);
+}
+.report__details > ul > li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  font-size: var(--text-sm);
+}
+.panes {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  /* Side panes follow the user's widths (saved in localStorage) but give way first on small windows: the Edit pane
+     keeps 440px (EDIT_PANE_MIN in paneLayout.ts). Where Output at its width would take that, it steps aside until the
+     top bar shows it again, and then both side panes shrink towards their minimums. */
+  grid-template-columns:
+    minmax(220px, var(--structure-width, 300px)) 5px minmax(440px, 1fr) 5px
+    minmax(300px, var(--output-width, 420px));
+}
+/* The Output pane is hidden (wide windows only): the Edit pane takes its space. */
+.panes--no-output {
+  grid-template-columns: minmax(220px, var(--structure-width, 300px)) 5px minmax(440px, 1fr);
+}
+.pane {
+  min-height: 0;
+  overflow: auto;
+}
+.pane-resizer {
+  position: relative;
+  z-index: 3;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+.pane-resizer::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 2px;
+  width: 1px;
+  background: var(--border);
+  transition:
+    background 150ms,
+    transform 150ms;
+}
+.pane-resizer:hover::before,
+.pane-resizer:focus-visible::before,
+.pane-resizer:active::before {
+  background: var(--text-muted);
+  transform: scaleX(3);
+}
+/*
+ * Between the panes: a 9px hit area over the 5px column (it overlaps the panes by 2px each side, so they do not
+ * move), with the line in its middle and a grip on hover, focus or drag that says it can be dragged.
+ */
+.panes > .pane-resizer {
+  margin: 0 calc(-1 * var(--space-0-5));
+}
+.panes > .pane-resizer::before {
+  left: var(--space-1);
+}
+.panes > .pane-resizer::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: var(--space-0-5);
+  width: 5px;
+  height: var(--space-7);
+  margin-top: calc(-1 * var(--space-4));
+  border-radius: var(--radius-pill);
+  background: var(--text-strong);
+  opacity: 0;
+  transition: opacity 150ms;
+}
+.panes > .pane-resizer:hover::after,
+.panes > .pane-resizer:focus-visible::after,
+.panes > .pane-resizer:active::after {
+  opacity: 1;
+}
+.pane-resizer--horizontal {
+  cursor: row-resize;
+}
+.pane-resizer--horizontal::before {
+  inset: 2px 0 auto;
+  width: auto;
+  height: 1px;
+}
+.pane-resizer--horizontal:hover::before,
+.pane-resizer--horizontal:focus-visible::before,
+.pane-resizer--horizontal:active::before {
+  transform: scaleY(3);
+}
+.pane--inspector {
+  background: var(--surface);
+}
+.pane__header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: inherit;
+  padding: var(--space-4) var(--space-5) var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.pane--structure .pane__header {
+  background: var(--canvas);
+}
+/* The Structure header wraps its filter box onto a line of its own, below the title and the Add menu. */
+.pane--structure .pane__header {
+  flex-wrap: wrap;
+}
+.tree-filter {
+  flex: 1 0 100%;
+  padding: 5px var(--space-2);
+  font-size: var(--text-xs);
+}
+.pane__title {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.pane__body {
+  padding: var(--space-1) var(--space-5) var(--space-7);
+}
+/* On wide windows the Structure body fills the pane, so the empty area below the last row takes a right-click. */
+@media (min-width: 1001px) {
+  .pane--structure {
+    display: flex;
+    flex-direction: column;
+  }
+  .pane--structure .pane__body {
+    flex: 1 0 auto;
+  }
+}
+.pane-tabs {
+  display: none;
+}
+@media (max-width: 1000px) {
+  .panes {
+    grid-template-columns: 1fr;
+  }
+  .pane,
+  .panes > .pane-resizer {
+    display: none;
+  }
+  .panes[data-pane='structure'] .pane--structure,
+  .panes[data-pane='inspector'] .pane--inspector,
+  .panes[data-pane='output'] .pane--output {
+    display: block;
+  }
+  /* The Issues pane is the Issues panel itself, rendered after the panes. */
+  .panes[data-pane='issues'] {
+    display: none;
+  }
+  /* The line runs the full width; the tabs start at the 16px gutter, as the pane's own switch below them. */
+  .pane-tabs {
+    display: flex;
+    padding: 0 var(--space-4);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .pane-tabs .tabs {
+    border-bottom: none;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .pane-tabs .tabs__tab {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+
+.report__text {
+  margin: 0;
+  font-size: var(--text-sm);
+}

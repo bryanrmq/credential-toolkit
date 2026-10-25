@@ -17,7 +17,7 @@ export function loadTheme(): Theme {
   }
 }
 
-/** Sets `data-theme` on `<html>`, which the dark tokens in styles.css key on. System removes it. */
+/** Sets `data-theme` on `<html>`, which the dark tokens in styles/tokens.css key on. System removes it. */
 export function applyTheme(theme: Theme): void {
   if (theme === 'system') delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = theme;

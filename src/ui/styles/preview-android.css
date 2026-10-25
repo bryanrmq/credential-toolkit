@@ -1,0 +1,261 @@
+/* The Android credential details screen. */
+
+/* wallet-preview:start — the Android details screen */
+/*
+ * The Android credential details screen (eidch-android-wallet v1.19.0), in dp. Colours are the wallet's light and dark
+ * schemes (`WalletColorScheme.kt`); ABC Diatype is replaced by the app's sans font.
+ */
+.details-preview__stage--android.details-preview__stage--dark {
+  background: #161c21;
+}
+.android-details {
+  --android-page: #f1f5fc;
+  --android-card: #ffffff;
+  --android-on-surface: #092740;
+  --android-secondary: #586c7d;
+  --android-on-surface-variant: #41484d;
+  --android-outline-variant: #c1c7ce;
+  --android-avatar: #dde3ea;
+  --android-sensitive: #f8d8fa;
+  --android-on-sensitive: #64236e;
+  --android-on-secondary-container: #41484d;
+  width: 412px;
+  background: var(--android-page);
+  color: var(--android-on-surface);
+  font-family: var(--font-sans);
+  hyphens: auto;
+}
+.android-details--dark {
+  --android-page: #161c21;
+  --android-card: #242a30;
+  --android-on-surface: #ffffff;
+  --android-secondary: #8b9198;
+  --android-on-surface-variant: #c1c7ce;
+  --android-outline-variant: #41484d;
+  --android-avatar: #30363c;
+  --android-sensitive: #500a5a;
+  --android-on-sensitive: #f8d8fa;
+  --android-on-secondary-container: #dde3ea;
+}
+.android-details__bar {
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  align-items: center;
+  justify-items: center;
+  height: 64px;
+  padding: 0 4px;
+  /* `CustomTopBarButton`: the icons take `onSecondaryContainer` (`WalletTopBar.kt` L369-376). */
+  color: var(--android-on-secondary-container);
+}
+/* No line limit (`TopBarState.titleMaxLines`): a long name wraps, and the 64 dp bar clips what does not fit. */
+.android-details__title {
+  justify-self: start;
+  max-width: 100%;
+  max-height: 64px;
+  padding-left: 4px;
+  overflow: hidden;
+  color: var(--android-on-surface);
+  font-size: 22px;
+  line-height: 28px;
+}
+.android-details__content {
+  padding: 16px 0;
+}
+.android-details__card {
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+}
+/* The 16 dp and 24 dp spacers around Latest Activities, which the preview leaves out. */
+.android-details__clusters {
+  margin-top: 40px;
+}
+.android-section + .android-section,
+.android-section--issuer {
+  margin-top: 24px;
+}
+.android-section__card {
+  margin: 0 16px;
+  border-radius: 20px;
+  background: var(--android-card);
+  overflow: hidden;
+}
+.android-headline {
+  margin: 0;
+  color: var(--android-on-surface);
+}
+.android-headline--section {
+  padding: 4px 16px 4px 32px;
+  color: var(--android-secondary);
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 700;
+}
+.android-section--issuer .android-headline--section {
+  margin-bottom: 8px;
+}
+/* `TitleLargeEmphasized`: at most 3 lines, then an ellipsis. */
+.android-headline--level1 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  padding: 24px 16px 0;
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 500;
+}
+.android-headline--nested {
+  padding: 16px 16px 0;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 700;
+}
+.android-headline-spacer--section {
+  height: 32px;
+}
+.android-headline-spacer--level1 {
+  height: 48px;
+}
+.android-headline-spacer--nested {
+  height: 40px;
+}
+/* A Material 3 list item: 16 dp at the sides, 8 dp above and below, 56 dp tall, 72 dp with an overline. */
+.android-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 56px;
+  padding: 8px 16px;
+  box-sizing: border-box;
+}
+.android-item--two-line {
+  min-height: 72px;
+}
+.android-item--leading,
+.android-item--trailing {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+}
+.android-item--trailing {
+  min-height: 72px;
+}
+.android-item__text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.android-item__overline {
+  color: var(--android-secondary);
+  font-size: 12px;
+  line-height: 14px;
+  font-weight: 500;
+}
+.android-item__headline {
+  font-size: 16px;
+  line-height: 22px;
+}
+.android-item__chevron {
+  flex: none;
+  color: var(--android-on-surface-variant);
+}
+.android-claim__headline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.android-claim__value {
+  flex: 1;
+  min-width: 0;
+  color: var(--android-secondary);
+  font-size: 16px;
+  line-height: 22px;
+  overflow-wrap: anywhere;
+}
+/* At most 160 dp tall, rounded, from the top left. */
+.android-claim__image {
+  display: block;
+  padding: 8px 0 4px;
+  min-width: 0;
+}
+.android-claim__image img {
+  display: block;
+  max-width: 100%;
+  max-height: 160px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+.android-details__placeholder {
+  color: var(--android-secondary);
+  font-style: italic;
+}
+.android-details__divider {
+  margin-left: 16px;
+  border-top: 1px solid var(--android-outline-variant);
+}
+.android-details__avatar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 7px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: var(--android-avatar);
+}
+/* The logo's alpha, fitted into 18 dp and tinted with onSurface. */
+.android-details__avatar-logo {
+  width: 18px;
+  height: 18px;
+  background: var(--android-on-surface);
+  mask-image: var(--logo);
+  -webkit-mask-image: var(--logo);
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+.android-details__avatar svg {
+  color: var(--android-on-surface);
+}
+.android-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.android-badge--outline,
+.android-badge--error {
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 16px 0 12px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 16px;
+}
+.android-badge--outline {
+  border-color: currentColor;
+}
+.android-badge--error {
+  background: #ffedea;
+  color: #c00012;
+}
+.android-badge--sensitive {
+  flex: none;
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: 40px;
+  background: var(--android-sensitive);
+  color: var(--android-on-sensitive);
+}
+/* wallet-preview:end */

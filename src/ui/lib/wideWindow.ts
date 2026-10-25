@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-/** The window width at which the workspace shows one pane at a time; keep in step with `src/ui/styles.css`. */
+/** The window width at which the workspace shows one pane at a time; keep in step with `src/ui/styles/`. */
 export const NARROW_QUERY = '(max-width: 1000px)';
 
 /** Whether the window shows the panes side by side. True where `matchMedia` is missing, as in tests. */

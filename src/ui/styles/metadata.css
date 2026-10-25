@@ -1,0 +1,88 @@
+/* The Metadata page. */
+
+/* Metadata page: built like the OCA's panes. The form is laid out as the Edit pane; the column beside it as the Output
+   pane, its tabs (Preview, Type metadata, Issuer metadata) in the header and a body that scrolls under them. A narrow
+   window shows one at a time, chosen by the pane tabs (`data-pane`); the Issues pane is the Issues panel after it. */
+.metadata {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+}
+.metadata__form {
+  background: var(--surface);
+  padding: var(--space-2) var(--space-7) 64px;
+}
+.metadata__column {
+  max-width: 640px;
+}
+.metadata__preview {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-left: 1px solid var(--border);
+  background: var(--canvas);
+}
+/* The tabs stay on one line and scroll sideways when the column is too narrow for them. */
+.metadata__preview-header .tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.metadata__preview-header .tabs__tab {
+  flex: none;
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+.metadata__preview-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4) var(--space-5) var(--space-7);
+}
+.metadata__preview-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.metadata__preview-controls .field__hint {
+  flex: 1 1 200px;
+  margin: 0;
+}
+.metadata__preview .output-preview {
+  margin-top: var(--space-4);
+}
+/* The body scrolls the whole file. */
+.metadata__preview .code-block {
+  max-height: none;
+}
+@media (max-width: 1000px) {
+  .metadata {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .metadata[data-pane='issues'] {
+    display: none;
+  }
+  .metadata__form,
+  .metadata__preview {
+    display: none;
+  }
+  .metadata[data-pane='form'] .metadata__form {
+    display: block;
+  }
+  .metadata[data-pane='preview'] .metadata__preview,
+  .metadata[data-pane='files'] .metadata__preview {
+    display: flex;
+  }
+  .metadata__form {
+    padding: var(--space-2) var(--space-4) var(--space-7);
+  }
+  .metadata__preview {
+    border-left: none;
+  }
+  .metadata__preview-body {
+    padding: var(--space-4) var(--space-4) var(--space-8);
+  }
+}
