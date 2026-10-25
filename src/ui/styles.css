@@ -1795,6 +1795,34 @@ kbd.palette__meta {
   background: var(--text-muted);
   transform: scaleX(3);
 }
+/*
+ * Between the panes: a 9px hit area over the 5px column (it overlaps the panes by 2px each side, so they do not
+ * move), with the line in its middle and a grip on hover, focus or drag that says it can be dragged.
+ */
+.panes > .pane-resizer {
+  margin: 0 calc(-1 * var(--space-0-5));
+}
+.panes > .pane-resizer::before {
+  left: var(--space-1);
+}
+.panes > .pane-resizer::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: var(--space-0-5);
+  width: 5px;
+  height: var(--space-7);
+  margin-top: calc(-1 * var(--space-4));
+  border-radius: var(--radius-pill);
+  background: var(--text-strong);
+  opacity: 0;
+  transition: opacity 150ms;
+}
+.panes > .pane-resizer:hover::after,
+.panes > .pane-resizer:focus-visible::after,
+.panes > .pane-resizer:active::after {
+  opacity: 1;
+}
 .pane-resizer--horizontal {
   cursor: row-resize;
 }
@@ -1985,6 +2013,14 @@ button.tree__toggle:hover {
     transition: transform 120ms var(--ease);
   }
 }
+/* The filter box's text where it occurs in a key or label: weight and an underline, no colour. */
+.tree__match {
+  background: none;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .tree__key {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
@@ -2025,6 +2061,30 @@ button.tree__toggle:hover {
 .tree__dot--warning {
   background: var(--yellow-text);
 }
+/* A row's ⋯ menu button, on touch screens only (no right-click there): 32px square at the end of the row, over its
+   vertical padding so the row keeps its height. */
+.tree__more {
+  display: none;
+}
+@media (hover: none) {
+  .tree__more {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    margin: calc(-1 * var(--space-1)) calc(-1 * var(--space-1-5)) calc(-1 * var(--space-1)) 0;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius);
+    background: none;
+    color: var(--text-muted);
+  }
+  .tree__more:active {
+    background: var(--surface-hover);
+    color: var(--text-strong);
+  }
+}
 .empty-structure {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -2038,6 +2098,15 @@ button.tree__toggle:hover {
   font-weight: 500;
   color: var(--text-strong);
 }
+/* Three equal full-width buttons, all secondary: the top bar's Download is the workspace's one primary. */
+.empty-structure__actions {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+.empty-structure__actions .btn {
+  justify-content: center;
+}
 .tree__empty {
   color: var(--text-muted);
   font-size: var(--text-xs);
@@ -2050,8 +2119,14 @@ button.tree__toggle:hover {
 [role='tree'][data-filtered] .tree__handle {
   visibility: hidden;
 }
-/* Below the Credential row when the filter matches nothing. */
+/* Below the Credential row when the filter matches nothing: what was looked for, and a way back. */
 .tree__no-matches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+}
+.tree__no-matches p {
   margin: 0;
 }
 /* Drop indicators, the only two: an outline on a group the drop goes into, and an insertion line
@@ -2326,6 +2401,9 @@ button.tree__toggle:hover {
   letter-spacing: -0.02em;
   line-height: var(--leading-tight);
   word-break: break-word;
+}
+.selection-hidden {
+  margin-top: var(--space-1);
 }
 .selection-keys {
   display: flex;

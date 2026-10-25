@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type Project, emptyProject, findNode, newAttribute, newGroupLink } from '../core/model';
 import { CREDENTIAL, oneNode } from './selection';
-import { COLLAPSED_KEY, ancestorIds, filteredIds, loadCollapsed, revealSelection, saveCollapsed, selectionOnCollapse, visibleRows } from './treeView';
+import { COLLAPSED_KEY, ancestorIds, filterRanges, filteredIds, loadCollapsed, revealSelection, saveCollapsed, selectionOnCollapse, visibleRows } from './treeView';
 
 /** a, g { b, h { c } }, d: in tree order a, g, b, h, c, d. */
 function project(): { project: Project; a: string; g: string; b: string; h: string; c: string; d: string } {
@@ -36,6 +36,20 @@ describe('visibleRows', () => {
     expect(visibleRows(p, [], shown)).toEqual([g, h, c, d]);
     expect(visibleRows(p, [g, h], shown)).toEqual([g, h, c, d]);
     expect(visibleRows(p, [g], new Set())).toEqual([]);
+  });
+});
+
+describe('filterRanges', () => {
+  it('finds every occurrence, ignoring case and the spaces around the text', () => {
+    expect(filterRanges('dateOfBirth', ' DATE ')).toEqual([[0, 4]]);
+    expect(filterRanges('nameName', 'name')).toEqual([[0, 4], [4, 8]]);
+    expect(filterRanges('aaa', 'aa')).toEqual([[0, 2]]);
+  });
+
+  it('finds nothing for a blank filter, no match or text whose case changes its length', () => {
+    expect(filterRanges('name', '  ')).toEqual([]);
+    expect(filterRanges('name', 'zzz')).toEqual([]);
+    expect(filterRanges('İstanbul', 'stan')).toEqual([]);
   });
 });
 

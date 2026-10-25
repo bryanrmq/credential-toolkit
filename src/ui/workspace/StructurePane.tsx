@@ -12,15 +12,17 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import {
+  BracketsCurlyIcon,
   CaretDownIcon,
   CaretRightIcon,
   DotsSixVerticalIcon,
+  DotsThreeIcon,
   IdentificationCardIcon,
   LockSimpleIcon,
   MagnifyingGlassIcon,
   PlusIcon,
 } from '@phosphor-icons/react';
-import { type KeyboardEvent, type MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { type KeyboardEvent, type MouseEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { type PendingLink, pendingLinks, textIn } from '../../core/import/i14y';
 import { importSample } from '../../core/import/sample';
@@ -28,7 +30,7 @@ import { type Group, type Node, type Project, findNode, walkNodes } from '../../
 import { moveNodesTo, outermostIds, renameNode } from '../../core/operations';
 import { CREDENTIAL, extendTo, isSelected, oneNode, rowAfter, selectedIds, toggleNode } from '../../state/selection';
 import { type Selection, useStore } from '../../state/store';
-import { ancestorIds, filteredIds, visibleRows } from '../../state/treeView';
+import { ancestorIds, filterRanges, filteredIds, visibleRows } from '../../state/treeView';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
 import { nodeIcon } from '../components/nodeIcon';
@@ -39,7 +41,7 @@ import { type CommandArgs, type CommandId, type LabelPlace, applies, command, co
 import { type NewNodeKind, type NodePlace, addNode, newNodePlace } from '../lib/treeActions';
 import { useTreeClipboard } from '../lib/treeClipboard';
 import { type DropIndicator, type DropTarget, dropTarget, emptyRowId } from '../lib/treeDrop';
-import { treeActionsAvailable, treeShortcutsActive } from '../lib/treeShortcuts';
+import { overlayOpen, treeActionsAvailable, treeShortcutsActive } from '../lib/treeShortcuts';
 import { useWideWindow } from '../lib/wideWindow';
 import { I14yDialog } from './I14yDialog';
 import { SampleDialog } from './SampleControl';
@@ -53,11 +55,12 @@ function targetGroup(project: Project, selectionId: string | null): Group {
 }
 
 /**
- * An open menu: a right-click menu, or the header's Add menu (`add`). `at` is where it opens, in window
- * coordinates; focus goes back to `returnFocus` when it closes.
+ * An open menu: a right-click menu, a row's ⋯ menu or the header's Add menu (`add`). `at` is where it opens, in
+ * window coordinates, and `align` which of its edges sits there; focus goes back to `returnFocus` when it closes.
  */
 interface TreeMenu {
   add?: boolean;
+  align: 'start' | 'end';
   label: string;
   sections: PopupMenuItem[][];
   at: { x: number; y: number };
@@ -83,11 +86,13 @@ const CREDENTIAL_ROW = 'credential';
  * What every row needs from the tree: the I14Y matches, the one row in the tab order, the click
  * handlers, the row being renamed and how a rename ends, how a group expands or collapses, the rows a
  * filter shows (null when the tree is not filtered) and, while dragging, the dragged nodes, where a drop
- * would land and whether groups take drops inside (wide windows only).
+ * would land and whether groups take drops inside (wide windows only). `filter` is the filter box's text,
+ * whose occurrences rows mark, and `onMore` opens a row's menu from its ⋯ button (touch screens only).
  */
 interface RowContext {
   matches: Matches;
   shown: ReadonlySet<string> | null;
+  filter: string;
   focusId: string;
   onRowClick: (id: string, event: MouseEvent) => void;
   onRowDoubleClick: (id: string, event: MouseEvent) => void;
@@ -97,6 +102,7 @@ interface RowContext {
   drop: DropIndicator | null;
   inside: boolean;
   onToggle: (id: string, open: boolean) => void;
+  onMore: (button: HTMLElement) => void;
 }
 
 /** Whether a filtered tree shows anything inside `group`: the group node around it is then expanded. */
@@ -125,6 +131,7 @@ function NodeRow({ node, level, context }: { node: Node; level: number; context:
   const saidOpen = useStore((state) => node.kind === 'group' && !state.collapsed.includes(node.id));
   // A filtered tree expands the groups around its matches, without changing which groups are collapsed.
   const open = context.shown && node.kind === 'group' ? showsInside(node.group, context.shown) : saidOpen;
+  const label = node.labels[editLang];
 
   return (
     <li role="none" className={context.dragged?.includes(node.id) ? 'tree__dragging' : undefined}>
@@ -141,6 +148,8 @@ function NodeRow({ node, level, context }: { node: Node; level: number; context:
         data-row={node.id}
         data-primary={primary || undefined}
         data-drop={dropMark(context.drop, node.id)}
+        // The key and label in full, for when the pane is too narrow for them.
+        title={label ? `${node.key} · ${label}` : node.key}
         tabIndex={context.focusId === node.id ? 0 : -1}
         onClick={(event) => context.onRowClick(node.id, event)}
         onDoubleClick={(event) => context.onRowDoubleClick(node.id, event)}
@@ -186,7 +195,7 @@ function NodeRow({ node, level, context }: { node: Node; level: number; context:
             <RenameInput node={node} onDone={(key, refocus) => context.endRename(node.id, key, refocus)} />
           </>
         ) : (
-          <RowContent node={node} />
+          <RowContent node={node} filter={context.filter} />
         )}
         {node.kind === 'attribute' && node.i14y && (
           <span className="tree__tag" title={t.i14yLink.tagTitle(node.i14y.identifier)}>
@@ -199,20 +208,54 @@ function NodeRow({ node, level, context }: { node: Node; level: number; context:
           </span>
         )}
         {node.sensitive && <LockSimpleIcon size={12} aria-label={t.inspector.sensitive} />}
-        <span className="tree__label">{node.labels[editLang]}</span>
+        <span className="tree__label">
+          <Marked text={label ?? ''} filter={context.filter} />
+        </span>
         {severity && <span className={`tree__dot tree__dot--${severity}`} aria-hidden="true" />}
+        {/*
+         * Touch screens only (styles.css): iOS Safari fires no contextmenu on a long press, so this opens the
+         * right-click menu. Out of the tab order, like the handle: on wide windows Shift+F10 opens the same menu.
+         */}
+        <button
+          type="button"
+          className="tree__more"
+          aria-label={t.treeMenu.nodeLabel(node.key)}
+          aria-haspopup="menu"
+          tabIndex={-1}
+          onClick={(event) => {
+            event.stopPropagation();
+            context.onMore(event.currentTarget);
+          }}
+          onDoubleClick={(event) => event.stopPropagation()}
+        >
+          <DotsThreeIcon size={16} weight="bold" />
+        </button>
       </div>
       {node.kind === 'group' && open && <NodeList group={node.group} level={level + 1} context={context} />}
     </li>
   );
 }
 
-/** A node's icon and key, shared by its row and its drag preview. */
-function RowContent({ node }: { node: Node }) {
+/** `text` with the filter box's `filter` marked wherever it occurs (`filterRanges`). */
+function Marked({ text, filter }: { text: string; filter: string }) {
+  const ranges = filterRanges(text, filter);
+  if (ranges.length === 0) return text;
+  const parts: ReactNode[] = [];
+  let at = 0;
+  for (const [start, end] of ranges) {
+    parts.push(text.slice(at, start), <mark key={start} className="tree__match">{text.slice(start, end)}</mark>);
+    at = end;
+  }
+  parts.push(text.slice(at));
+  return parts;
+}
+
+/** A node's icon and key, shared by its row and its drag preview; a row marks the filter in the key. */
+function RowContent({ node, filter = '' }: { node: Node; filter?: string }) {
   return (
     <>
       {nodeIcon(node)}
-      <span className="tree__key">{node.key || '—'}</span>
+      <span className="tree__key">{node.key ? <Marked text={node.key} filter={filter} /> : '—'}</span>
     </>
   );
 }
@@ -493,6 +536,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
   const context: RowContext = {
     matches,
     shown,
+    filter: filterText,
     focusId,
     onRowClick,
     onRowDoubleClick,
@@ -502,6 +546,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     drop: drop?.indicator ?? null,
     inside: wide,
     onToggle,
+    onMore: (button) => openRowMenu(button),
   };
 
   const add = (kind: NewNodeKind) => {
@@ -544,6 +589,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     const rect = button.getBoundingClientRect();
     setMenu({
       add: true,
+      align: 'end',
       label: t.structure.addMenu,
       sections: [
         [
@@ -561,7 +607,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
    * Opens the right-click menu of `rowElement`: a node's, or the top level's for the Credential row and
    * the empty area (no row). An unselected node is selected first.
    */
-  const openMenu = (rowElement: HTMLElement | null, at: { x: number; y: number }) => {
+  const openMenu = (rowElement: HTMLElement | null, at: { x: number; y: number }, align: TreeMenu['align'] = 'start') => {
     const id = rowElement?.dataset.row;
     const node = id && id !== CREDENTIAL_ROW ? findNode(project.root, id)?.node : undefined;
     if (node && !isSelected(useStore.getState().selection, node.id)) {
@@ -569,7 +615,21 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
       onSelect();
     }
     const label = node ? t.treeMenu.nodeLabel(node.key) : t.treeMenu.areaLabel;
-    setMenu({ label, sections: menuSections(node), at, returnFocus: rowElement });
+    setMenu({ label, align, sections: menuSections(node), at, returnFocus: rowElement });
+  };
+
+  /**
+   * Opens a row's menu from its ⋯ button, below it and right-aligned with it: on touch screens, at any window
+   * width, where no right-click menu opens. The row is selected first without switching panes, so the menu
+   * stays in view on a narrow window.
+   */
+  const openRowMenu = (button: HTMLElement) => {
+    const rowElement = button.closest<HTMLElement>('[data-row]');
+    const id = rowElement?.dataset.row;
+    if (!rowElement || !id || overlayOpen()) return;
+    if (!isSelected(useStore.getState().selection, id)) select({ kind: 'node', id });
+    const rect = button.getBoundingClientRect();
+    openMenu(rowElement, { x: rect.right, y: rect.bottom + 4 }, 'end');
   };
 
   // Right-click on a row or the empty area below it, on wide windows; elsewhere the browser's own menu shows.
@@ -585,8 +645,8 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
    * or inside a group at its end.
    */
   const menuSections = (node: Node | undefined): PopupMenuItem[][] => {
-    // Only a node's menu shows the keys: they act on the selection, as its items do.
-    const item = (id: CommandId, options: ItemOptions = {}) => commandItem(id, { keys: node !== undefined, ...options });
+    // Only a node's menu shows the keys: they act on the selection, as its items do. They run on wide windows only.
+    const item = (id: CommandId, options: ItemOptions = {}) => commandItem(id, { keys: node !== undefined && wide, ...options });
     const when = (id: CommandId, options?: ItemOptions) => (applies(id) ? [item(id, options)] : []);
     const addHere = (groupId: string): PopupMenuItem[] => [
       item('tree.addAttribute', { labelAt: 'here', args: { place: { groupId } }, then: onSelect }),
@@ -736,20 +796,30 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
           )}
         </div>
         {shown?.size === 0 && (
-          <p className="tree__empty tree__no-matches" role="status">
-            {t.structure.noMatches}
-          </p>
+          <div className="tree__empty tree__no-matches">
+            <p role="status">{t.structure.noMatches(filterText.trim())}</p>
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => {
+                setTreeFilter('');
+                focusFilter();
+              }}
+            >
+              {t.structure.clearFilter}
+            </button>
+          </div>
         )}
         {project.root.children.length === 0 && (
           <div className="empty-structure">
             <p className="empty-structure__title">{t.structure.empty}</p>
             <p className="field__hint">{t.structure.emptyHint}</p>
-            <div className="row row--wrap">
+            <div className="empty-structure__actions">
               <Button size="small" onClick={() => add('attribute')}>
                 <PlusIcon /> {t.structure.addFirst}
               </Button>
               <Button size="small" onClick={() => setFilling(true)}>
-                {t.structure.fillFromSample}
+                <BracketsCurlyIcon /> {t.structure.fillFromSample}
               </Button>
               <Button size="small" onClick={openI14y}>
                 <MagnifyingGlassIcon /> {t.structure.addFromI14yTitle}
@@ -763,7 +833,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
             at={menu.at}
             sections={menu.sections}
             returnFocus={menu.returnFocus}
-            align={menu.add ? 'end' : 'start'}
+            align={menu.align}
             onClose={closeMenu}
           />
         )}

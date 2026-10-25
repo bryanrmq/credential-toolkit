@@ -31,6 +31,20 @@ function matchesFilter(node: Node, text: string, lang: LangTag): boolean {
 }
 
 /**
+ * Where the filter box's `text` occurs in `value`, ignoring case, as [start, end) ranges that do not
+ * overlap: what a row marks. None for a blank filter, and none where lower-casing changes the length
+ * of `value` (the ranges would not line up with its characters).
+ */
+export function filterRanges(value: string, text: string): [number, number][] {
+  const wanted = text.trim().toLowerCase();
+  const lower = value.toLowerCase();
+  if (!wanted || lower.length !== value.length) return [];
+  const ranges: [number, number][] = [];
+  for (let at = lower.indexOf(wanted); at !== -1; at = lower.indexOf(wanted, at + wanted.length)) ranges.push([at, at + wanted.length]);
+  return ranges;
+}
+
+/**
  * The node rows the tree's filter box shows for `text`: the nodes whose key or label in the editing
  * language `lang` holds it, ignoring case, with the groups around them (expanded for the filtered view,
  * collapsed or not). Null when `text` is blank: the tree is not filtered. Empty when nothing matches.
