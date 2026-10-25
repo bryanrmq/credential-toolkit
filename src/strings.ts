@@ -619,7 +619,7 @@ export const t = {
           'With several languages, each text lists every language, the editing language first. Empty ones are yellow.',
           'Texts filled in for you, from I14Y for example, are marked for review until you confirm or edit them.',
           'Type [[{{]] in the primary field or a list headline to insert an attribute value.',
-          'The preview shows the card, the details screen or the home list row, for iOS or Android. It sits beside the form, or below it on a narrow pane, where its header collapses it.',
+          'The preview shows the card, the details screen or the home list row, for iOS or Android. It sits beside the form, or below it when the pane is too narrow for both, where its header collapses it.',
         ],
       },
       output: {
@@ -629,7 +629,7 @@ export const t = {
           'Bundle: copy the JSON and its uri#integrity value. Above it, choose where the bundle will be hosted.',
           'Attach a sample credential there too, to check that every source path exists. It is never exported.',
           'Changes: what changed since the published bundle and whether uri#integrity changed. Click a change to jump to its field.',
-          `On a wide window, [[${keys.output}]] or the button in its header hides it to give Edit more room. The top bar shows it again.`,
+          `On a wide window, [[${keys.output}]] or the button in its header hides it to give Edit more room. When the window is too small for Edit beside it, it steps aside on its own. The top bar shows it again.`,
         ],
       },
       issues: {

@@ -1589,14 +1589,16 @@ kbd.palette__meta {
   flex: 1;
   min-height: 0;
   display: grid;
-  /* Side panes follow the user's widths (saved in localStorage) but give way on small windows. */
+  /* Side panes follow the user's widths (saved in localStorage) but give way first on small windows: the Edit pane
+     keeps 440px (EDIT_PANE_MIN in paneLayout.ts). Where Output at its width would take that, it steps aside until the
+     top bar shows it again, and then both side panes shrink towards their minimums. */
   grid-template-columns:
-    min(var(--structure-width, 300px), 32vw) 5px minmax(0, 1fr) 5px
-    min(var(--output-width, 420px), 40vw);
+    minmax(220px, var(--structure-width, 300px)) 5px minmax(440px, 1fr) 5px
+    minmax(300px, var(--output-width, 420px));
 }
 /* The Output pane is hidden (wide windows only): the Edit pane takes its space. */
 .panes--no-output {
-  grid-template-columns: min(var(--structure-width, 300px), 32vw) 5px minmax(0, 1fr);
+  grid-template-columns: minmax(220px, var(--structure-width, 300px)) 5px minmax(440px, 1fr);
 }
 .pane {
   min-height: 0;
@@ -1947,7 +1949,8 @@ button.tree__toggle:hover {
 }
 
 /* Inspector: the form, at most 640px wide, and the wallet preview. The pane is a size container: layouts depend on
-   its width, and the preview column beside the form is at most its height. */
+   its width, and the preview column beside the form is at most its height. The form is a container of its own, so
+   its narrow layouts follow its width, which the preview column takes from. */
 .pane--inspector {
   container-type: size;
 }
@@ -1958,13 +1961,15 @@ button.tree__toggle:hover {
   padding: var(--space-2) var(--space-7) 64px;
 }
 .inspector__main {
+  container-type: inline-size;
   min-width: 0;
   max-width: 640px;
 }
 
 /* The wallet preview in the Edit pane. Below the form it is a section under a 1px line, and its header collapses it.
-   From a pane 840px wide (PREVIEW_BESIDE_WIDTH in EditPreview.tsx) it is a column beside the form, behind a 1px
-   divider, that stays in view while the form scrolls and scrolls on its own when taller than the pane. */
+   From a pane 600px wide (PREVIEW_BESIDE_WIDTH in EditPreview.tsx) it is a column beside the form, at least 280px
+   wide and behind a 1px divider, that stays in view while the form scrolls and scrolls on its own when taller than
+   the pane. The cards scale to the column (useFitScale). The gap and the divider's padding open up from 840px. */
 .edit-preview {
   min-width: 0;
   max-width: 640px;
@@ -1997,9 +2002,10 @@ button.tree__toggle:hover {
 .edit-preview .output-preview {
   padding: var(--space-1) 0 var(--space-5);
 }
-@container (min-width: 840px) {
+@container (min-width: 600px) {
   .inspector {
-    grid-template-columns: minmax(0, 640px) minmax(300px, 1fr);
+    grid-template-columns: minmax(0, 640px) minmax(280px, 1fr);
+    column-gap: var(--space-5);
     align-items: start;
   }
   .edit-preview {
@@ -2012,7 +2018,7 @@ button.tree__toggle:hover {
     /* A row scrolled into view clears the sticky header (its height is measured, as the pickers can wrap). */
     scroll-padding: calc(var(--edit-preview-header, 0px) + 8px) 0 8px;
     margin-top: 0;
-    padding-left: var(--space-6);
+    padding-left: var(--space-4);
     border-top: none;
     border-left: 1px solid var(--border);
   }
@@ -2020,6 +2026,14 @@ button.tree__toggle:hover {
     position: sticky;
     top: 0;
     z-index: 1;
+  }
+}
+@container (min-width: 840px) {
+  .inspector {
+    column-gap: 40px;
+  }
+  .edit-preview {
+    padding-left: var(--space-6);
   }
 }
 
