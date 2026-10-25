@@ -156,3 +156,40 @@ describe('Inspector for the credential', () => {
     expect(thumbnail().querySelector('img')).toHaveStyle({ filter: 'brightness(0) invert(1)' });
   });
 });
+
+describe('Inspector scroll position', () => {
+  /** Renders the Edit pane inside a scrolled pane, as the workspace does, and returns that pane. */
+  function renderScrolled() {
+    const pane = document.createElement('section');
+    pane.className = 'pane pane--inspector';
+    document.body.append(pane);
+    render(<Inspector />, { container: pane });
+    pane.scrollTop = 400;
+    return pane;
+  }
+
+  it('goes back to the top when another node is selected', () => {
+    selectKeys('a');
+    const pane = renderScrolled();
+    act(() => selectKeys('b'));
+    expect(pane.scrollTop).toBe(0);
+
+    pane.scrollTop = 400;
+    act(() => selectKeys('c', 'd'));
+    expect(pane.scrollTop).toBe(0);
+
+    pane.scrollTop = 400;
+    act(() => useStore.getState().select({ kind: 'credential' }));
+    expect(pane.scrollTop).toBe(0);
+  });
+
+  it('keeps the position for the same node', () => {
+    selectKeys('a');
+    const pane = renderScrolled();
+    act(() => selectKeys('a'));
+    expect(pane.scrollTop).toBe(400);
+    act(() => useStore.getState().update((draft) => void (draft.root.children[0].key = 'renamed')));
+    act(() => useStore.getState().undo());
+    expect(pane.scrollTop).toBe(400);
+  });
+});

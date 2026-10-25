@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseConcept } from '../../core/import/i14y';
@@ -102,24 +102,33 @@ describe('I14Y matches after opening a bundle', () => {
     useStore.getState().load(project, [], { reviewI14y: true });
   }
 
+  /** The workspace notice, once its one line has loaded the matches. */
+  const notice = () => screen.findByRole('region', { name: 'Import report' });
+  /** Opens the notice's details and returns its I14Y part. */
+  async function review(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(within(await notice()).getByRole('button', { name: 'Show details' }));
+    return screen.getByRole('region', { name: 'I14Y matches' });
+  }
+
   it('links every clear match at once', async () => {
     openBundle();
     const user = userEvent.setup();
     render(<Workspace />);
-    const banner = await screen.findByRole('region', { name: 'I14Y matches' });
-    expect(banner).toHaveTextContent('2 attributes look like I14Y concepts.');
+    await vi.waitFor(async () => expect(await notice()).toHaveTextContent('2 attributes look like I14Y concepts.'));
+    const banner = await review(user);
     await user.click(within(banner).getByRole('button', { name: 'Link 2' }));
 
     await vi.waitFor(() => expect(attributes().map((node) => node.i14y?.identifier)).toEqual(['dateOfBirth', 'sex', undefined]));
     expect(attributes()[1].labels).toEqual({ 'fr-CH': 'Sexe' });
     expect(screen.queryByRole('region', { name: 'I14Y matches' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Import report' })).not.toBeInTheDocument();
   });
 
   it('opens the first match for review', async () => {
     openBundle();
     const user = userEvent.setup();
     render(<Workspace />);
-    await user.click(within(await screen.findByRole('region', { name: 'I14Y matches' })).getByRole('button', { name: 'Review' }));
+    await user.click(within(await review(user)).getByRole('button', { name: 'Review' }));
     expect(useStore.getState().selection).toEqual(oneNode(attributes()[0].id));
   });
 
@@ -127,7 +136,7 @@ describe('I14Y matches after opening a bundle', () => {
     openBundle();
     const user = userEvent.setup();
     render(<Workspace />);
-    const banner = await screen.findByRole('region', { name: 'I14Y matches' });
+    const banner = await review(user);
     const selected = () => useStore.getState().selection;
     const node = (index: number) => oneNode(attributes()[index].id);
 
@@ -147,7 +156,7 @@ describe('I14Y matches after opening a bundle', () => {
     openBundle();
     const user = userEvent.setup();
     render(<Workspace />);
-    const banner = await screen.findByRole('region', { name: 'I14Y matches' });
+    const banner = await review(user);
     await user.click(within(banner).getByRole('button', { name: 'Show which' }));
     const list = within(banner).getByRole('list', { name: 'Attributes that look like I14Y concepts' });
     expect(within(list).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
@@ -156,6 +165,52 @@ describe('I14Y matches after opening a bundle', () => {
     ]);
     await user.click(within(list).getByRole('button', { name: 'gender' }));
     expect(useStore.getState().selection).toEqual(oneNode(attributes()[1].id));
+  });
+
+  it('shares one notice line with the import report, the details behind Show details', async () => {
+    const project = projectWith(newAttribute('date_of_birth'), newAttribute('gender', { labels: { 'fr-CH': 'Sexe' } }));
+    useStore.getState().load(project, [{ level: 'info', message: 'Read 2 attributes.' }, { level: 'warning', message: 'No issuer.' }], { reviewI14y: true });
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await vi.waitFor(async () => expect(await notice()).toHaveTextContent('Import report: 2 notes · 2 attributes look like I14Y concepts.'));
+    expect(screen.getAllByRole('region', { name: /Import report|I14Y matches/ })).toHaveLength(1);
+    expect(screen.queryByText('No issuer.')).not.toBeInTheDocument();
+
+    const banner = await review(user);
+    expect(screen.getByText('No issuer.')).toBeInTheDocument();
+    expect(within(banner).getByRole('button', { name: 'Review' })).toBeInTheDocument();
+    await user.click(within(await notice()).getByRole('button', { name: 'Hide details' }));
+    expect(screen.queryByRole('region', { name: 'I14Y matches' })).not.toBeInTheDocument();
+  });
+
+  it('dismisses the notes and the matches together', async () => {
+    useStore.getState().load(projectWith(newAttribute('date_of_birth')), [{ level: 'info', message: 'Read 1 attribute.' }], { reviewI14y: true });
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await vi.waitFor(async () => expect(await notice()).toHaveTextContent('1 attribute looks like I14Y concepts.'));
+    await user.click(within(await notice()).getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByRole('region', { name: 'Import report' })).not.toBeInTheDocument();
+    expect(useStore.getState()).toMatchObject({ report: null, i14yReview: false });
+  });
+
+  it('leaves the matches out on the Metadata page', async () => {
+    useStore.getState().load(projectWith(newAttribute('date_of_birth')), [{ level: 'info', message: 'Read 1 attribute.' }], { reviewI14y: true });
+    render(<Workspace />);
+    await vi.waitFor(async () => expect(await notice()).toHaveTextContent('I14Y'));
+    act(() => useStore.getState().setArea('metadata'));
+    // One note and nothing else: the line shows the note itself.
+    expect(await notice()).toHaveTextContent('Read 1 attribute.');
+    expect(await notice()).not.toHaveTextContent('I14Y');
+    expect(within(await notice()).queryByRole('button', { name: 'Show details' })).not.toBeInTheDocument();
+  });
+
+  it('shows no notice on the Metadata page when only matches are left', async () => {
+    openBundle();
+    render(<Workspace />);
+    await notice();
+    act(() => useStore.getState().setArea('metadata'));
+    expect(screen.queryByRole('region', { name: 'Import report' })).not.toBeInTheDocument();
+    expect(useStore.getState().i14yReview).toBe(true);
   });
 
   it('stays hidden when the project was not opened from a bundle', async () => {
