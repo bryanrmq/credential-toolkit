@@ -179,6 +179,8 @@ export const t = {
     reportTitle: 'Import report',
     dismiss: 'Dismiss',
     panes: { structure: 'Structure', inspector: 'Edit', output: 'Output', issues: 'Issues' },
+    /** The Metadata page's panes on a narrow window, one at a time like the OCA's. */
+    metadataPanes: { form: 'Form', preview: 'Preview', files: 'Files', issues: 'Issues' },
   },
   structure: {
     title: 'Structure',
@@ -389,6 +391,8 @@ export const t = {
     preview: 'Preview',
     /** The tabs of the page's right-hand column. */
     files: 'Preview and files',
+    /** The switch between the two files under the Files pane of a narrow window. */
+    file: 'Metadata file',
     typeMetadata: 'Type metadata',
     issuerMetadata: 'Issuer metadata',
     previewNote: 'The details screen in the editing language. The issuer name and logo show under "Issued by".',
@@ -481,7 +485,6 @@ export const t = {
     embedded: 'Embedded as a data URL',
     embeddedHint: 'No hosting needed, but the type metadata gets larger.',
     urlPlaceholder: 'https://issuer.example.ch/oca/oca-bundle.json',
-    copyJson: 'Copy JSON',
     copyDataUrl: 'Copy data URL',
     copyIntegrity: 'Copy integrity',
     copied: 'Copied',
@@ -496,8 +499,11 @@ export const t = {
       ready: 'Ready',
       readyTitle: 'No placeholders left: the file can be deployed as it is.',
       integrityTitle: 'After deploying, compute the integrity',
-      integrityHint: (placeholder: string) =>
-        `Once vct.json is served, run this and put its output in place of ${placeholder}. Or set the Issuer URL on the Metadata page to have it computed.`,
+      integrityHint: (placeholder: string) => `Once vct.json is served, run this and put its output in place of ${placeholder}.`,
+      /** Around a button named `t.metadata.url` that focuses the field. */
+      computeIntegrity: { before: 'Or fill in ', after: ' to have it computed.' },
+      download: 'Download',
+      downloadFile: (fileName: string) => `Download ${fileName}`,
       copyCommand: 'Copy command',
     },
   },

@@ -1,4 +1,4 @@
-import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useDrafts } from '../../state/persistence';
 import { isOutputShown, useStore } from '../../state/store';
 import { useExport } from '../../state/useExport';
@@ -6,10 +6,11 @@ import { t } from '../../strings';
 import { Tabs } from '../components/controls';
 import { FixToast } from '../components/FixToast';
 import { PaneResizer } from '../components/PaneResizer';
-import { IssuesContext, projectIssues } from '../issues';
+import { IssuesContext, groupIssues, isIssuerIssue, projectIssues } from '../issues';
 import { focusTreeSelection, useCommandHost, useCommandShortcuts } from '../lib/commands';
 import {
   DEFAULT_PANE_WIDTHS,
+  type MetadataPane,
   PANE_LIMITS,
   type ResizablePane,
   type WorkspacePane,
@@ -50,6 +51,16 @@ export function Workspace() {
   const issues = useMemo(() => (project ? projectIssues(project) : []), [project]);
   const exportState = useExport(project);
   const [pane, setPane] = useState<WorkspacePane>('inspector');
+  // Preview and Files are the Metadata column's tabs: the store's tab says which of the two shows.
+  const [metadataPane, setMetadataPane] = useState<MetadataPane>('form');
+  const metadataTab = useStore((state) => state.metadataTab);
+  const shownMetadataPane: MetadataPane = metadataPane === 'form' || metadataPane === 'issues' ? metadataPane : metadataTab === 'preview' ? 'preview' : 'files';
+  const chooseMetadataPane = (next: MetadataPane) => {
+    setMetadataPane(next);
+    const { metadataTab: current, setMetadataTab } = useStore.getState();
+    if (next === 'preview') setMetadataTab('preview');
+    else if (next === 'files' && current === 'preview') setMetadataTab('vct');
+  };
   const panesRef = useRef<HTMLDivElement>(null);
   const [panesWidth, setPanesWidth] = useState(0);
   // Measured on mount, before the first paint, and again whenever the panes are resized.
@@ -138,18 +149,34 @@ export function Workspace() {
     saveIssuesOpen(open);
   };
   // The top-bar counts and the blocked Download: a wide window expands the panel, a narrow one switches to the Issues
-  // pane, which only the OCA's editor has.
+  // pane, which the Metadata page and the OCA's editor have.
   const showIssues: ShowIssues = ({ firstError = false } = {}) => {
     if (wide) {
       openIssues(true);
+    } else if (useStore.getState().area === 'metadata') {
+      setMetadataPane('issues');
     } else {
-      useStore.getState().setArea('oca');
       useStore.getState().setView('editor');
       setPane('issues');
     }
     setIssuesFocus(({ count }) => ({ count: count + 1, firstError }));
   };
-  const issuesPane = !wide && area === 'oca' && view === 'editor' && pane === 'issues';
+  const issuesPane = !wide && (area === 'metadata' ? metadataPane === 'issues' : view === 'editor' && pane === 'issues');
+  // The Issues pane tab carries the number of issues, red while one is an error.
+  const issueGroups = groupIssues(issues);
+  const issuesLabel: ReactNode = (
+    <>
+      {t.workspace.panes.issues}
+      {issueGroups.length > 0 && (
+        <>
+          {' '}
+          <span className={issueGroups.some((group) => group.severity === 'error') ? 'tabs__count tabs__count--error' : 'tabs__count'}>
+            {issueGroups.length}
+          </span>
+        </>
+      )}
+    </>
+  );
   const canSave = useDrafts((state) => state.available);
   useCommandShortcuts();
   // The tour starts by itself until this browser has finished or skipped it once.
@@ -169,9 +196,25 @@ export function Workspace() {
         )}
         {canSave && saveFailed && <OutOfSpaceBanner />}
         <ReportBanner />
-        <I14yMatchBanner onReview={() => setPane('inspector')} />
+        {/* About the OCA's attributes, so the Metadata page leaves it out. */}
+        {area === 'oca' && <I14yMatchBanner onReview={() => setPane('inspector')} />}
         {area === 'metadata' ? (
-          <MetadataView exportState={exportState} />
+          <>
+            <div className="pane-tabs">
+              <Tabs
+                label="Panes"
+                value={shownMetadataPane}
+                onChange={chooseMetadataPane}
+                options={[
+                  { value: 'form', label: t.workspace.metadataPanes.form },
+                  { value: 'preview', label: t.workspace.metadataPanes.preview },
+                  { value: 'files', label: t.workspace.metadataPanes.files },
+                  { value: 'issues', label: issuesLabel },
+                ]}
+              />
+            </div>
+            <MetadataView exportState={exportState} pane={wide ? 'form' : shownMetadataPane} onPane={chooseMetadataPane} />
+          </>
         ) : view === 'translations' ? (
           <TranslationsView />
         ) : (
@@ -185,7 +228,7 @@ export function Workspace() {
                   { value: 'structure', label: t.workspace.panes.structure },
                   { value: 'inspector', label: t.workspace.panes.inspector },
                   { value: 'output', label: t.workspace.panes.output },
-                  ...(wide ? [] : [{ value: 'issues' as const, label: t.workspace.panes.issues }]),
+                  ...(wide ? [] : [{ value: 'issues' as const, label: issuesLabel }]),
                 ]}
               />
             </div>
@@ -227,7 +270,10 @@ export function Workspace() {
             focusRequest={issuesFocus.count}
             focusFirstError={issuesFocus.firstError}
             // On narrow windows only one pane shows: switch to the one that holds the field.
-            onJump={(issue) => issue.target.kind !== 'languages' && setPane(issue.target.kind === 'hosting' ? 'output' : 'inspector')}
+            onJump={(issue) => {
+              if (isIssuerIssue(issue)) setMetadataPane('form');
+              else if (issue.target.kind !== 'languages') setPane(issue.target.kind === 'hosting' ? 'output' : 'inspector');
+            }}
           />
         )}
         {languagesOpen && <LanguagesDialog />}

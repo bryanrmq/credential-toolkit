@@ -1,23 +1,26 @@
-import { DownloadSimpleIcon, SidebarSimpleIcon } from '@phosphor-icons/react';
-import { Fragment } from 'react';
+import { SidebarSimpleIcon } from '@phosphor-icons/react';
+import { Fragment, type ReactNode } from 'react';
 import type { ProjectChange } from '../../core/compare';
 import { BUNDLE_FILE_NAME } from '../../core/export/outputs';
-import { useStore } from '../../state/store';
+import { type OutputTab, useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
-import { Button, InlineIssueFixes, Tabs } from '../components/controls';
+import { Button, InlineIssueFixes, Segmented, Tabs } from '../components/controls';
 import { blocksBundle, useFieldIssues, useIssues } from '../issues';
 import { useBaseline } from '../lib/baseline';
 import { useChanges } from '../lib/changes';
-import { downloadText } from '../lib/download';
+import { useWideWindow } from '../lib/wideWindow';
 import { ChangesView } from './ChangesView';
 import { CopyButton } from './CopyButton';
+import { OutputFileHeader } from './OutputFileHeader';
 import { SampleControl } from './SampleControl';
 
 /**
  * The Output pane: the bundle and what changed since the published bundle, under one set of tabs. The Type Metadata
  * and the Issuer Metadata are on the Metadata page (`MetadataView`).
- * Under Bundle, where the bundle will be hosted and the sample credential sit above the JSON.
+ * Under Bundle, where the bundle will be hosted and the sample credential sit above the file, which has the header
+ * every output file shares. On a narrow window, where the pane tabs sit right above, the tabs are a segmented control
+ * so they don't read as a second row of pane tabs.
  * `onHide`, given on a wide window only, adds a button to the header that hides the pane.
  * `onJump` runs after a click in the Changes tab took the user to a field.
  */
@@ -29,41 +32,40 @@ export function OutputPanel({ exportState, onHide, onJump }: { exportState: Expo
   const baseline = useBaseline();
   const changes = useChanges(project, baseline);
   const changeCount = changes.status === 'ready' ? changes.changes.length : 0;
+  const wide = useWideWindow();
+  const tabs: Array<{ value: OutputTab; label: ReactNode }> = [
+    { value: 'bundle', label: t.output.bundle },
+    {
+      value: 'changes',
+      label: (
+        <>
+          {t.changes.tab}
+          {changeCount > 0 && (
+            <>
+              {' '}
+              <span className="tabs__count">{changeCount}</span>
+            </>
+          )}
+        </>
+      ),
+    },
+  ];
 
   return (
     <div className="output">
       <div className="output__header">
-        <Tabs
-          label={t.output.title}
-          value={tab}
-          onChange={setOutputTab}
-          options={[
-            { value: 'bundle', label: t.output.bundle },
-            {
-              value: 'changes',
-              label: (
-                <>
-                  {t.changes.tab}
-                  {changeCount > 0 && (
-                    <>
-                      {' '}
-                      <span className="tabs__count">{changeCount}</span>
-                    </>
-                  )}
-                </>
-              ),
-            },
-          ]}
-        />
-        <span className="output__actions">
-          {ready && <span className="field__hint">{t.output.size((ready.outputs.json.length / 1024).toFixed(1))}</span>}
-          {ready && tab === 'bundle' && <CopyButton text={ready.outputs.json} label={t.output.copyJson} iconOnly />}
-          {onHide && (
+        {wide ? (
+          <Tabs label={t.output.title} value={tab} onChange={setOutputTab} options={tabs} />
+        ) : (
+          <Segmented label={t.output.title} value={tab} onChange={setOutputTab} options={tabs} />
+        )}
+        {onHide && (
+          <span className="output__actions">
             <Button size="icon" variant="ghost" aria-label={t.workspace.hideOutput} title={t.workspace.hideOutputTitle} onClick={onHide}>
               <SidebarSimpleIcon mirrored />
             </Button>
-          )}
-        </span>
+          </span>
+        )}
       </div>
       <div className="output__body">
         {tab === 'bundle' && <BundleSettings />}
@@ -85,7 +87,7 @@ export function OutputPanel({ exportState, onHide, onJump }: { exportState: Expo
   );
 }
 
-/** The Bundle tab: the JSON, its `#integrity` and the download. */
+/** The Bundle tab: the file (its header, the JSON), its `#integrity` and its data URL. */
 function BundleOutput({ exportState }: { exportState: ExportState }) {
   const errors = useIssues().filter(blocksBundle);
   const ready = exportState.status === 'ready' ? exportState : null;
@@ -95,6 +97,7 @@ function BundleOutput({ exportState }: { exportState: ExportState }) {
       {exportState.status === 'failed' && <p className="error-text">{t.output.failed(exportState.error)}</p>}
       {ready && (
         <>
+          <OutputFileHeader fileName={BUNDLE_FILE_NAME} text={ready.outputs.json} blocking={errors.length} />
           <pre className="code-block">{ready.outputs.json}</pre>
           <div className="integrity">
             <span className="field__label">{t.output.integrity}</span>
@@ -104,14 +107,6 @@ function BundleOutput({ exportState }: { exportState: ExportState }) {
             </div>
           </div>
           <div className="row row--wrap">
-            <Button
-              size="small"
-              disabled={errors.length > 0}
-              title={errors.length ? t.workspace.downloadBlocked(errors.length) : undefined}
-              onClick={() => downloadText(BUNDLE_FILE_NAME, ready.outputs.json)}
-            >
-              <DownloadSimpleIcon /> <span className="mono">{BUNDLE_FILE_NAME}</span>
-            </Button>
             <CopyButton text={ready.outputs.dataUrl} label={t.output.copyDataUrl} />
           </div>
         </>

@@ -1,4 +1,4 @@
-import { DownloadSimpleIcon, MagnifyingGlassIcon, SidebarSimpleIcon } from '@phosphor-icons/react';
+import { DownloadSimpleIcon, MagnifyingGlassIcon, SidebarSimpleIcon, WarningCircleIcon } from '@phosphor-icons/react';
 import { type Ref, type RefObject, useLayoutEffect, useRef } from 'react';
 import { BUNDLE_FILE_NAME } from '../../core/export/outputs';
 import { canFillFromI14y } from '../../core/import/i14y';
@@ -25,20 +25,29 @@ function commandItem(id: CommandId): MenuItem {
 /**
  * What leaves the top bar, in this order, while the project name would otherwise get less room than it needs (24
  * characters, then 12): the app name, Beta flag and release (to the menu) with the search shortcut, then the language
- * switch (for a dropdown), then the view toggle (to the menu). Each step is a word in the bar's `data-fit`.
+ * switch (for a dropdown), then the view toggle (to the menu), and on a phone, where the issue count needs its room
+ * too, the ring mark and then the search button (to the menu). Each step is a word in the bar's `data-fit`.
  */
-const FIT_STEPS = ['brand', 'lang', 'view'];
+const FIT_STEPS = ['brand', 'lang', 'view', 'mark', 'search'];
 
-/** Sets the bar's `data-fit` to the fewest steps that keep `lead` from overflowing, on resize and when `content` changes. */
+/**
+ * Sets the bar's `data-fit` to the fewest steps that keep `lead` from overflowing and the actions inside the bar's
+ * padding, on resize and when `content` changes.
+ */
 function useFit(lead: RefObject<HTMLElement | null>, content: string) {
   useLayoutEffect(() => {
     const element = lead.current;
     const bar = element?.parentElement;
     if (!element || !bar) return;
+    const actions = element.nextElementSibling;
+    // Once the lead is empty it can't overflow, but the actions (which never shrink) can run past the padding.
+    const fits = () =>
+      element.scrollWidth <= element.clientWidth &&
+      (!actions || actions.getBoundingClientRect().right <= bar.getBoundingClientRect().right - parseFloat(getComputedStyle(bar).paddingRight) + 0.5);
     const fit = () => {
       for (let steps = 0; steps <= FIT_STEPS.length; steps++) {
         bar.setAttribute('data-fit', FIT_STEPS.slice(0, steps).join(' '));
-        if (element.scrollWidth <= element.clientWidth) return;
+        if (fits()) return;
       }
     };
     fit();
@@ -61,7 +70,8 @@ export type ShowIssues = (options?: { firstError?: boolean }) => void;
  * into the menu (see `.wide-only` / `.narrow-only` in styles.css).
  * The controls that belong to the OCA keep their place, hidden, on the Metadata page, so nothing after
  * them moves when the area changes. Below 1000 px, where Output is one of the pane tabs, the Output
- * toggle is left out, and the search button (the command palette) shows only its icon.
+ * toggle is left out, and the search button (the command palette) shows only its icon. On a phone the issue counts
+ * become one icon with the number of issues, so the issues stay one tap away in either area.
  * Download is the only primary button of the workspace. While errors block it, it stays focusable,
  * says how many errors to fix and, when pressed, shows the issues with the first error focused.
  */
@@ -161,7 +171,7 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
           <Button
             variant="ghost"
             size="small"
-            className="topbar__issues hide-phone"
+            className={errors > 0 ? 'topbar__issues topbar__issues--error' : 'topbar__issues'}
             title={t.issues.show}
             aria-label={t.issues.showCounts([
               ...(errors > 0 ? [t.workspace.errorCount(errors)] : []),
@@ -169,8 +179,14 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
             ])}
             onClick={() => onShowIssues()}
           >
-            {errors > 0 && <Badge tone="red">{t.workspace.errorCount(errors)}</Badge>}
-            {warnings > 0 && <Badge tone="yellow">{t.workspace.warningCount(warnings)}</Badge>}
+            <span className="topbar__issue-badges hide-phone">
+              {errors > 0 && <Badge tone="red">{t.workspace.errorCount(errors)}</Badge>}
+              {warnings > 0 && <Badge tone="yellow">{t.workspace.warningCount(warnings)}</Badge>}
+            </span>
+            <span className="topbar__issue-count">
+              <WarningCircleIcon size={16} />
+              {groups.length}
+            </span>
           </Button>
         )}
         {/* The Output pane belongs to the OCA; the Metadata page has its own preview column. */}
@@ -238,6 +254,7 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
             ...(hasUnreviewed(project) ? [commandItem('workspace.confirmSuggestions')] : []),
             { label: t.workspace.editorView, className: 'narrow-only', onSelect: () => setView('editor') },
             { label: t.workspace.translationsView, className: 'narrow-only', onSelect: () => setView('translations') },
+            { ...commandItem('workspace.palette'), className: 'search-only' },
             { label: t.tour.start, onSelect: () => setTourOpen(true) },
             {
               label: t.workspace.about(t.appName, release?.tag, t.beta),

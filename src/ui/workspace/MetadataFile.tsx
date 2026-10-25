@@ -1,16 +1,10 @@
-import { DownloadSimpleIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import type { MetadataPlaceholder } from '../../core/export/issuerMetadata';
 import { t } from '../../strings';
 import { Badge, Button } from '../components/controls';
 import { useIssues } from '../issues';
-import { downloadText } from '../lib/download';
 import { CopyButton } from './CopyButton';
-
-/** The size of `text` as a file: its UTF-8 bytes, in KB. */
-function fileSize(text: string): string {
-  return t.output.size((new TextEncoder().encode(text).length / 1024).toFixed(1));
-}
+import { OutputFileHeader } from './OutputFileHeader';
 
 /** `text` with every placeholder in `placeholders` wrapped in a yellow mark. */
 function highlighted(text: string, placeholders: MetadataPlaceholder[]): ReactNode[] {
@@ -29,30 +23,30 @@ function highlighted(text: string, placeholders: MetadataPlaceholder[]): ReactNo
 }
 
 /**
- * A generated metadata file, `vct.json` or `issuer_metadata.json`: its download, Copy and size, the placeholders the
- * issuer still has to replace (or "Ready" when none are left), the text with those placeholders marked and, while the
- * `vct_metadata_uri#integrity` is missing, the command that computes it. `text` and `placeholders` are what the core
- * gives (`buildTypeMetadata`, `buildIssuerMetadata`, `filePlaceholders`), shown and downloaded unchanged.
+ * A generated metadata file, `vct.json` or `issuer_metadata.json`: the file header every output shares, the
+ * placeholders the issuer still has to replace (or "Ready" when none are left), the text with those placeholders marked
+ * and, while the `vct_metadata_uri#integrity` is missing, the command that computes it, with a button (`onIssuerUrl`)
+ * to the Issuer URL field that lets the tool compute it instead. `text` and `placeholders` are what the core gives
+ * (`buildTypeMetadata`, `buildIssuerMetadata`, `filePlaceholders`), shown and downloaded unchanged.
  * The download is blocked while the project has errors, issuer ones included: the file would carry them.
  */
-export function MetadataFile({ fileName, text, placeholders }: { fileName: string; text: string; placeholders: MetadataPlaceholder[] }) {
+export function MetadataFile({
+  fileName,
+  text,
+  placeholders,
+  onIssuerUrl,
+}: {
+  fileName: string;
+  text: string;
+  placeholders: MetadataPlaceholder[];
+  onIssuerUrl: () => void;
+}) {
   const errors = useIssues().filter((issue) => issue.severity === 'error');
   const integrity = placeholders.find((placeholder) => placeholder.integrity && placeholder.command);
 
   return (
     <div className="metadata-file">
-      <div className="metadata-file__bar">
-        <Button
-          size="small"
-          disabled={errors.length > 0}
-          title={errors.length ? t.workspace.downloadBlocked(errors.length) : undefined}
-          onClick={() => downloadText(fileName, text)}
-        >
-          <DownloadSimpleIcon /> <span className="mono">{fileName}</span>
-        </Button>
-        <CopyButton text={text} label={t.output.file.copy} />
-        <span className="metadata-file__size">{fileSize(text)}</span>
-      </div>
+      <OutputFileHeader fileName={fileName} text={text} blocking={errors.length} />
 
       {placeholders.length > 0 ? (
         <section className="metadata-file__placeholders" aria-label={t.output.file.replaceBeforeUse}>
@@ -77,7 +71,13 @@ export function MetadataFile({ fileName, text, placeholders }: { fileName: strin
       {integrity?.command && (
         <section className="metadata-file__integrity" aria-label={t.output.file.integrityTitle}>
           <h3 className="metadata-file__heading">{t.output.file.integrityTitle}</h3>
-          <p className="field__hint">{t.output.file.integrityHint(integrity.text)}</p>
+          <p className="field__hint">
+            {t.output.file.integrityHint(integrity.text)} {t.output.file.computeIntegrity.before}
+            <Button variant="link" onClick={onIssuerUrl}>
+              {t.metadata.url}
+            </Button>
+            {t.output.file.computeIntegrity.after}
+          </p>
           <div className="integrity__value">
             <code>{integrity.command}</code>
             <CopyButton text={integrity.command} label={t.output.file.copyCommand} iconOnly />
