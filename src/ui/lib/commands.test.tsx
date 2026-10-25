@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { emptyProject, newAttribute, newGroupLink, walkNodes } from '../../core/model';
 import { useStore } from '../../state/store';
@@ -13,8 +13,10 @@ import {
   availableCommands,
   command,
   commandLabel,
+  isAvailable,
   keydownCommand,
   matchesKeys,
+  runCommand,
   shortcutLabel,
 } from './commands';
 import { TOUR_SEEN_KEY } from './tour';
@@ -87,6 +89,30 @@ describe('the command list', () => {
         'workspace.translateMissing',
         'workspace.confirmSuggestions',
         'workspace.palette',
+        'workspace.area.oca',
+        'workspace.area.metadata',
+        'workspace.view.editor',
+        'workspace.view.translations',
+        'workspace.preview.ios',
+        'workspace.preview.android',
+        'workspace.previewView.card',
+        'workspace.previewView.details',
+        'workspace.previewView.home',
+        'workspace.walletTheme.light',
+        'workspace.walletTheme.dark',
+        'workspace.showIssues',
+        'workspace.fixAll',
+        'workspace.downloadBundle',
+        'workspace.copyBundle',
+        'workspace.copyIntegrity',
+        'workspace.copyDataUrl',
+        'workspace.downloadVct',
+        'workspace.copyVct',
+        'workspace.downloadIssuerMetadata',
+        'workspace.copyIssuerMetadata',
+        'workspace.manageLanguages',
+        'workspace.shortcuts',
+        'workspace.tour',
         'workspace.theme.system',
         'workspace.theme.light',
         'workspace.theme.dark',
@@ -308,5 +334,91 @@ describe('scope', () => {
     expect(count()).toBe(before);
     fireEvent.keyDown(row('a'), { key: 'z', metaKey: true, shiftKey: true });
     expect(count()).toBe(before + 1);
+  });
+});
+
+describe('areas and languages', () => {
+  it('keeps the commands of the OCA off the Metadata page, and those of the metadata files off the OCA', () => {
+    render(<Workspace />);
+    const ids = () => availableCommands().map((entry) => entry.id);
+    expect(ids()).toEqual(expect.arrayContaining(['workspace.toggleOutput', 'workspace.view.translations', 'workspace.area.metadata']));
+    expect(ids()).not.toContain('workspace.downloadVct');
+
+    act(() => useStore.getState().setArea('metadata'));
+    expect(ids()).toEqual(expect.arrayContaining(['workspace.area.oca', 'workspace.preview.android', 'workspace.walletTheme.dark', 'workspace.tour']));
+    for (const ocaOnly of ['workspace.toggleOutput', 'workspace.view.editor', 'workspace.view.translations', 'workspace.previewView.home', 'workspace.copyBundle', 'workspace.area.metadata'] as const) {
+      expect(ids()).not.toContain(ocaOnly);
+      expect(isAvailable(ocaOnly) && command(ocaOnly).appliesWhen()).toBe(false);
+    }
+    expect(ids().filter((id) => id.startsWith('tree.'))).toEqual([]);
+  });
+
+  it('switches the editing language, one command per other language, except in the Translations view', () => {
+    useStore.getState().load(emptyProject(['de-CH', 'en-GB']));
+    render(<Workspace />);
+    const languages = () => availableCommands().filter((entry) => entry.id.startsWith('workspace.lang.'));
+    expect(languages().map((entry) => commandLabel(entry.id))).toEqual(['Edit in English (en-GB)']);
+    act(() => runCommand('workspace.lang.en-GB'));
+    expect(useStore.getState().editLang).toBe('en-GB');
+    expect(languages().map((entry) => entry.id)).toEqual(['workspace.lang.de-CH']);
+    act(() => useStore.getState().setView('translations'));
+    expect(languages()).toEqual([]);
+  });
+
+  it('sets the preview platform, view and wallet theme', () => {
+    render(<Workspace />);
+    act(() => runCommand('workspace.preview.android'));
+    act(() => runCommand('workspace.previewView.home'));
+    act(() => runCommand('workspace.walletTheme.dark'));
+    expect(useStore.getState()).toMatchObject({ cardPlatform: 'android', cardVariant: 'home', brandingTheme: 'dark' });
+    expect(appliesNow('workspace.previewView.home')).toBe(false);
+    act(() => runCommand('workspace.previewView.card'));
+    expect(useStore.getState().cardVariant).toBe('detail');
+  });
+});
+
+describe('the keyboard shortcuts dialog', () => {
+  const dialog = () => screen.queryByRole('dialog', { name: 'Keyboard shortcuts' });
+
+  it('opens with ?, typed with or without ⇧, but not in a text field, where ? types', () => {
+    render(<Workspace />);
+    fireEvent.keyDown(screen.getByLabelText('Filter the structure'), { key: '?', shiftKey: true });
+    fireEvent.keyDown(screen.getByLabelText('Name'), { key: '?' });
+    expect(dialog()).not.toBeInTheDocument();
+
+    fireEvent.keyDown(row('a'), { key: '?', shiftKey: true });
+    expect(dialog()).toBeInTheDocument();
+    // Its own Escape closes it; ? does nothing over it.
+    fireEvent.keyDown(dialog()!, { key: 'Escape' });
+    expect(dialog()).not.toBeInTheDocument();
+    fireEvent.keyDown(document.body, { key: '?' });
+    expect(dialog()).toBeInTheDocument();
+    expect(shortcutLabel('workspace.shortcuts', true)).toBe('?');
+    expect(shortcutLabel('workspace.shortcuts', false)).toBe('?');
+  });
+
+  it('lists every shortcut of the command list, the tree ones apart, with the keys of the platform', () => {
+    render(<Workspace />);
+    fireEvent.keyDown(document.body, { key: '?' });
+    const section = (name: string) =>
+      within(screen.getByRole('region', { name }))
+        .getAllByRole('term')
+        .map((term) => [term.textContent, term.nextElementSibling?.textContent]);
+    const listed = [...section('On a row of the Structure tree'), ...section('In the workspace')];
+    expect(listed).toHaveLength(COMMANDS.filter((entry) => entry.keys).length);
+    expect(section('On a row of the Structure tree')).toEqual(expect.arrayContaining([['Delete', 'Del'], ['Group selection', 'Ctrl+G'], ['Move up', 'Alt+↑']]));
+    expect(section('In the workspace')).toEqual(
+      expect.arrayContaining([['Undo', 'Ctrl+Z'], ['Show or hide output', 'Ctrl+Alt+B'], ['Search and commands', 'Ctrl+K'], ['Keyboard shortcuts', '?']]),
+    );
+  });
+
+  it('opens from the ⋯ menu, focus going back to the menu button when it closes', () => {
+    render(<Workspace />);
+    const more = screen.getByRole('button', { name: 'More actions' });
+    fireEvent.click(more);
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Keyboard shortcuts/ }));
+    expect(dialog()).toBeInTheDocument();
+    fireEvent.click(within(dialog()!).getByRole('button', { name: 'Close' }));
+    expect(dialog()).not.toBeInTheDocument();
   });
 });

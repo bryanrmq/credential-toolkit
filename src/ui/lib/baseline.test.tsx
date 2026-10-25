@@ -121,17 +121,24 @@ describe('the downloaded bundle', () => {
 });
 
 describe('Load published bundle', () => {
-  it('offers the hosting URL only when the project has one', async () => {
+  it('always lists the hosting URL, disabled with a hint until the project has one', async () => {
     const user = userEvent.setup();
     open({ mode: 'dataUrl' });
     render(<LoadBaselineButton />);
     await user.click(screen.getByRole('button', { name: 'Load published bundle' }));
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['From a file']);
+    const fromUrl = screen.getByRole('menuitem', { name: 'From the hosting URL' });
+    expect(screen.getAllByRole('menuitem').map((item) => item.getAttribute('aria-disabled'))).toEqual(['true', null]);
+    expect(fromUrl).toHaveAccessibleDescription('Set the bundle URL on the Bundle tab first');
+    // Pressing it does nothing: the menu stays open and nothing is fetched.
+    await user.click(fromUrl);
+    expect(screen.getByRole('menu', { name: 'Load published bundle' })).toBeInTheDocument();
+    expect(fetchMock()).not.toHaveBeenCalled();
     await user.keyboard('{Escape}');
 
     useStore.getState().update((project) => void (project.hosting = { mode: 'url', url: URL }));
     await user.click(screen.getByRole('button', { name: 'Load published bundle' }));
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['From the hosting URL', 'From a file']);
+    expect(screen.getByRole('menuitem', { name: 'From the hosting URL' })).not.toHaveAttribute('aria-disabled');
   });
 
   it('loads from the hosting URL, and shows the error toast when the host blocks it', async () => {
