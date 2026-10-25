@@ -7,8 +7,9 @@ import { Button } from '../components/controls';
 import { chooseBaselineFile, hostingUrlOf, loadBaselineFromUrl } from '../lib/baseline';
 
 /**
- * "Load published bundle": a dropdown that replaces the open draft's baseline, from the hosting URL (offered
- * only for URL hosting with a URL set) or from a bundle file. The project itself never changes.
+ * "Load published bundle": a dropdown that replaces the open draft's baseline, from the hosting URL or from a bundle
+ * file. Without a hosting URL, "From the hosting URL" is still listed, disabled, saying where to set one. The project
+ * itself never changes.
  * The Changes tab shows it as a secondary button with nothing to compare with, and a ghost one in its footer.
  */
 export function LoadBaselineButton({ variant = 'secondary' }: { variant?: 'secondary' | 'ghost' }) {
@@ -17,7 +18,13 @@ export function LoadBaselineButton({ variant = 'secondary' }: { variant?: 'secon
   const closeMenu = useCallback(() => setMenu(null), []);
 
   const items: PopupMenuItem[] = [
-    ...(canFetch ? [{ label: t.baseline.fromUrl, icon: <GlobeIcon />, onSelect: () => void loadBaselineFromUrl() }] : []),
+    {
+      label: t.baseline.fromUrl,
+      icon: <GlobeIcon />,
+      disabled: !canFetch,
+      hint: canFetch ? undefined : t.baseline.fromUrlHint,
+      onSelect: () => void loadBaselineFromUrl(),
+    },
     { label: t.baseline.fromFile, icon: <FileArrowUpIcon />, onSelect: chooseBaselineFile },
   ];
 

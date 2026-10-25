@@ -84,7 +84,7 @@ export function MetadataView({ exportState }: { exportState: ExportState }) {
     });
 
   return (
-    <div className="metadata">
+    <div className="metadata" data-tour="metadata">
       <section className="metadata__form" aria-label={t.metadata.title}>
         <div className="metadata__column">
           <InspectorHeader kind={t.metadata.title} lang={lang} title={project.meta[lang]?.name || t.workspace.untitled} />

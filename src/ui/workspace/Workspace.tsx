@@ -30,6 +30,7 @@ import { LanguagesDialog } from './LanguagesDialog';
 import { OutOfSpaceBanner } from './OutOfSpaceBanner';
 import { OutputPanel } from './OutputPanel';
 import { ReportBanner } from './ReportBanner';
+import { ShortcutsDialog } from './ShortcutsDialog';
 import { StructurePane } from './StructurePane';
 import { type ShowIssues, TopBar } from './TopBar';
 import { Tour } from './Tour';
@@ -86,6 +87,7 @@ export function Workspace() {
     topBarRef.current?.querySelector<HTMLElement>('[data-output-toggle]')?.focus();
   };
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   useCommandHost('workspace', {
     toggleOutput: () => {
       const state = useStore.getState();
@@ -95,6 +97,9 @@ export function Workspace() {
       else state.setOutputOpen(!open);
     },
     openPalette: () => setPaletteOpen(true),
+    openShortcuts: () => setShortcutsOpen(true),
+    showIssues: (options) => showIssues(options),
+    exportState: () => exportState,
   });
   // An attribute chosen in the palette: selected (which expands the groups around it) and shown in the tree, with focus on its row.
   const reveal = (id: string) => {
@@ -236,6 +241,7 @@ export function Workspace() {
         {languagesOpen && <LanguagesDialog />}
         {tourOpen && <Tour pane={pane} onPane={setPane} onIssues={setTourIssues} />}
         {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onReveal={reveal} />}
+        {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
         <TranslationNotice />
         <FixToast />
       </div>

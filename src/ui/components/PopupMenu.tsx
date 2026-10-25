@@ -1,4 +1,4 @@
-import { type CSSProperties, type KeyboardEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type CSSProperties, type KeyboardEvent, type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 export interface PopupMenuItem {
@@ -9,6 +9,10 @@ export interface PopupMenuItem {
   shortcut?: string;
   /** Red, for destructive actions. */
   danger?: boolean;
+  /** Listed but not selectable; `hint` says why. It still takes focus, so the arrows reach it and a screen reader reads it. */
+  disabled?: boolean;
+  /** A line under the label. */
+  hint?: string;
   onSelect: () => void;
 }
 
@@ -42,6 +46,7 @@ export function PopupMenu({
   // Kept inside the window: flipped to the left of or above `at` when it would overflow.
   const [placement, setPlacement] = useState<{ left: number; top: number; origin: string } | null>(null);
   const filled = sections.filter((section) => section.length > 0);
+  const id = useId();
 
   useLayoutEffect(() => {
     const menu = ref.current;
@@ -130,14 +135,17 @@ export function PopupMenu({
       {filled.map((section, sectionIndex) => (
         <div key={sectionIndex} className="popup-menu__section" role="none">
           {sectionIndex > 0 && <div className="popup-menu__separator" role="separator" />}
-          {section.map((item) => (
+          {section.map((item, itemIndex) => (
             <button
               key={item.label}
               type="button"
               role="menuitem"
               tabIndex={-1}
               className={item.danger ? 'popup-menu__item popup-menu__item--danger' : 'popup-menu__item'}
+              aria-disabled={item.disabled || undefined}
+              aria-describedby={item.hint ? `${id}-${sectionIndex}-${itemIndex}` : undefined}
               onClick={() => {
+                if (item.disabled) return;
                 close();
                 item.onSelect();
               }}
@@ -150,6 +158,12 @@ export function PopupMenu({
               <span className="popup-menu__shortcut" aria-hidden="true">
                 {item.shortcut && <kbd>{item.shortcut}</kbd>}
               </span>
+              {/* Out of the item's name; its description instead. */}
+              {item.hint && (
+                <span className="popup-menu__hint" id={`${id}-${sectionIndex}-${itemIndex}`} aria-hidden="true">
+                  {item.hint}
+                </span>
+              )}
             </button>
           ))}
         </div>
