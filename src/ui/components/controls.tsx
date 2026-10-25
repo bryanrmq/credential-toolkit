@@ -132,17 +132,28 @@ export function Segmented<T extends string>({
   onChange,
   label,
   className = '',
+  disabled = false,
+  title,
 }: {
   value: T;
   options: Array<{ value: T; label: ReactNode }>;
   onChange: (value: T) => void;
   label: string;
   className?: string;
+  disabled?: boolean;
+  /** A tooltip, such as why the switch is disabled. */
+  title?: string;
 }) {
   return (
-    <div className={`segmented ${className}`.trim()} role="group" aria-label={label}>
+    <div className={`segmented ${className}`.trim()} role="group" aria-label={label} title={title}>
       {options.map((option) => (
-        <button key={option.value} type="button" aria-pressed={option.value === value} onClick={() => onChange(option.value)}>
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={option.value === value}
+          disabled={disabled}
+          onClick={() => onChange(option.value)}
+        >
           {option.label}
         </button>
       ))}

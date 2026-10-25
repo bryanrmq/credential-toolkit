@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type Group, type GroupLink, emptyProject, newAttribute, newGroupLink, walkNodes } from '../../core/model';
 import { useStore } from '../../state/store';
+import { pngDataUrl } from '../../test/images';
 import { Inspector } from './Inspector';
 
 /** Root: a, b, c, d, e, f, g, box { inner }. */
@@ -129,11 +130,29 @@ describe('Inspector for the credential', () => {
     useStore.getState().select({ kind: 'credential' });
     render(<Inspector />);
     expect(screen.getByLabelText('Name')).toBeInTheDocument();
-    expect(screen.getByRole('tablist', { name: 'Branding' })).toBeInTheDocument();
     const preview = screen.getByRole('region', { name: 'Preview' });
-    expect(screen.getByRole('tablist', { name: 'Branding' }).compareDocumentPosition(preview)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    const [formTheme, previewTheme] = screen.getAllByRole('group', { name: 'Wallet theme' });
+    expect(formTheme.compareDocumentPosition(preview)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(within(preview).getByRole('group', { name: 'Wallet theme' })).toBe(previewTheme);
     expect(screen.getAllByRole('figure')).toEqual([within(preview).getByRole('figure', { name: 'iOS card' })]);
     expect(within(preview).getByRole('group', { name: 'Preview platform' })).toBeInTheDocument();
     expect(within(preview).getByText(/Approximation of the swiyu wallets/)).toBeInTheDocument();
+  });
+
+  it('shows the logo in the Logo field as the wallet tints it on the background colour', () => {
+    const logo = pngDataUrl(28, 28);
+    useStore.getState().update((draft) => void (draft.branding['de-CH'] = { light: { logo } }));
+    useStore.getState().select({ kind: 'credential' });
+    render(<Inspector />);
+    const thumbnail = () => screen.getByRole('img', { name: 'Logo as the wallet draws it' });
+    // No colour yet: a checkerboard, and the black the wallet uses on its default colour.
+    expect(thumbnail()).toHaveClass('logo-input__thumb--none');
+    expect(thumbnail().querySelector('img')).toHaveStyle({ filter: 'brightness(0)' });
+
+    act(() => useStore.getState().update((draft) => void (draft.branding['de-CH'].light.primaryBackgroundColor = '#0A2841')));
+    expect(thumbnail()).not.toHaveClass('logo-input__thumb--none');
+    expect(thumbnail()).toHaveStyle({ background: 'rgba(10, 40, 65, 1)' });
+    expect(thumbnail().querySelector('img')).toHaveAttribute('src', logo);
+    expect(thumbnail().querySelector('img')).toHaveStyle({ filter: 'brightness(0) invert(1)' });
   });
 });

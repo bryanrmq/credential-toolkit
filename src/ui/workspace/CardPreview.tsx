@@ -7,6 +7,7 @@ import { t } from '../../strings';
 import { CredentialCard } from '../components/CredentialCard';
 import { CredentialHomeRow } from '../components/CredentialHomeRow';
 import { useFitScale } from '../components/useFitScale';
+import { PreviewNotes } from './PreviewNotes';
 
 function describeDifference(difference: CardDifference, platform: CardPlatform): string {
   const name = t.cardPreview.platforms[platform];
@@ -51,6 +52,7 @@ export function CardPreview() {
   // A wallet that shows its detail card on the offer screen calls it just "card".
   const drawn = shown === 'home' ? 'home' : shown === 'offer' ? 'offer' : profile.variants.includes('offer') ? 'detail' : 'card';
   const label = `${t.cardPreview.platforms[platform]} ${t.cardPreview.drawn[drawn]}`;
+  const placeholders = summary.some((segment) => segment.kind === 'placeholder');
 
   return (
     <div className="card-preview">
@@ -86,8 +88,12 @@ export function CardPreview() {
           />
         )}
       </div>
-      {lightShownForDark && <p className="note">{t.cardPreview.lightForDark}</p>}
-      {summary.some((segment) => segment.kind === 'placeholder') && <p className="note">{t.cardPreview.noSample}</p>}
+      <PreviewNotes
+        notes={[
+          lightShownForDark && { text: t.cardPreview.lightForDark },
+          placeholders && { text: project.sample ? t.cardPreview.sampleGaps : t.cardPreview.noSample, sample: true },
+        ]}
+      />
       {differences.length > 0 && (
         <ul className="card-preview__differences">
           {differences.map((difference) => (
@@ -95,7 +101,7 @@ export function CardPreview() {
           ))}
         </ul>
       )}
-      <p className="field__hint">{t.cardPreview.caption}</p>
+      <p className="preview-footnote">{t.cardPreview.caption}</p>
     </div>
   );
 }

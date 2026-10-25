@@ -83,6 +83,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
   const warnings = groups.length - errors;
   const name = project.meta[editLang]?.name || t.workspace.untitled;
   const blocking = groups.filter(blocksBundle).length;
+  // The Translations view shows every language, so the editing language does nothing there.
+  const langIdle = area === 'oca' && view === 'translations';
   const blocked = blocking > 0;
   // Every label the button can show sits in one cell, so its width stays put across areas and errors.
   const downloadLabels = [t.workspace.download, t.workspace.downloadOcaBundle, ...(blocked ? [t.workspace.fixErrors(blocking)] : [])];
@@ -112,6 +114,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
         <Segmented
           className="wide-only topbar__lang"
           label={t.workspace.editingLanguage}
+          disabled={langIdle}
+          title={langIdle ? t.workspace.editingLanguageAll : undefined}
           value={editLang}
           onChange={setEditLang}
           options={project.languages.map((lang) => ({ value: lang, label: lang }))}
@@ -119,6 +123,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
         <select
           className="select select--compact narrow-only topbar__lang-select"
           aria-label={t.workspace.editingLanguage}
+          disabled={langIdle}
+          title={langIdle ? t.workspace.editingLanguageAll : undefined}
           value={editLang}
           onChange={(event) => setEditLang(event.target.value)}
         >

@@ -1,20 +1,28 @@
 import { UploadSimpleIcon } from '@phosphor-icons/react';
 import { useRef, useState } from 'react';
+import { type Ink, type Rgba, formatRgba } from '../../core/card/profiles';
 import { imageInfo } from '../../core/image';
 import { LANGUAGE_NAMES, isValidLanguageTag } from '../../core/langs';
 import type { LangTag } from '../../core/model';
 import { t } from '../../strings';
 import { LOGO_MAX_SIZE, downscaleLogo, isAcceptedImage, readAsDataUrl } from '../lib/logo';
+import { CardLogo } from './cardParts';
 import { Button } from './controls';
 
+/**
+ * The logo field. With `thumbnail`, it shows the logo as the wallet draws it on the card: tinted `ink` on
+ * `background`, or on a checkerboard when no background colour is set.
+ */
 export function LogoInput({
   id,
   value,
   onChange,
+  thumbnail,
 }: {
   id: string;
   value?: string;
   onChange: (value: string | undefined) => void;
+  thumbnail?: { background: Rgba | null; ink: Ink };
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +31,16 @@ export function LogoInput({
   return (
     <div>
       <div className="logo-input">
+        {value && thumbnail && (
+          <span
+            className={thumbnail.background ? 'logo-input__thumb' : 'logo-input__thumb logo-input__thumb--none'}
+            role="img"
+            aria-label={t.inspector.logoThumbnail}
+            style={thumbnail.background ? { background: formatRgba(thumbnail.background) } : undefined}
+          >
+            <CardLogo logo={value} ink={thumbnail.ink} className="logo-input__logo" />
+          </span>
+        )}
         <div className="row row--wrap">
           <Button id={id} size="small" onClick={() => fileRef.current?.click()}>
             <UploadSimpleIcon /> {t.inspector.uploadLogo}

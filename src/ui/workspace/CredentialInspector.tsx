@@ -1,20 +1,23 @@
+import { CARD_PROFILES } from '../../core/card/profiles';
 import type { Branding } from '../../core/model';
 import { templatePaths } from '../../core/templates';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
-import { Button, Field, Tabs } from '../components/controls';
+import { Button, Field } from '../components/controls';
 import { TemplateInput, TextInput } from '../components/inputs';
 import { ColorInput, LogoInput } from '../components/media';
 import { fieldId } from '../issues';
 import { InspectorHeader } from './InspectorHeader';
 import { LanguageRows } from './LanguageRows';
+import { WalletThemeSwitch } from './PreviewControls';
 import { metaRow, primaryFieldRow } from './translationRows';
 
 export function CredentialInspector() {
   const project = useStore((state) => state.project)!;
   const lang = useStore((state) => state.editLang);
   const theme = useStore((state) => state.brandingTheme);
-  const { update, setBrandingTheme } = useStore.getState();
+  const profile = CARD_PROFILES[useStore((state) => state.cardPlatform)];
+  const { update } = useStore.getState();
   const meta = project.meta[lang] ?? { name: '', description: '' };
   const pair = project.branding[lang] ?? { light: {} };
   const branding = theme === 'dark' ? pair.dark : pair.light;
@@ -32,6 +35,9 @@ export function CredentialInspector() {
       else target[field] = value;
       draft.branding[lang] = theme === 'dark' ? { ...current, dark: target } : { ...current, light: target };
     });
+  // The logo thumbnail: the colour the previewed wallet draws, or none (a checkerboard) while no colour is set.
+  const logoBackground =
+    branding?.primaryBackgroundColor === undefined ? null : (profile.parseBackground(branding.primaryBackgroundColor) ?? profile.fallbackBackground);
   const passthrough = project.root.passthrough.map((overlay) => String(overlay.type));
 
   return (
@@ -51,15 +57,7 @@ export function CredentialInspector() {
 
       <div className="section">
         <div className="section__title">{t.inspector.branding}</div>
-        <Tabs
-          label={t.inspector.branding}
-          value={theme}
-          onChange={setBrandingTheme}
-          options={[
-            { value: 'light', label: t.inspector.light },
-            { value: 'dark', label: t.inspector.dark },
-          ]}
-        />
+        <WalletThemeSwitch />
         <div className="inspector__branding">
           {!branding ? (
             <>
@@ -72,7 +70,12 @@ export function CredentialInspector() {
             <>
               {theme === 'dark' && <p className="note">{t.inspector.darkHint}</p>}
               <Field id={id('logo')} label={t.inspector.logo} hint={t.inspector.logoHint}>
-                <LogoInput id={id('logo')} value={branding.logo} onChange={(value) => setBranding('logo', value)} />
+                <LogoInput
+                  id={id('logo')}
+                  value={branding.logo}
+                  onChange={(value) => setBranding('logo', value)}
+                  thumbnail={{ background: logoBackground, ink: profile.textInk(logoBackground ?? profile.fallbackBackground) }}
+                />
               </Field>
               <Field id={id('primaryBackgroundColor')} label={t.inspector.background} hint={t.inspector.backgroundHint}>
                 <ColorInput
