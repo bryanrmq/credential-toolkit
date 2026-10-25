@@ -1,31 +1,24 @@
 import { CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { pendingLinks, textIn } from '../../core/import/i14y';
+import { type PendingLink, textIn } from '../../core/import/i14y';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
 import { Button } from '../components/controls';
-import { linkToI14y, useI14yCatalogue } from '../lib/i14y';
+import { linkToI14y } from '../lib/i14y';
 
 /**
- * After a bundle is opened: how many attributes look like I14Y concepts. Review steps through them
- * with Back and Next, Show which lists them, and Link links those with one clear match. Nothing is
- * linked until the issuer confirms.
+ * The I14Y part of the workspace notice's details. Review steps through the matches with Back and Next, Show which
+ * lists them, and Link links those with one clear match. Nothing is linked until the issuer confirms.
  */
-export function I14yMatchBanner({ onReview }: { onReview: () => void }) {
-  const project = useStore((state) => state.project)!;
-  const review = useStore((state) => state.i14yReview);
+export function I14yMatchReview({ pending, onReview }: { pending: PendingLink[]; onReview: () => void }) {
   const editLang = useStore((state) => state.editLang);
   const selection = useStore((state) => state.selection);
-  const { select, dismissI14yReview } = useStore.getState();
-  const { catalogue } = useI14yCatalogue(review);
+  const { select } = useStore.getState();
   const [stepping, setStepping] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   // The position last opened; after that attribute is linked it drops out and this is where the next one now sits.
   const [last, setLast] = useState(0);
-  if (!review || !catalogue) return null;
 
-  const pending = pendingLinks(project, catalogue);
-  if (pending.length === 0) return null;
   const clear = pending.filter((match) => match.clear);
   const ambiguous = pending.length - clear.length;
   const current = selection.kind === 'node' ? pending.findIndex((match) => match.nodeId === selection.id) : -1;
@@ -40,7 +33,7 @@ export function I14yMatchBanner({ onReview }: { onReview: () => void }) {
   const conceptName = (index: number) => textIn(pending[index].hits[0].name, editLang) || pending[index].hits[0].identifier;
 
   return (
-    <section className="report i14y-review" aria-label={t.i14yMatch.bannerRegion}>
+    <section className="i14y-review" aria-label={t.i14yMatch.bannerRegion}>
       <div className="row row--between row--wrap">
         {stepping && current >= 0 ? (
           <p className="report__text">
@@ -74,9 +67,6 @@ export function I14yMatchBanner({ onReview }: { onReview: () => void }) {
               {t.i14yMatch.linkAll(clear.length)}
             </Button>
           )}
-          <Button size="small" variant="ghost" onClick={dismissI14yReview}>
-            {t.i14yMatch.dismiss}
-          </Button>
         </div>
       </div>
       {listOpen && (

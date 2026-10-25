@@ -1,8 +1,9 @@
 import { type Baseline, parseBaseline } from '../../core/baseline';
-import type { ExportOutputs } from '../../core/export/outputs';
+import { BUNDLE_FILE_NAME, type ExportOutputs } from '../../core/export/outputs';
 import type { Project } from '../../core/model';
 import { useStore } from '../../state/store';
 import { t } from '../../strings';
+import { downloadText } from './download';
 
 /*
  * The open draft's published baseline (`core/baseline.ts`), for the Changes tab:
@@ -10,7 +11,7 @@ import { t } from '../../strings';
  * - `loadBaselineFromUrl()`, `chooseBaselineFile()` (and `loadBaselineFromFile(file)`): "Load published bundle",
  *   which `LoadBaselineButton` offers. They replace the baseline only, never the project; on failure the error
  *   toast says why and the baseline stays as it was.
- * - `setDownloadedBaseline(outputs)`: the top bar's Download makes the downloaded bundle the baseline.
+ * - `setDownloadedBaseline(outputs)`: the top bar's Download (`downloadBundle`) makes the downloaded bundle the baseline.
  * A draft made with "From a bundle" gets that bundle as its baseline (`ImportDialog`).
  */
 
@@ -29,6 +30,12 @@ export function hostingUrlOf(project: Project | null): string | null {
 /** Makes `outputs`, just downloaded, the open draft's baseline. */
 export function setDownloadedBaseline(outputs: ExportOutputs): void {
   useStore.getState().setBaseline({ json: outputs.json, integrity: outputs.integrity, source: 'download', setAt: Date.now() });
+}
+
+/** Downloads the bundle of `outputs` and makes it the baseline: what was downloaded is what gets published. */
+export function downloadBundle(outputs: ExportOutputs): void {
+  downloadText(BUNDLE_FILE_NAME, outputs.json);
+  setDownloadedBaseline(outputs);
 }
 
 /**

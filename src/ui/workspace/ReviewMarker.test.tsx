@@ -34,6 +34,8 @@ const LABEL = (): TextPlace => ({ kind: 'label', nodeId: nameNode().id });
 const marked = () => reviewMarks(project()).map((mark) => `${mark.place.kind} ${mark.lang} ${mark.source}`);
 const languageRow = (input: HTMLElement) => input.closest<HTMLElement>('.lang-row')!;
 const issuesPanel = () => screen.getByRole('region', { name: 'Issues' });
+/** Suggested texts are warnings, so the panel opens collapsed to its header: expands it. */
+const expandIssues = (user: ReturnType<typeof userEvent.setup>) => user.click(within(issuesPanel()).getByRole('button', { name: 'Expand issues' }));
 const reviewRows = () => within(issuesPanel()).queryAllByRole('button', { name: 'Suggested text needs review.' }).map((button) => button.closest('li')!);
 
 beforeEach(() => {
@@ -105,7 +107,9 @@ describe('a suggested text on its language row', () => {
 describe('suggested texts in the Issues panel', () => {
   it('lists one warning per attribute or field, with its languages, location and Confirm; Fix all leaves them; download stays open', async () => {
     useStore.getState().project!.hosting = { mode: 'url', url: 'http://issuer.example.ch/oca-bundle.json' };
+    const user = userEvent.setup();
     render(<Workspace />);
+    await expandIssues(user);
     const rows = reviewRows();
     expect(rows).toHaveLength(2);
     expect(rows.map((row) => row.querySelector('.issues__location')!.textContent)).toEqual(['Credential', 'name']);
@@ -119,6 +123,7 @@ describe('suggested texts in the Issues panel', () => {
   it('confirms the texts of one warning with its Confirm', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
+    await expandIssues(user);
     await user.click(within(reviewRows()[1]).getByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(marked()).toEqual(['meta fr-CH translation']));
     expect(reviewRows()).toHaveLength(1);
@@ -128,6 +133,7 @@ describe('suggested texts in the Issues panel', () => {
     const user = userEvent.setup();
     useStore.getState().project!.hosting = { mode: 'url', url: 'http://issuer.example.ch/oca-bundle.json' };
     render(<Workspace />);
+    await expandIssues(user);
     await user.click(within(issuesPanel()).getByRole('button', { name: 'Fix all (1)' }));
     await waitFor(() => expect(project().hosting).toEqual({ mode: 'url', url: 'https://issuer.example.ch/oca-bundle.json' }));
     expect(marked()).toHaveLength(2);

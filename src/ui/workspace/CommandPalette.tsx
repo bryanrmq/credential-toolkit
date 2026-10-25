@@ -32,7 +32,7 @@ export function CommandPalette({ onClose, onReveal }: { onClose: () => void; onR
   const commands = availableCommands().filter((entry) => entry.id !== 'workspace.palette');
   // With an empty query, only the commands that apply now.
   const nodes = blank ? [] : findNodes(nodeEntries(project, editLang), query);
-  const shownCommands = blank ? commands : rankMatches(commands, query, (entry) => [commandLabel(entry.id)]);
+  const shownCommands = blank ? commands : rankMatches(commands, query, (entry) => [commandLabel(entry.id), ...(entry.keywords ?? [])]);
   const results: Result[] = [
     ...nodes.map((entry): Result => ({ kind: 'node', entry })),
     ...shownCommands.map((entry): Result => ({ kind: 'command', command: entry })),

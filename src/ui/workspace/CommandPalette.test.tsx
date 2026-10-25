@@ -5,8 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProject, newAttribute, newGroupLink } from '../../core/model';
 import { useStore } from '../../state/store';
 import { availableCommands, commandLabel } from '../lib/commands';
+import { copyText, downloadText } from '../lib/download';
+import { setTheme, useTheme } from '../lib/theme';
 import { TOUR_SEEN_KEY } from '../lib/tour';
 import { Workspace } from './Workspace';
+
+vi.mock(import('../lib/download'), async (original) => ({ ...(await original()), downloadText: vi.fn(), copyText: vi.fn(async () => true) }));
 
 /** a "Alpha", person "Person" { b "Beta", c "Gamma" }, d "Delta". */
 function loadProject() {
@@ -51,7 +55,10 @@ beforeEach(() => {
   loadProject();
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  setTheme('system');
+});
 
 describe('command palette', () => {
   it('opens with ⌘K or Ctrl+K from anywhere in the workspace and closes with Escape, focus going back', () => {
@@ -233,5 +240,108 @@ describe('command palette', () => {
     await user.keyboard('{Enter}');
     expect(container.querySelector('.panes')).toHaveAttribute('data-pane', 'structure');
     await waitFor(() => expect(row('c')).toHaveFocus());
+  });
+
+  describe('across the workspace', () => {
+    /** A project without errors, so that its files download. */
+    function loadValidProject() {
+      const project = emptyProject(['de-CH', 'en-GB']);
+      project.meta['de-CH'] = { name: 'Hundebewilligung', description: '' };
+      project.meta['en-GB'] = { name: 'Dog licence', description: '' };
+      project.root.children.push(newAttribute('name', { labels: { 'de-CH': 'Name', 'en-GB': 'Name' } }));
+      project.hosting = { mode: 'url', url: 'https://issuer.example.ch/oca-bundle.json' };
+      useStore.getState().load(project);
+    }
+    /** Opens the palette, types `query` and returns the commands found. */
+    async function find(user: ReturnType<typeof userEvent.setup>, query: string) {
+      pressPalette();
+      await user.type(search(), query);
+      return labels('Commands');
+    }
+    const choose = (user: ReturnType<typeof userEvent.setup>, label: string) => user.click(screen.getByRole('option', { name: new RegExp(`^${label}`) }));
+
+    beforeEach(() => {
+      vi.mocked(downloadText).mockClear();
+      vi.mocked(copyText).mockClear();
+      // What the commands below change and opening a project keeps.
+      useStore.setState({ tourOpen: false, area: 'oca', view: 'editor', cardPlatform: 'ios', cardVariant: 'detail', brandingTheme: 'light' });
+      loadValidProject();
+    });
+
+    it('finds the app and wallet themes, the preview platform, the views, the areas and the tour, and runs them', async () => {
+      const user = userEvent.setup();
+      render(<Workspace />);
+
+      expect(await find(user, 'dark')).toEqual(['Dark wallet theme', 'Dark theme']);
+      await choose(user, 'Dark theme');
+      expect(useTheme.getState().theme).toBe('dark');
+      await find(user, 'dark');
+      await choose(user, 'Dark wallet theme');
+      expect(useStore.getState().brandingTheme).toBe('dark');
+
+      expect(await find(user, 'android')).toEqual(['Preview on Android']);
+      await choose(user, 'Preview on Android');
+      expect(useStore.getState().cardPlatform).toBe('android');
+
+      expect(await find(user, 'english')).toEqual(['Edit in English (en-GB)']);
+      await choose(user, 'Edit in English');
+      expect(useStore.getState().editLang).toBe('en-GB');
+
+      expect(await find(user, 'translations')).toEqual(['Translations view']);
+      await choose(user, 'Translations view');
+      expect(screen.getByRole('table')).toBeInTheDocument();
+
+      expect(await find(user, 'metadata')).toContain('Go to Metadata');
+      await choose(user, 'Go to Metadata');
+      expect(useStore.getState().area).toBe('metadata');
+
+      expect(await find(user, 'tour')).toEqual(['Take the tour']);
+      await choose(user, 'Take the tour');
+      expect(screen.getByRole('dialog', { name: 'Workspace tour' })).toBeInTheDocument();
+    });
+
+    it('downloads and copies each file, the metadata files on the Metadata page only', async () => {
+      const user = userEvent.setup();
+      render(<Workspace />);
+      // The files are built shortly after the project opens.
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Download bundle' })).toBeEnabled());
+      expect(await find(user, 'download')).toEqual(['Download oca-bundle.json']);
+      await choose(user, 'Download oca-bundle.json');
+      expect(downloadText).toHaveBeenCalledWith('oca-bundle.json', expect.any(String));
+      expect(useStore.getState().baseline?.source).toBe('download');
+
+      expect(await find(user, 'copy')).toEqual(['Copy oca-bundle.json', 'Copy uri#integrity', 'Copy the bundle as a data URL']);
+      await choose(user, 'Copy uri#integrity');
+      expect(copyText).toHaveBeenCalledWith(expect.stringMatching(/^sha256-/));
+      expect(await screen.findByText('Copied uri#integrity.')).toBeInTheDocument();
+
+      act(() => useStore.getState().setArea('metadata'));
+      expect(await find(user, 'download')).toEqual(['Download oca-bundle.json', 'Download vct.json', 'Download issuer_metadata.json']);
+      await choose(user, 'Download vct.json');
+      expect(downloadText).toHaveBeenLastCalledWith('vct.json', expect.any(String));
+      expect(await find(user, 'copy')).toEqual(['Copy vct.json', 'Copy issuer_metadata.json']);
+    });
+
+    it('leads a blocked download to the first error, and offers Show issues', async () => {
+      useStore.getState().update((draft) => void draft.root.children.push(newAttribute('name')));
+      const user = userEvent.setup();
+      render(<Workspace />);
+      expect(await find(user, 'download')).toEqual([expect.stringMatching(/^Fix \d+ errors? to download$/)]);
+      await user.keyboard('{Escape}');
+      expect(await find(user, 'issues')).toEqual(expect.arrayContaining(['Show issues']));
+    });
+
+    it('lists no command of the OCA on the Metadata page', async () => {
+      useStore.getState().setArea('metadata');
+      const user = userEvent.setup();
+      render(<Workspace />);
+      pressPalette();
+      const listed = labels('Commands');
+      for (const label of ['Hide output', 'Show output', 'Editor view', 'Translations view', 'Preview the card', 'Copy oca-bundle.json', 'Go to Metadata']) {
+        expect(listed).not.toContain(label);
+      }
+      expect(listed).toEqual(expect.arrayContaining(['Go to the OCA', 'Preview on Android', 'Dark wallet theme', 'Keyboard shortcuts', 'Take the tour']));
+      await user.keyboard('{Escape}');
+    });
   });
 });

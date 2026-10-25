@@ -2,7 +2,7 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { emptyProject } from '../../core/model';
+import { emptyProject, ensureIssuer, newAttribute } from '../../core/model';
 import { useStore } from '../../state/store';
 import { OUTPUT_OPEN_KEY } from '../lib/paneLayout';
 import { TOUR_SEEN_KEY, loadTourSeen } from '../lib/tour';
@@ -47,17 +47,19 @@ describe('Tour', () => {
     const user = userEvent.setup();
     render(<Workspace />);
     expect(heading()).toBe('Welcome to the workspace');
-    expect(within(tour()).getByText('1 of 7')).toBeInTheDocument();
+    expect(within(tour()).getByText('1 of 9')).toBeInTheDocument();
     expect(within(tour()).queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
     expect(within(tour()).getByRole('button', { name: 'Next' })).toHaveFocus();
 
     const visited = [];
-    for (let step = 0; step < 6; step++) {
+    for (let step = 0; step < 8; step++) {
       await user.click(within(tour()).getByRole('button', { name: 'Next' }));
       visited.push(heading());
+      // Three points at most: the shortcuts dialog has the details.
+      expect(features().length).toBeLessThanOrEqual(3);
     }
-    expect(visited).toEqual(['Structure', 'Edit', 'Output', 'Issues', 'Top bar', 'Translations view']);
-    expect(within(tour()).getByText('7 of 7')).toBeInTheDocument();
+    expect(visited).toEqual(['Structure', 'Edit', 'Preview', 'Output', 'Issues', 'Top bar', 'Translations view', 'Metadata']);
+    expect(within(tour()).getByText('9 of 9')).toBeInTheDocument();
     expect(within(tour()).queryByRole('button', { name: 'Skip tour' })).not.toBeInTheDocument();
 
     await user.click(within(tour()).getByRole('button', { name: 'Done' }));
@@ -77,41 +79,42 @@ describe('Tour', () => {
     expect(screen.queryByRole('dialog', { name: 'Workspace tour' })).not.toBeInTheDocument();
   });
 
-  it('lists what each area can do', async () => {
+  it('lists what each area can do, leaving the shortcut keys to the shortcuts dialog', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
     await next(user);
     expect(features()).toEqual(
       expect.arrayContaining([
-        expect.stringMatching(/^Add an attribute, a group or a list of objects from the Add menu/),
-        expect.stringMatching(/^Right-click an item/),
-        'Drag the handle beside an item to reorder it, or drop it on the middle of a group to move it inside. Dragging a selected item moves the whole selection.',
-        'On a selected item, N adds, Del deletes, Ctrl+G groups and Alt+↑ Alt+↓ move it. Ctrl+Z undoes any change.',
+        expect.stringMatching(/^Add attributes, groups and lists of objects from the Add menu/),
+        expect.stringMatching(/Right-click it for all its actions/),
+        'Select Credential for the name and branding. ? lists every keyboard shortcut.',
       ]),
     );
-    expect(keys()).toEqual(['N', 'Del', 'Ctrl+G', 'Alt+↑', 'Alt+↓', 'Ctrl+Z', 'Ctrl+F']);
+    expect(keys()).toEqual(['?']);
     await next(user);
     expect(within(tour()).getByText('{{', { selector: 'kbd' })).toBeInTheDocument();
-    // The translations and the wallet preview live in the Edit pane now.
-    expect(features().join(' ')).not.toMatch(/Translations panel/);
     expect(features()).toEqual(
       expect.arrayContaining([
         'With several languages, each text lists every language, the editing language first. Empty ones are yellow.',
         expect.stringMatching(/^Texts filled in for you, from I14Y for example, are marked for review/),
-        expect.stringMatching(/^The preview shows the card, the details screen or the home list row, for iOS or Android. It sits beside the form/),
       ]),
     );
+
+    // The wallet preview has a step of its own.
+    await next(user);
+    expect(heading()).toBe('Preview');
+    expect(features()).toEqual(expect.arrayContaining(['Switch between iOS and Android, and between the light and dark wallet.', expect.stringMatching(/^It sits beside the form/)]));
 
     // Output gives the bundle to publish; the issues have a step of their own.
     await next(user);
     expect(features().join(' ')).not.toMatch(/issue|preview|divider|gear/i);
-    expect(features()).toEqual(
-      expect.arrayContaining([expect.stringMatching(/Above it, choose where the bundle will be hosted/), expect.stringMatching(/^Attach a sample credential there too/)]),
-    );
+    expect(features()).toEqual(expect.arrayContaining([expect.stringMatching(/Above it, where the bundle will be hosted and a sample credential/)]));
     expect(keys()).toEqual(['Ctrl+Alt+B']);
     await next(user);
     expect(heading()).toBe('Issues');
-    expect(features()).toContain('Click an issue to jump to its field.');
+    expect(features()).toContain('Click an issue to jump to its field. Fix and Fix all repair the issues that need no text of yours.');
+    await next(user);
+    expect(keys()).toEqual(['Ctrl+K']);
   });
 
   it('shows the shortcut keys with ⌘ and ⌥ on a Mac', async () => {
@@ -119,9 +122,54 @@ describe('Tour', () => {
     const user = userEvent.setup();
     render(<Workspace />);
     await next(user);
-    expect(keys()).toEqual(['N', '⌫', '⌘G', '⌥↑', '⌥↓', '⌘Z', '⌘F']);
-    await next(user, 2);
+    expect(keys()).toEqual(['?']);
+    await next(user, 3);
     expect(keys()).toEqual(['⌥⌘B']);
+    await next(user, 2);
+    expect(keys()).toEqual(['⌘K']);
+  });
+
+  it('lights up the wallet preview for its step, in the Edit pane', async () => {
+    layOut('preview');
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await next(user, 2);
+    expect(document.querySelector('.tour__spotlight')).not.toBeInTheDocument();
+    await next(user);
+    expect(heading()).toBe('Preview');
+    const preview = within(screen.getByRole('region', { name: 'Edit' })).getByRole('region', { name: 'Preview' });
+    expect(preview).toHaveAttribute('data-tour', 'preview');
+    expect(within(preview).getByRole('group', { name: 'Preview platform' })).toBeInTheDocument();
+    expect(document.querySelector('.tour__spotlight')).toBeInTheDocument();
+  });
+
+  it('shows the Metadata page for its step and goes back to the OCA', async () => {
+    layOut('metadata');
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await next(user, 8);
+    expect(heading()).toBe('Metadata');
+    expect(useStore.getState().area).toBe('metadata');
+    expect(document.querySelector('[data-tour="metadata"]')).toBeInTheDocument();
+    expect(document.querySelector('.tour__spotlight')).toBeInTheDocument();
+    await user.click(within(tour()).getByRole('button', { name: 'Back' }));
+    expect(useStore.getState().area).toBe('oca');
+    await next(user);
+    await user.click(within(tour()).getByRole('button', { name: 'Done' }));
+    expect(useStore.getState().area).toBe('oca');
+  });
+
+  it('started from the Metadata page, returns to it', async () => {
+    localStorage.setItem(TOUR_SEEN_KEY, '1');
+    useStore.getState().setArea('metadata');
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Take the tour' }));
+    await next(user);
+    expect(useStore.getState().area).toBe('oca');
+    await user.click(within(tour()).getByRole('button', { name: 'Skip tour' }));
+    expect(useStore.getState().area).toBe('metadata');
   });
 
   it('lights up the form and the wallet preview beside it for the Edit step', async () => {
@@ -157,12 +205,30 @@ describe('Tour', () => {
     layOut('issues');
     const user = userEvent.setup();
     render(<Workspace />);
-    await next(user, 3);
+    await next(user, 4);
     expect(document.querySelector('.tour__spotlight')).not.toBeInTheDocument();
     await next(user);
     expect(heading()).toBe('Issues');
     expect(screen.getByRole('region', { name: 'Issues' })).toHaveAttribute('data-tour', 'issues');
     expect(document.querySelector('.tour__spotlight')).toBeInTheDocument();
+  });
+
+  it('expands the collapsed Issues panel for its step and collapses it again after', async () => {
+    const project = emptyProject(['de-CH']);
+    project.meta['de-CH'] = { name: 'Hundebewilligung', description: 'Für Hundehalter' };
+    project.root.children.push(newAttribute('unlabelled', { source: ['unlabelled'] }));
+    project.hosting = { mode: 'dataUrl' };
+    ensureIssuer(project).name['de-CH'] = 'Kanton Bern';
+    useStore.getState().load(project);
+    const user = userEvent.setup();
+    render(<Workspace />);
+    const issues = () => screen.getByRole('region', { name: 'Issues' });
+    expect(within(issues()).queryByRole('list')).not.toBeInTheDocument();
+    await next(user, 5);
+    expect(heading()).toBe('Issues');
+    expect(within(issues()).getByRole('list')).toBeInTheDocument();
+    await next(user);
+    expect(within(issues()).queryByRole('list')).not.toBeInTheDocument();
   });
 
   it('switches a narrow window to the Issues tab for its step and back when done', async () => {
@@ -171,7 +237,7 @@ describe('Tour', () => {
     render(<Workspace />);
     expect(shownPane()).toBe('Edit');
     expect(screen.queryByRole('region', { name: 'Issues' })).not.toBeInTheDocument();
-    await next(user, 3);
+    await next(user, 4);
     expect(shownPane()).toBe('Output');
     await next(user);
     expect(heading()).toBe('Issues');
@@ -192,8 +258,7 @@ describe('Tour', () => {
     expect(shownPane()).toBe('Edit');
     await user.click(within(tour()).getByRole('button', { name: 'Next' }));
     expect(shownPane()).toBe('Structure');
-    await user.click(within(tour()).getByRole('button', { name: 'Next' }));
-    await user.click(within(tour()).getByRole('button', { name: 'Next' }));
+    await next(user, 3);
     expect(shownPane()).toBe('Output');
     await next(user, 3);
     expect(useStore.getState().view).toBe('translations');
@@ -201,7 +266,7 @@ describe('Tour', () => {
 
     await user.click(within(tour()).getByRole('button', { name: 'Back' }));
     expect(useStore.getState().view).toBe('editor');
-    await user.click(within(tour()).getByRole('button', { name: 'Next' }));
+    await next(user, 2);
     await user.click(within(tour()).getByRole('button', { name: 'Done' }));
     expect(useStore.getState().view).toBe('editor');
     expect(shownPane()).toBe('Edit');
@@ -212,7 +277,7 @@ describe('Tour', () => {
     const user = userEvent.setup();
     render(<Workspace />);
     expect(screen.queryByRole('region', { name: 'Output' })).not.toBeInTheDocument();
-    await next(user, 3);
+    await next(user, 4);
     expect(heading()).toBe('Output');
     expect(screen.getByRole('region', { name: 'Output' })).toBeInTheDocument();
     expect(localStorage.getItem(OUTPUT_OPEN_KEY)).toBe('true');

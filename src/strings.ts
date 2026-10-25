@@ -1,5 +1,5 @@
 /** The shortcut keys the tour shows, labelled for the platform: ⌘G on a Mac, Ctrl+G elsewhere. */
-export type TourKeys = Record<'add' | 'delete' | 'group' | 'moveUp' | 'moveDown' | 'filter' | 'undo' | 'output', string>;
+export type TourKeys = Record<'shortcuts' | 'palette' | 'output', string>;
 
 /** `a`, `a and b`, `a, b and c`. */
 function listOf(items: string[]): string {
@@ -101,6 +101,8 @@ export const t = {
   baseline: {
     load: 'Load published bundle',
     fromUrl: 'From the hosting URL',
+    /** Why "From the hosting URL" is disabled. */
+    fromUrlHint: 'Set the bundle URL on the Bundle tab first',
     fromFile: 'From a file',
     blocked: "The host doesn't allow this request. Download the bundle from your hosting and load it as a file.",
     invalid: "This isn't a valid OCA bundle.",
@@ -177,6 +179,9 @@ export const t = {
     newProject: 'New project',
     storageUnavailable: 'This browser does not allow local storage, so the draft will not be saved.',
     reportTitle: 'Import report',
+    notes: (count: number) => `${count} ${count === 1 ? 'note' : 'notes'}`,
+    showDetails: 'Show details',
+    hideDetails: 'Hide details',
     dismiss: 'Dismiss',
     panes: { structure: 'Structure', inspector: 'Edit', output: 'Output', issues: 'Issues' },
     /** The Metadata page's panes on a narrow window, one at a time like the OCA's. */
@@ -237,6 +242,29 @@ export const t = {
     rename: 'Rename',
     undo: 'Undo',
     redo: 'Redo',
+    areas: { oca: 'Go to the OCA', metadata: 'Go to Metadata' },
+    editIn: (name: string, tag: string) => (name === tag ? `Edit in ${tag}` : `Edit in ${name} (${tag})`),
+    previewOn: { ios: 'Preview on iOS', android: 'Preview on Android' },
+    previewViews: { card: 'Preview the card', details: 'Preview the details screen', home: 'Preview the home list row' },
+    walletTheme: { light: 'Light wallet theme', dark: 'Dark wallet theme' },
+    download: (file: string) => `Download ${file}`,
+    copyFile: (file: string) => `Copy ${file}`,
+    copyIntegrity: 'Copy uri#integrity',
+    copyDataUrl: 'Copy the bundle as a data URL',
+    dataUrl: 'the data URL',
+    /** After a copy from the palette, which has no button to say so. */
+    copied: (what: string) => `Copied ${what}.`,
+    copyFailed: 'The browser did not allow the copy.',
+    shortcuts: 'Keyboard shortcuts',
+    /** How the shortcuts list names a command whose label changes with the moment. */
+    toggleOutput: 'Show or hide output',
+  },
+  /** The keyboard shortcuts dialog (`?`), generated from the command list. */
+  shortcuts: {
+    tree: 'On a row of the Structure tree',
+    workspace: 'In the workspace',
+    intro: 'The workspace keys work in text fields too, except ?, which types there.',
+    close: 'Close',
   },
   palette: {
     title: 'Search and commands',
@@ -283,7 +311,6 @@ export const t = {
     ambiguous: (count: number) => `${count} ${count === 1 ? 'has' : 'have'} several candidates: review to choose.`,
     review: 'Review',
     linkAll: (count: number) => `Link ${count}`,
-    dismiss: 'Dismiss',
     marker: 'I14Y?',
     markerTitle: (name: string, identifier: string) => `Looks like the I14Y concept ${name} (${identifier}). Open it to link.`,
     showWhich: 'Show which',
@@ -624,35 +651,36 @@ export const t = {
         title: 'Structure',
         body: 'The attributes of the credential, in the order the wallet lists them.',
         features: (keys: TourKeys) => [
-          'Add an attribute, a group or a list of objects from the Add menu at the top. New items go into the selected group, or right after the selected attribute.',
-          'Add from I14Y…, in the right-click menu or on an empty structure, adds standard Swiss attributes with their labels and value lists in every language I14Y has.',
-          'Drag the handle beside an item to reorder it, or drop it on the middle of a group to move it inside. Dragging a selected item moves the whole selection.',
-          'Right-click an item, or the space below the last one, for its actions: add, duplicate, copy and paste, group, move or delete.',
-          `On a selected item, [[${keys.add}]] adds, [[${keys.delete}]] deletes, [[${keys.group}]] groups and [[${keys.moveUp}]] [[${keys.moveDown}]] move it. [[${keys.undo}]] undoes any change.`,
-          `Type in the filter box, or press [[${keys.filter}]] in the tree, to show only the items whose key or label holds the text. Escape clears it.`,
-          'Select Credential to edit the name and branding, or an item to edit it. A red or yellow dot marks an error or a warning.',
+          'Add attributes, groups and lists of objects from the Add menu, or standard Swiss attributes from I14Y.',
+          'Drag an item to reorder it or drop it on a group. Right-click it for all its actions.',
+          `Select Credential for the name and branding. [[${keys.shortcuts}]] lists every keyboard shortcut.`,
         ],
       },
       edit: {
         title: 'Edit',
-        body: 'Edits what you selected in Structure and previews it in the wallet as you type.',
+        body: 'Edits what you selected in Structure: the credential, an attribute or a group.',
         features: [
-          'Credential: name, description, logo, background colour and primary field.',
-          'Attribute: key, label, type, source path, value translations and the sensitive flag. A group has a headline instead of a label.',
           'With several languages, each text lists every language, the editing language first. Empty ones are yellow.',
           'Texts filled in for you, from I14Y for example, are marked for review until you confirm or edit them.',
           'Type [[{{]] in the primary field or a list headline to insert an attribute value.',
-          'The preview shows the card, the details screen or the home list row, for iOS or Android. It sits beside the form, or below it when the pane is too narrow for both, where its header collapses it.',
+        ],
+      },
+      preview: {
+        title: 'Preview',
+        body: 'How the wallet shows what you edit, in the editing language, as you type.',
+        features: [
+          'Switch between iOS and Android, and between the light and dark wallet.',
+          'Card, Details and Home show the card, the details screen and the home list row.',
+          'It sits beside the form, or below it when the pane is too narrow, where its header collapses it.',
         ],
       },
       output: {
         title: 'Output',
         body: 'What you publish: the bundle and what changed. The Type Metadata and Issuer Metadata files are on the Metadata page.',
         features: (keys: TourKeys) => [
-          'Bundle: copy the JSON and its uri#integrity value. Above it, choose where the bundle will be hosted.',
-          'Attach a sample credential there too, to check that every source path exists. It is never exported.',
-          'Changes: what changed since the published bundle and whether uri#integrity changed. Click a change to jump to its field.',
-          `On a wide window, [[${keys.output}]] or the button in its header hides it to give Edit more room. When the window is too small for Edit beside it, it steps aside on its own. The top bar shows it again.`,
+          'Bundle: the JSON and its uri#integrity value. Above it, where the bundle will be hosted and a sample credential to check the source paths.',
+          'Changes: what changed since the published bundle. Click a change to jump to its field.',
+          `[[${keys.output}]] or the button in its header hides it. When the window is too small for Edit beside it, it steps aside on its own.`,
         ],
       },
       issues: {
@@ -660,30 +688,35 @@ export const t = {
         body: 'What the checks found in the bundle, kept up to date as you edit.',
         features: [
           'Errors block the download. Warnings are worth a look but do not.',
-          'Click an issue to jump to its field.',
-          'Fix and Fix all repair the issues that do not need your own text.',
-          'Collapse the panel or drag its top edge to give the panes room. On a narrow window it is a tab of its own.',
+          'Click an issue to jump to its field. Fix and Fix all repair the issues that need no text of yours.',
+          'Collapse the panel or drag its top edge to make room. On a narrow window it is a tab of its own.',
         ],
       },
       topbar: {
         title: 'Top bar',
         body: 'File, language, view and download, for the whole project.',
-        features: [
-          'Switch the editing language. Add, remove or reorder languages from the ⋯ menu.',
-          'Switch between the OCA and its Metadata: the issuer name, logo and identifiers.',
-          'On the OCA, switch between the Editor and the Translations view.',
-          'The badges count errors and warnings. Download bundle works once there are no errors.',
-          'The ⋯ menu also starts a new project and replays this tour.',
+        features: (keys: TourKeys) => [
+          'Switch between the OCA and its Metadata, the editing language and, on the OCA, the Editor and Translations view.',
+          'The badges count errors and warnings. Download works once there are no errors.',
+          `[[${keys.palette}]] finds attributes and commands. The ⋯ menu manages languages and starts a new project.`,
         ],
       },
       translations: {
         title: 'Translations view',
         body: 'Every text of the credential in every language, in one table.',
         features: [
-          'One row per text, one column per language.',
-          'Empty cells are highlighted, so missing translations stand out.',
+          'One row per text, one column per language. Empty cells stand out.',
           'Edit in place. The Editor shows your changes right away.',
           'Go back to the Editor from the top bar.',
+        ],
+      },
+      metadata: {
+        title: 'Metadata',
+        body: 'The files the swiyu generic issuer serves besides the bundle: the Type Metadata and the Issuer Metadata.',
+        features: [
+          'The issuer name and logo, which the wallets show as "Issued by", and the Issuer URL.',
+          'The identifiers of the files, taken from the credential name until you change them.',
+          'Beside the form, the details screen and the two files, each with its download and the placeholders left to replace.',
         ],
       },
     },

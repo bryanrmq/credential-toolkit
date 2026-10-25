@@ -40,6 +40,7 @@ export function EditPreview({ beside }: { beside: boolean }) {
       className={shown ? 'edit-preview' : 'edit-preview edit-preview--collapsed'}
       aria-labelledby={titleId}
       data-placement={beside ? 'beside' : 'below'}
+      data-tour="preview"
     >
       <div ref={headerRef} className="edit-preview__header">
         <span className="pane__title" id={titleId}>

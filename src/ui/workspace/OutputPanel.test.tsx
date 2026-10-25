@@ -115,6 +115,8 @@ describe('Hosting and the sample credential', () => {
     expect(output().queryByRole('textbox', { name: 'At a URL I host' })).not.toBeInTheDocument();
 
     const issues = screen.getByRole('region', { name: 'Issues' });
+    // Warnings only: the panel opens collapsed to its header.
+    await user.click(within(issues).getByRole('button', { name: 'Expand issues' }));
     await user.click(within(issues).getByRole('button', { name: /Enter the URL where you will publish the bundle/ }));
     expect(output().getByRole('tab', { name: 'Bundle' })).toHaveAttribute('aria-selected', 'true');
     expect(output().getByRole('textbox', { name: 'At a URL I host' })).toBeInTheDocument();

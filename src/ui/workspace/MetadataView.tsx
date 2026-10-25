@@ -102,7 +102,7 @@ export function MetadataView({
     });
 
   return (
-    <div className="metadata" data-pane={pane}>
+    <div className="metadata" data-pane={pane} data-tour="metadata">
       <section className="pane metadata__form" aria-label={t.metadata.title}>
         <div className="metadata__column">
           <InspectorHeader kind={t.metadata.title} lang={lang} title={project.meta[lang]?.name || t.workspace.untitled} />

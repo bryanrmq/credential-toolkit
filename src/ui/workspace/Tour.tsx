@@ -1,5 +1,7 @@
 import {
+  AppWindowIcon,
   CompassIcon,
+  IdentificationCardIcon,
   PackageIcon,
   PencilSimpleIcon,
   SlidersHorizontalIcon,
@@ -8,7 +10,7 @@ import {
   WarningCircleIcon,
 } from '@phosphor-icons/react';
 import { type KeyboardEvent, type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { type View, useStore } from '../../state/store';
+import { type Area, type View, useStore } from '../../state/store';
 import { type TourKeys, t } from '../../strings';
 import { Button } from '../components/controls';
 import { withKeys } from '../components/keys';
@@ -22,6 +24,8 @@ interface TourStep {
   /** The `data-tour` value of the area to light up; without one the card sits in the middle. */
   target?: string;
   view: View;
+  /** The area it shows, when not the OCA. */
+  area?: Area;
   /** The pane a narrow window switches to so the area is on screen. */
   pane?: WorkspacePane;
 }
@@ -30,24 +34,18 @@ const STEPS: TourStep[] = [
   { id: 'welcome', icon: <CompassIcon />, view: 'editor' },
   { id: 'structure', icon: <TreeStructureIcon />, target: 'structure', view: 'editor', pane: 'structure' },
   { id: 'edit', icon: <PencilSimpleIcon />, target: 'edit', view: 'editor', pane: 'inspector' },
+  { id: 'preview', icon: <AppWindowIcon />, target: 'preview', view: 'editor', pane: 'inspector' },
   { id: 'output', icon: <PackageIcon />, target: 'output', view: 'editor', pane: 'output' },
   { id: 'issues', icon: <WarningCircleIcon />, target: 'issues', view: 'editor', pane: 'issues' },
   { id: 'topbar', icon: <SlidersHorizontalIcon />, target: 'topbar', view: 'editor' },
   { id: 'translations', icon: <TranslateIcon />, target: 'translations', view: 'translations' },
+  { id: 'metadata', icon: <IdentificationCardIcon />, target: 'metadata', view: 'editor', area: 'metadata' },
 ];
 
+/** The keys the tour names; the shortcuts dialog lists the others. */
 function tourKeys(): TourKeys {
   const label = (id: CommandId) => shortcutLabel(id)!;
-  return {
-    add: label('tree.addAttribute'),
-    delete: label('tree.delete'),
-    group: label('tree.group'),
-    moveUp: label('tree.moveUp'),
-    moveDown: label('tree.moveDown'),
-    filter: label('tree.filter'),
-    undo: label('workspace.undo'),
-    output: label('workspace.toggleOutput'),
-  };
+  return { shortcuts: label('workspace.shortcuts'), palette: label('workspace.palette'), output: label('workspace.toggleOutput') };
 }
 
 const sameBox = (a: Box | null, b: Box | null) =>
@@ -67,11 +65,15 @@ function useViewport(): Size {
   return viewport;
 }
 
-/** Where the area marked `data-tour={target}` is on screen; null when there is none or it is hidden. */
+/**
+ * Where the area marked `data-tour={target}` is on screen; null when there is none or it is hidden. An area inside a
+ * scrolled pane, such as the preview below the form, is scrolled into view first.
+ */
 function useTargetBox(target: string | undefined): Box | null {
   const [box, setBox] = useState<Box | null>(null);
   useLayoutEffect(() => {
     const element = target ? document.querySelector(`[data-tour="${target}"]`) : null;
+    element?.scrollIntoView?.({ block: 'nearest' });
     const measure = () => {
       const rect = element?.getBoundingClientRect();
       const next = rect && rect.width > 0 && rect.height > 0 ? { top: rect.top, left: rect.left, width: rect.width, height: rect.height } : null;
@@ -106,13 +108,23 @@ function trapFocus(event: KeyboardEvent, card: HTMLElement) {
 
 /**
  * Walks through the areas of the workspace: lights each one up and says what it is for and what it
- * can do. It switches the view, and on a narrow window the pane, so the area is on screen, and puts
- * both back when it closes. Closing it, by Done, Skip or Escape, marks it as seen in this browser.
+ * can do. It switches the area and view, and on a narrow window the pane, so the area is on screen, and puts
+ * them back when it closes. Closing it, by Done, Skip or Escape, marks it as seen in this browser.
+ * `onIssues` expands the Issues panel for its step, when it was collapsed, and collapses it again after.
  */
-export function Tour({ pane, onPane }: { pane: WorkspacePane; onPane: (pane: WorkspacePane) => void }) {
+export function Tour({
+  pane,
+  onPane,
+  onIssues,
+}: {
+  pane: WorkspacePane;
+  onPane: (pane: WorkspacePane) => void;
+  onIssues?: (shown: boolean) => void;
+}) {
   const view = useStore((state) => state.view);
-  const { setView, setTourOpen, setOutputOpen } = useStore.getState();
-  const [start] = useState({ view, pane });
+  const area = useStore((state) => state.area);
+  const { setView, setArea, setTourOpen, setOutputOpen } = useStore.getState();
+  const [start] = useState({ view, area, pane });
   const [returnFocus] = useState(() => document.activeElement);
   const [index, setIndex] = useState(0);
   const step = STEPS[index];
@@ -127,16 +139,20 @@ export function Tour({ pane, onPane }: { pane: WorkspacePane; onPane: (pane: Wor
 
   const show = (next: number) => {
     setView(STEPS[next].view);
+    setArea(STEPS[next].area ?? 'oca');
     const nextPane = STEPS[next].pane;
     if (nextPane) onPane(nextPane);
     // A wide window may have the Output pane hidden: show it for its step.
     if (STEPS[next].target === 'output') setOutputOpen(true);
+    onIssues?.(STEPS[next].target === 'issues');
     setIndex(next);
   };
   const finish = () => {
     saveTourSeen();
     setView(start.view);
+    setArea(start.area);
     onPane(start.pane);
+    onIssues?.(false);
     setTourOpen(false);
   };
 

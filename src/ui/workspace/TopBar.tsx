@@ -1,16 +1,13 @@
 import { DownloadSimpleIcon, MagnifyingGlassIcon, SidebarSimpleIcon, WarningCircleIcon } from '@phosphor-icons/react';
 import { type Ref, type RefObject, useLayoutEffect, useRef } from 'react';
-import { BUNDLE_FILE_NAME } from '../../core/export/outputs';
-import { canFillFromI14y } from '../../core/import/i14y';
 import { hasUnreviewed } from '../../core/review';
 import { type Area, isOutputShown, useStore } from '../../state/store';
 import type { ExportState } from '../../state/useExport';
 import { t } from '../../strings';
 import { Badge, Button, Menu, type MenuItem, Segmented, Tabs } from '../components/controls';
 import { blocksBundle, groupIssues, useIssues } from '../issues';
-import { setDownloadedBaseline } from '../lib/baseline';
+import { downloadBundle } from '../lib/baseline';
 import { type CommandId, applies, ariaKeyShortcuts, commandLabel, runCommand, shortcutLabel } from '../lib/commands';
-import { downloadText } from '../lib/download';
 import { RELEASES_PAGE, useLatestRelease } from '../lib/latestRelease';
 import { THEMES, setTheme, useTheme } from '../lib/theme';
 import { useTranslationState } from '../lib/translate';
@@ -82,7 +79,7 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
   const area = useStore((state) => state.area);
   const outputOpen = useStore(isOutputShown);
   const theme = useTheme((state) => state.theme);
-  const { setEditLang, setView, setArea, setLanguagesOpen, setTourOpen, setOutputOpen, close } = useStore.getState();
+  const { setEditLang, setView, setArea, setOutputOpen, close } = useStore.getState();
   const areas = (['oca', 'metadata'] as const).map((value) => ({ value, label: t.workspace.areas[value] }));
   const wide = useWideWindow();
   const release = useLatestRelease();
@@ -227,10 +224,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
           title={blocked ? t.workspace.downloadBlocked(blocking) : undefined}
           onClick={() => {
             if (blocked) return onShowIssues({ firstError: true });
-            if (exportState.status !== 'ready') return;
-            downloadText(BUNDLE_FILE_NAME, exportState.outputs.json);
             // What was downloaded is what gets published: the Changes tab compares with it from now on.
-            setDownloadedBaseline(exportState.outputs);
+            if (exportState.status === 'ready') downloadBundle(exportState.outputs);
           }}
         >
           <DownloadSimpleIcon />
@@ -245,9 +240,9 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
         <Menu
           label={t.workspace.moreActions}
           items={[
-            { label: t.workspace.manageLanguages, onSelect: () => setLanguagesOpen(true) },
-            // Only when a linked attribute lacks a text its I14Y concept may have.
-            ...(canFillFromI14y(project) ? [commandItem('workspace.fillFromI14y')] : []),
+            commandItem('workspace.manageLanguages'),
+            // Only on the OCA, when a linked attribute lacks a text its I14Y concept may have.
+            ...(applies('workspace.fillFromI14y') ? [commandItem('workspace.fillFromI14y')] : []),
             // Only with the browser's on-device translator and some text to fill.
             ...(applies('workspace.translateMissing') ? [commandItem('workspace.translateMissing')] : []),
             // Only while some suggested text waits for review.
@@ -255,7 +250,8 @@ export function TopBar({ exportState, onShowIssues, ref }: { exportState: Export
             { label: t.workspace.editorView, className: 'narrow-only', onSelect: () => setView('editor') },
             { label: t.workspace.translationsView, className: 'narrow-only', onSelect: () => setView('translations') },
             { ...commandItem('workspace.palette'), className: 'search-only' },
-            { label: t.tour.start, onSelect: () => setTourOpen(true) },
+            commandItem('workspace.tour'),
+            commandItem('workspace.shortcuts'),
             {
               label: t.workspace.about(t.appName, release?.tag, t.beta),
               className: 'compact-only',

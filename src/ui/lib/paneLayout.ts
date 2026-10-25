@@ -85,17 +85,6 @@ export function saveIssuesHeight(height: number): void {
   saveStored(ISSUES_HEIGHT_KEY, height);
 }
 
-export const ISSUES_OPEN_KEY = 'credential-toolkit:issues-open';
-
-/** Whether the Issues panel is open (not collapsed to its header); open unless the user collapsed it. */
-export function loadIssuesOpen(): boolean {
-  return loadStored(ISSUES_OPEN_KEY) !== false;
-}
-
-export function saveIssuesOpen(open: boolean): void {
-  saveStored(ISSUES_OPEN_KEY, open);
-}
-
 export const OUTPUT_OPEN_KEY = 'credential-toolkit:output-open';
 
 /** Whether a wide window shows the Output pane; shown unless the user hid it. */
