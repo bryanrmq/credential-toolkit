@@ -2,7 +2,7 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { emptyProject } from '../../core/model';
+import { emptyProject, ensureIssuer, newAttribute } from '../../core/model';
 import { useStore } from '../../state/store';
 import { OUTPUT_OPEN_KEY } from '../lib/paneLayout';
 import { TOUR_SEEN_KEY, loadTourSeen } from '../lib/tour';
@@ -210,6 +210,24 @@ describe('Tour', () => {
     expect(heading()).toBe('Issues');
     expect(screen.getByRole('region', { name: 'Issues' })).toHaveAttribute('data-tour', 'issues');
     expect(document.querySelector('.tour__spotlight')).toBeInTheDocument();
+  });
+
+  it('expands the collapsed Issues panel for its step and collapses it again after', async () => {
+    const project = emptyProject(['de-CH']);
+    project.meta['de-CH'] = { name: 'Hundebewilligung', description: 'Für Hundehalter' };
+    project.root.children.push(newAttribute('unlabelled', { source: ['unlabelled'] }));
+    project.hosting = { mode: 'dataUrl' };
+    ensureIssuer(project).name['de-CH'] = 'Kanton Bern';
+    useStore.getState().load(project);
+    const user = userEvent.setup();
+    render(<Workspace />);
+    const issues = () => screen.getByRole('region', { name: 'Issues' });
+    expect(within(issues()).queryByRole('list')).not.toBeInTheDocument();
+    await next(user, 5);
+    expect(heading()).toBe('Issues');
+    expect(within(issues()).getByRole('list')).toBeInTheDocument();
+    await next(user);
+    expect(within(issues()).queryByRole('list')).not.toBeInTheDocument();
   });
 
   it('switches a narrow window to the Issues tab for its step and back when done', async () => {

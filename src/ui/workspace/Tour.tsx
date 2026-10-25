@@ -110,8 +110,17 @@ function trapFocus(event: KeyboardEvent, card: HTMLElement) {
  * Walks through the areas of the workspace: lights each one up and says what it is for and what it
  * can do. It switches the area and view, and on a narrow window the pane, so the area is on screen, and puts
  * them back when it closes. Closing it, by Done, Skip or Escape, marks it as seen in this browser.
+ * `onIssues` expands the Issues panel for its step, when it was collapsed, and collapses it again after.
  */
-export function Tour({ pane, onPane }: { pane: WorkspacePane; onPane: (pane: WorkspacePane) => void }) {
+export function Tour({
+  pane,
+  onPane,
+  onIssues,
+}: {
+  pane: WorkspacePane;
+  onPane: (pane: WorkspacePane) => void;
+  onIssues?: (shown: boolean) => void;
+}) {
   const view = useStore((state) => state.view);
   const area = useStore((state) => state.area);
   const { setView, setArea, setTourOpen, setOutputOpen } = useStore.getState();
@@ -135,6 +144,7 @@ export function Tour({ pane, onPane }: { pane: WorkspacePane; onPane: (pane: Wor
     if (nextPane) onPane(nextPane);
     // A wide window may have the Output pane hidden: show it for its step.
     if (STEPS[next].target === 'output') setOutputOpen(true);
+    onIssues?.(STEPS[next].target === 'issues');
     setIndex(next);
   };
   const finish = () => {
@@ -142,6 +152,7 @@ export function Tour({ pane, onPane }: { pane: WorkspacePane; onPane: (pane: Wor
     setView(start.view);
     setArea(start.area);
     onPane(start.pane);
+    onIssues?.(false);
     setTourOpen(false);
   };
 

@@ -14,11 +14,9 @@ import {
   type ResizablePane,
   type WorkspacePane,
   clampPaneWidth,
-  loadIssuesOpen,
   loadOutputOpen,
   loadPaneWidths,
   outputFits,
-  saveIssuesOpen,
   saveOutputOpen,
   savePaneWidths,
 } from '../lib/paneLayout';
@@ -31,7 +29,6 @@ import { IssuesPanel } from './IssuesPanel';
 import { LanguagesDialog } from './LanguagesDialog';
 import { OutOfSpaceBanner } from './OutOfSpaceBanner';
 import { OutputPanel } from './OutputPanel';
-import { I14yMatchBanner } from './I14yMatchBanner';
 import { ReportBanner } from './ReportBanner';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { StructurePane } from './StructurePane';
@@ -136,17 +133,24 @@ export function Workspace() {
       onReset={() => reset(target)}
     />
   );
-  const [issuesOpen, setIssuesOpen] = useState(loadIssuesOpen);
+  // A project opens with the Issues panel expanded only when it has an error; warnings alone leave it collapsed to its
+  // header. After that the user's toggle wins, until another project is opened.
+  const draftId = useStore((state) => state.draftId);
+  const hasError = issues.some((issue) => issue.severity === 'error');
+  const [issuesOpen, setIssuesOpen] = useState(hasError);
+  const [issuesDraft, setIssuesDraft] = useState(draftId);
+  if (issuesDraft !== draftId) {
+    setIssuesDraft(draftId);
+    setIssuesOpen(hasError);
+  }
+  // The tour's Issues step shows the list even when the panel is collapsed.
+  const [tourIssues, setTourIssues] = useState(false);
   const [issuesFocus, setIssuesFocus] = useState({ count: 0, firstError: false });
-  const openIssues = (open: boolean) => {
-    setIssuesOpen(open);
-    saveIssuesOpen(open);
-  };
   // The top-bar counts and the blocked Download: a wide window expands the panel, a narrow one switches to the Issues
   // pane, which only the OCA's editor has.
   const showIssues: ShowIssues = ({ firstError = false } = {}) => {
     if (wide) {
-      openIssues(true);
+      setIssuesOpen(true);
     } else {
       useStore.getState().setArea('oca');
       useStore.getState().setView('editor');
@@ -173,8 +177,7 @@ export function Workspace() {
           </p>
         )}
         {canSave && saveFailed && <OutOfSpaceBanner />}
-        <ReportBanner />
-        <I14yMatchBanner onReview={() => setPane('inspector')} />
+        <ReportBanner onReview={() => setPane('inspector')} />
         {area === 'metadata' ? (
           <MetadataView exportState={exportState} />
         ) : view === 'translations' ? (
@@ -226,8 +229,8 @@ export function Workspace() {
         {/* Docked under the panes or the Translations view; on a narrow window it is a pane of its own. */}
         {(wide || issuesPane) && (
           <IssuesPanel
-            open={issuesOpen}
-            onOpenChange={openIssues}
+            open={issuesOpen || tourIssues}
+            onOpenChange={setIssuesOpen}
             docked={wide}
             focusRequest={issuesFocus.count}
             focusFirstError={issuesFocus.firstError}
@@ -236,7 +239,7 @@ export function Workspace() {
           />
         )}
         {languagesOpen && <LanguagesDialog />}
-        {tourOpen && <Tour pane={pane} onPane={setPane} />}
+        {tourOpen && <Tour pane={pane} onPane={setPane} onIssues={setTourIssues} />}
         {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onReveal={reveal} />}
         {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
         <TranslationNotice />

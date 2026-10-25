@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyGroup, emptyProject, ensureIssuer, newAttribute, newGroupLink } from '../../core/model';
 import { oneNode } from '../../state/selection';
 import { useStore } from '../../state/store';
-import { ISSUES_HEIGHT_KEY, ISSUES_OPEN_KEY } from '../lib/paneLayout';
+import { ISSUES_HEIGHT_KEY } from '../lib/paneLayout';
 import { TOUR_SEEN_KEY } from '../lib/tour';
 import { Workspace } from './Workspace';
 
@@ -26,6 +26,13 @@ function brokenProject() {
   return project;
 }
 
+/** `cleanProject()` plus one warning and no error. */
+function warningProject() {
+  const project = cleanProject();
+  project.root.children.push(newAttribute('unlabelled', { source: ['unlabelled'] }));
+  return project;
+}
+
 /** Makes the window narrower than 1000 px, where the workspace shows one pane at a time. */
 function narrowWindow() {
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
@@ -41,10 +48,12 @@ beforeEach(() => {
 });
 
 describe('IssuesPanel', () => {
-  it('says there are no issues when there are none', () => {
+  it('says there are no issues when there are none', async () => {
     useStore.getState().load(cleanProject());
+    const user = userEvent.setup();
     render(<Workspace />);
     expect(within(panel()).getByText('No issues')).toBeInTheDocument();
+    await user.click(within(panel()).getByRole('button', { name: 'Expand issues' }));
     expect(within(panel()).getByText('No issues. The bundle is ready.')).toBeInTheDocument();
     expect(within(panel()).queryByRole('list')).not.toBeInTheDocument();
     expect(within(panel()).queryByRole('button', { name: /Fix all/ })).not.toBeInTheDocument();
@@ -85,21 +94,53 @@ describe('IssuesPanel', () => {
     expect(within(panel()).getByRole('list')).toBeInTheDocument();
   });
 
-  it('remembers whether it is collapsed', async () => {
-    useStore.getState().load(brokenProject());
-    const user = userEvent.setup();
-    const { unmount } = render(<Workspace />);
-    await user.click(within(panel()).getByRole('button', { name: 'Collapse issues' }));
-    expect(localStorage.getItem(ISSUES_OPEN_KEY)).toBe('false');
-
-    unmount();
+  it('opens collapsed to its header when there are only warnings', () => {
+    useStore.getState().load(warningProject());
     render(<Workspace />);
     expect(within(panel()).getByRole('button', { name: 'Expand issues' })).toHaveAttribute('aria-expanded', 'false');
+    expect(within(panel()).getByText('1 warning')).toBeInTheDocument();
     expect(within(panel()).queryByRole('list')).not.toBeInTheDocument();
   });
 
-  it('resizes the list with the keyboard and remembers the height', async () => {
+  it('opens collapsed when there are no issues', () => {
     useStore.getState().load(cleanProject());
+    render(<Workspace />);
+    expect(within(panel()).getByRole('button', { name: 'Expand issues' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('opens expanded when there is an error', () => {
+    useStore.getState().load(brokenProject());
+    render(<Workspace />);
+    expect(within(panel()).getByRole('button', { name: 'Collapse issues' })).toHaveAttribute('aria-expanded', 'true');
+    expect(within(panel()).getAllByRole('listitem')).toHaveLength(2);
+  });
+
+  it('keeps the toggle of the user while the project is edited', async () => {
+    useStore.getState().load(warningProject());
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(within(panel()).getByRole('button', { name: 'Expand issues' }));
+    act(() => useStore.getState().update((draft) => void (draft.root.children[0].source = [])));
+    expect(within(panel()).getByText('1 error')).toBeInTheDocument();
+    await user.click(within(panel()).getByRole('button', { name: 'Collapse issues' }));
+    act(() => useStore.getState().update((draft) => draft.root.children.push(newAttribute('also', { source: [] }))));
+    expect(within(panel()).getByText('2 errors')).toBeInTheDocument();
+    expect(within(panel()).queryByRole('list')).not.toBeInTheDocument();
+  });
+
+  it('decides again when another project is opened', async () => {
+    useStore.getState().load(brokenProject());
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(within(panel()).getByRole('button', { name: 'Collapse issues' }));
+    act(() => useStore.getState().load(brokenProject()));
+    expect(within(panel()).getByRole('button', { name: 'Collapse issues' })).toHaveAttribute('aria-expanded', 'true');
+    act(() => useStore.getState().load(warningProject()));
+    expect(within(panel()).getByRole('button', { name: 'Expand issues' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('resizes the list with the keyboard and remembers the height', async () => {
+    useStore.getState().load(brokenProject());
     const user = userEvent.setup();
     const { unmount } = render(<Workspace />);
     const handle = within(panel()).getByRole('separator', { name: 'Resize the issues panel' });
@@ -118,7 +159,7 @@ describe('IssuesPanel', () => {
   });
 
   it('resizes the list by dragging its top edge and resets it with a double-click', async () => {
-    useStore.getState().load(cleanProject());
+    useStore.getState().load(brokenProject());
     const user = userEvent.setup();
     render(<Workspace />);
     const handle = within(panel()).getByRole('separator', { name: 'Resize the issues panel' });
@@ -133,7 +174,7 @@ describe('IssuesPanel', () => {
   });
 
   it('has no resize handle while collapsed', async () => {
-    useStore.getState().load(cleanProject());
+    useStore.getState().load(brokenProject());
     const user = userEvent.setup();
     render(<Workspace />);
     await user.click(within(panel()).getByRole('button', { name: 'Collapse issues' }));
@@ -170,11 +211,13 @@ describe('IssuesPanel', () => {
     expect(locations).toContain('Hosting');
   });
 
-  it('shows credential issues under "Credential"', () => {
+  it('shows credential issues under "Credential"', async () => {
     const project = cleanProject();
     project.meta['de-CH'].name = '';
     useStore.getState().load(project);
+    const user = userEvent.setup();
     render(<Workspace />);
+    await user.click(within(panel()).getByRole('button', { name: 'Expand issues' }));
     const item = within(panel()).getAllByRole('listitem')[0];
     expect(item.querySelector('.issues__location')).toHaveTextContent('Credential');
   });
@@ -215,7 +258,6 @@ describe('top-bar issues button', () => {
     await user.click(topBarButton());
     expect(within(panel()).getByRole('button', { name: 'Collapse issues' })).toHaveAttribute('aria-expanded', 'true');
     expect(within(panel()).getByRole('list')).toHaveFocus();
-    expect(localStorage.getItem(ISSUES_OPEN_KEY)).toBe('true');
   });
 });
 
@@ -262,8 +304,7 @@ describe('Issues tab on a narrow window', () => {
 
   it('shows the full list even when the docked panel was collapsed', async () => {
     narrowWindow();
-    localStorage.setItem(ISSUES_OPEN_KEY, 'false');
-    useStore.getState().load(brokenProject());
+    useStore.getState().load(warningProject());
     const user = userEvent.setup();
     render(<Workspace />);
     await user.click(panesTabs().getByRole('tab', { name: 'Issues' }));

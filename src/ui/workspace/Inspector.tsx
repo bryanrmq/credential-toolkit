@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { type RefObject, useLayoutEffect, useRef, useState } from 'react';
 import { findNode } from '../../core/model';
 import { useStore } from '../../state/store';
 import { CredentialInspector } from './CredentialInspector';
@@ -23,6 +23,20 @@ function useBeside() {
   return { ref, beside };
 }
 
+/**
+ * Scrolls the pane holding `ref` back to the top when `subject` changes, so another node opens at its title. The same
+ * subject (an undo, a re-render) keeps the scroll position.
+ */
+function useScrollReset(ref: RefObject<HTMLElement | null>, subject: string) {
+  const shown = useRef(subject);
+  useLayoutEffect(() => {
+    if (shown.current === subject) return;
+    shown.current = subject;
+    const pane = ref.current?.closest('.pane');
+    if (pane) pane.scrollTop = 0;
+  }, [ref, subject]);
+}
+
 /** The Edit pane: the form for the selection and the wallet preview, beside the form on a wide pane or below it. */
 export function Inspector() {
   const project = useStore((state) => state.project)!;
@@ -30,6 +44,7 @@ export function Inspector() {
   const { ref, beside } = useBeside();
   const several = selection.kind === 'node' && selection.ids.length > 1 ? selection.ids : undefined;
   const visit = selection.kind === 'node' ? findNode(project.root, selection.id) : undefined;
+  useScrollReset(ref, selection.kind === 'node' ? `${several ? 'several' : 'node'}:${selection.id}` : 'credential');
   return (
     <div ref={ref} className="inspector">
       <div className="inspector__main">
