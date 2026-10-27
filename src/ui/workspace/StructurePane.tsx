@@ -213,7 +213,7 @@ function NodeRow({ node, level, context }: { node: Node; level: number; context:
         </span>
         {severity && <span className={`tree__dot tree__dot--${severity}`} aria-hidden="true" />}
         {/*
-         * Touch screens only (styles.css): iOS Safari fires no contextmenu on a long press, so this opens the
+         * Touch screens only (styles/tree.css): iOS Safari fires no contextmenu on a long press, so this opens the
          * right-click menu. Out of the tab order, like the handle: on wide windows Shift+F10 opens the same menu.
          */}
         <button

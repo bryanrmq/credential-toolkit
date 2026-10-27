@@ -64,7 +64,7 @@ export type ShowIssues = (options?: { firstError?: boolean }) => void;
  * One row at every width, in order of priority: the project name, the area switch, the language,
  * the issue counts, then the actions. The name keeps at least 12 characters: other things leave the bar
  * first (`useFit`), and below 960 px the language switcher becomes a dropdown and the view toggle moves
- * into the menu (see `.wide-only` / `.narrow-only` in styles.css).
+ * into the menu (see `.wide-only` / `.narrow-only` in styles/workspace.css).
  * The controls that belong to the OCA keep their place, hidden, on the Metadata page, so nothing after
  * them moves when the area changes. Below 1000 px, where Output is one of the pane tabs, the Output
  * toggle is left out, and the search button (the command palette) shows only its icon. On a phone the issue counts

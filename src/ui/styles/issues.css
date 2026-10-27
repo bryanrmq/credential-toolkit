@@ -1,0 +1,190 @@
+/* The Issues panel, and the Issues pane on narrow windows. */
+
+/* Issues panel: full width under the panes, like an editor's Problems panel. */
+.issues-panel {
+  position: relative;
+  flex: none;
+  background: var(--canvas);
+  border-top: 1px solid var(--border);
+}
+/* The handle straddles the panel's top border, so the line it highlights is that border: a 6px hit area that turns
+   the border into a 2px darker line on hover or drag. */
+.issues-panel > .pane-resizer--horizontal {
+  position: absolute;
+  inset: -3px 0 auto;
+  height: 6px;
+}
+.issues-panel > .pane-resizer--horizontal:hover::before,
+.issues-panel > .pane-resizer--horizontal:focus-visible::before,
+.issues-panel > .pane-resizer--horizontal:active::before {
+  background: var(--border-strong);
+  transform: scaleY(2);
+}
+/* On a narrow window the panel is the Issues pane: it fills the space and its list scrolls. */
+.issues-panel--pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: none;
+}
+.issues-panel--pane .issues-panel__body {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+.issues-panel__header {
+  height: 36px;
+  padding: 0 var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.issues-panel__lead,
+.issues-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.issues-panel__actions {
+  gap: var(--space-1);
+  flex: none;
+}
+.issues-panel__toggle {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  justify-content: center;
+}
+.issues-panel__body {
+  /* A remembered height can outgrow a window made shorter since: the panes above keep room regardless. */
+  max-height: max(96px, calc(100vh - 260px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-top: 1px solid var(--border);
+}
+.issues:focus-visible {
+  outline-offset: -2px;
+}
+.issues-panel .empty-state {
+  padding: var(--space-5) var(--space-2);
+}
+/*
+ * One grid for every row: icon, summary, where (location, then language chips) and fixes. The list holds the columns
+ * and each row is a subgrid of it, so the location and fix columns line up across rows, and a row without a fix keeps
+ * the empty cell. A subgrid's padding lands on its edge items, so the icon column also holds the row's inset; the where
+ * column stops at 40% so one long key path wraps instead of squeezing every summary.
+ */
+.issues {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: calc(var(--space-5) + 16px) minmax(0, 1fr) fit-content(40%) auto;
+  column-gap: var(--space-2-5);
+}
+.issues li {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-template-areas: 'icon text where fix';
+  align-items: center;
+  row-gap: var(--space-1);
+  border-bottom: 1px solid var(--border);
+  min-height: 32px;
+  padding: var(--space-1) var(--space-5);
+  cursor: pointer;
+}
+.issues li:hover {
+  background: var(--surface-hover);
+}
+.issues li .issue-icon--error,
+.issues li .issue-icon--warning {
+  grid-area: icon;
+  margin-top: 0;
+}
+.issues__summary {
+  grid-area: text;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+.issues__where {
+  grid-area: where;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+.issues__langs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.issues__location {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.issues__fixes {
+  grid-area: fix;
+}
+/*
+ * Narrow: the summary takes the first line next to the icon; location and fixes share the second, under the text.
+ * Each row has its own columns here, so one wide fix button doesn't squeeze every row's location.
+ */
+@media (max-width: 720px) {
+  .issues li {
+    grid-template-columns: 16px minmax(0, 1fr) auto;
+    column-gap: var(--space-2-5);
+    grid-template-areas:
+      'icon text text'
+      '. where fix';
+  }
+}
+.issue-fixes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.chip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-xs);
+  padding: 0 var(--space-1-5);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 20px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text-strong);
+}
+.issue-icon--error {
+  color: var(--red-text);
+  flex: none;
+  margin-top: 3px;
+}
+.issue-icon--warning {
+  color: var(--yellow-text);
+  flex: none;
+  margin-top: 3px;
+}
+.issue-icon--info {
+  color: var(--blue-text);
+  flex: none;
+  margin-top: 3px;
+}

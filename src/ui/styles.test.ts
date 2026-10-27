@@ -1,19 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import css from './styles.css?raw';
+import main from '../main.tsx?raw';
 
 const sources = import.meta.glob<string>(['./**/*.tsx', '!./**/*.test.tsx'], { query: '?raw', import: 'default', eager: true });
+/** Every stylesheet, by path (`./styles/tokens.css`). */
+const sheets = import.meta.glob<string>('./styles/*.css', { query: '?raw', import: 'default', eager: true });
+const tokensCss = sheets['./styles/tokens.css'];
 
 /** The dark theme's token blocks: for System on a dark OS, and for a chosen Dark. */
 const DARK_SYSTEM = /^@media \(prefers-color-scheme: dark\) \{\n {2}:root:not\(\[data-theme='light'\]\) \{\n([\s\S]*?)^ {2}\}\n\}/m;
 const DARK_CHOSEN = /^:root\[data-theme='dark'\] \{\n([\s\S]*?)^\}/m;
 
 /**
- * The chrome: styles.css after the token reference, `:root` and the dark theme's blocks, without the wallet preview
- * blocks (the wallets' values).
+ * The chrome: every stylesheet but what tokens.css holds before and in `:root` and the dark theme's blocks, without
+ * the wallet preview blocks (the wallets' values).
  */
 function chrome(): string {
-  const withoutRoot = css.replace(/^[\s\S]*?^:root \{[\s\S]*?^\}/m, '').replace(DARK_SYSTEM, '').replace(DARK_CHOSEN, '');
-  return withoutRoot.replace(/\/\* wallet-preview:start[\s\S]*?\/\* wallet-preview:end \*\//g, '');
+  const tokensRest = tokensCss.replace(/^[\s\S]*?^:root \{[\s\S]*?^\}/m, '').replace(DARK_SYSTEM, '').replace(DARK_CHOSEN, '');
+  const others = Object.entries(sheets).filter(([path]) => path !== './styles/tokens.css');
+  return [tokensRest, ...others.map(([, css]) => css)]
+    .join('\n')
+    .replace(/\/\* wallet-preview:start[\s\S]*?\/\* wallet-preview:end \*\//g, '');
 }
 
 const declarations = (property: string) =>
@@ -31,8 +37,23 @@ describe('design tokens', () => {
     expect(declarations('box-shadow').filter((value) => /rgb|\d+px \d+px/.test(value) && !/^(inset )?0 0 0 /.test(value))).toEqual([]);
   });
 
-  it('wraps every wallet preview block', () => {
-    expect(css.match(/wallet-preview:start/g)?.length).toBe(css.match(/wallet-preview:end/g)?.length);
+  it('wraps every wallet preview block, inside one file', () => {
+    for (const css of Object.values(sheets)) expect(css.match(/wallet-preview:start/g)?.length).toBe(css.match(/wallet-preview:end/g)?.length);
+  });
+
+  it('defines the tokens in tokens.css only', () => {
+    expect(tokensCss).toMatch(/^:root \{/m);
+    const elsewhere = Object.entries(sheets).filter(([path, css]) => path !== './styles/tokens.css' && /^:root\b/m.test(css));
+    expect(elsewhere.map(([path]) => path)).toEqual([]);
+  });
+});
+
+describe('stylesheets', () => {
+  it('are each imported once from main.tsx, tokens first', () => {
+    const imported = [...main.matchAll(/^import '\.\/ui\/styles\/([\w-]+\.css)';$/gm)].map((match) => `./styles/${match[1]}`);
+    expect(Object.keys(sheets).length).toBeGreaterThan(10);
+    expect([...imported].sort()).toEqual(Object.keys(sheets).sort());
+    expect(imported[0]).toBe('./styles/tokens.css');
   });
 });
 
@@ -55,8 +76,8 @@ function contrast(a: string, b: string): number {
 }
 
 describe('dark theme', () => {
-  const system = css.match(DARK_SYSTEM)?.[1] ?? '';
-  const chosen = css.match(DARK_CHOSEN)?.[1] ?? '';
+  const system = tokensCss.match(DARK_SYSTEM)?.[1] ?? '';
+  const chosen = tokensCss.match(DARK_CHOSEN)?.[1] ?? '';
   const dark = tokens(chosen);
 
   it('gives System on a dark OS the same tokens as a chosen Dark', () => {

@@ -199,15 +199,15 @@ export function Menu({ label, items }: { label: string; items: MenuItem[] }) {
         <DotsThreeIcon size={18} />
       </Button>
       {open && (
-        <div className="menu__list" role="menu" aria-label={label}>
+        <div className="popup-menu popup-menu--anchored" role="menu" aria-label={label}>
           {items.map((item) => (
             <Fragment key={item.label}>
-              {item.separatorBefore && <div role="separator" className="menu__separator" />}
+              {item.separatorBefore && <div role="separator" className="popup-menu__separator" />}
               <button
                 type="button"
                 role={item.checked === undefined ? 'menuitem' : 'menuitemradio'}
                 aria-checked={item.checked}
-                className={`menu__item ${item.className ?? ''}`.trim()}
+                className={`popup-menu__item ${item.className ?? ''}`.trim()}
                 aria-keyshortcuts={item.ariaKeyShortcuts}
                 onClick={() => {
                   setOpen(false);
@@ -217,13 +217,14 @@ export function Menu({ label, items }: { label: string; items: MenuItem[] }) {
                   item.onSelect();
                 }}
               >
-                {item.label}
-                {item.checked && <CheckIcon size={14} aria-hidden="true" />}
-                {item.shortcut && (
-                  <span aria-hidden="true">
-                    <kbd>{item.shortcut}</kbd>
-                  </span>
-                )}
+                {/* PopupMenu's columns: the tick of a chosen option where its items have an icon, then the keys. */}
+                <span className="popup-menu__icon" aria-hidden="true">
+                  {item.checked && <CheckIcon size={14} />}
+                </span>
+                <span className="popup-menu__label">{item.label}</span>
+                <span className="popup-menu__shortcut" aria-hidden="true">
+                  {item.shortcut && <kbd>{item.shortcut}</kbd>}
+                </span>
               </button>
             </Fragment>
           ))}

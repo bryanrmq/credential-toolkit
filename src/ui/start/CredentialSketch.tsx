@@ -1,7 +1,7 @@
 /**
  * A loose line drawing of a credential card (logo, name, summary, attributes) over one offset pastel
  * shape, for the start screen. Decorative only. Its ink, card and shape take their colours from
- * styles.css (`.start__sketch`), so they follow the theme.
+ * styles/start.css (`.start__sketch`), so they follow the theme.
  */
 export function CredentialSketch() {
   const ink = { stroke: 'currentColor', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };

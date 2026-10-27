@@ -1,0 +1,251 @@
+/* The wallet previews shared by both platforms: the card, the home row, their stages and the notes under them. */
+
+/* wallet-preview:start — the card and home row copy the wallets' own geometry and colours */
+/* An approximation of a swiyu wallet credential card; geometry comes from the platform profile. */
+.credential-card {
+  position: relative;
+  margin: 0;
+  flex: none;
+  display: flex;
+  width: var(--card-width);
+  aspect-ratio: var(--card-ratio);
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: var(--card-line-height);
+}
+.credential-card--text-top {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--card-logo-gap);
+}
+.credential-card--text-bottom {
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--card-logo-gap);
+}
+.credential-card__text {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-text-gap);
+}
+.credential-card--text-top .credential-card__text {
+  flex: 1;
+}
+.credential-card__logo {
+  position: relative;
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  width: var(--card-logo-width);
+  height: var(--card-logo-height);
+}
+.credential-card--text-bottom .credential-card__logo {
+  align-self: flex-end;
+}
+.credential-card__logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.credential-card__name,
+.credential-card__summary {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.credential-card__name {
+  font-weight: var(--card-name-weight);
+}
+.credential-card__summary {
+  opacity: 0.7;
+}
+.card-placeholder {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+/* Android's fallback pattern: a 180 × 180 tile repeated from the centre, under the shading layers. */
+.card-pattern {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-repeat: repeat;
+  background-position: center;
+}
+/* A wallet's shading layer, drawn over the card colour and under the content. */
+.card-gradient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+/* The home list row: logo-only thumbnail, then name and summary in the app's text style. */
+.home-row {
+  margin: 0;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--row-gap);
+  width: var(--row-width);
+  padding: var(--row-padding);
+  border-radius: var(--row-radius);
+  font-family: var(--font-sans);
+  line-height: var(--row-line-height);
+}
+.home-row__thumbnail {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.home-row__logo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--thumbnail-logo-width);
+  height: var(--thumbnail-logo-height);
+}
+.home-row__logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.home-row__text {
+  flex: 1;
+  min-width: 0;
+}
+.home-row__name,
+.home-row__summary {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.home-row__chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+/* wallet-preview:end */
+/* Stands in for the wallet app background: white in light mode, black in dark mode. */
+.card-preview__stage {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-6);
+  margin-bottom: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+/* Where the other wallet differs: facts, not something to fix, so neutral. */
+.card-preview__differences {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2-5) var(--space-3) var(--space-2-5) 28px;
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+/* The notes under a preview: one list, an icon each, yellow only for what the issuer must act on. */
+.preview-notes {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  display: grid;
+  gap: var(--space-1-5);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--text-muted);
+}
+.preview-notes__item {
+  display: flex;
+  gap: var(--space-1-5);
+  align-items: flex-start;
+}
+.preview-notes__item svg {
+  flex: none;
+  margin-top: var(--space-0-5);
+}
+.preview-notes__item--act {
+  color: var(--yellow-text);
+}
+.preview-notes__text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-2);
+}
+.preview-notes__action {
+  margin: calc(-1 * var(--space-0-5)) 0;
+}
+/* The one disclaimer under a preview. */
+.preview-footnote {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--text-muted);
+}
+/* The Details view: the card status picker, the phone screen scaled to the pane width, then the notes. */
+.details-preview__stage {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+/* wallet-preview:start — the wallets' page colours behind the previews */
+.card-preview__stage--light {
+  background: #ffffff;
+}
+.card-preview__stage--dark {
+  background: #000000;
+}
+.details-preview__stage {
+  background: #f1f5fc;
+}
+.details-preview__stage--dark {
+  background: #1c1c1e;
+}
+/* wallet-preview:end */
+/*
+ * Linked to the editor: rows and group titles from a node select it, and the selected node's rows or groups are
+ * outlined like :focus-visible. The line sits inside them, where the cards' rounded clip keeps it, and its width is
+ * divided by the screen's zoom so it stays 2px.
+ */
+.details-preview__stage [role='button'] {
+  cursor: pointer;
+}
+.details-link__title {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+.details-preview__stage :is([role='button'], .details-link__title):focus-visible,
+.details-preview__stage [data-linked] {
+  outline: calc(2px / var(--details-zoom, 1)) solid var(--blue-text);
+  outline-offset: calc(-2px / var(--details-zoom, 1));
+}
+/* A list of groups carries its node on every level: only the outermost is outlined. */
+.details-preview__stage [data-linked] [data-linked] {
+  outline: none;
+}
+.details-preview__status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

@@ -1,0 +1,385 @@
+/* Shared controls: buttons, badges, fields, toggles, tabs, segmented controls, notes, code blocks, integrity
+   values, radios and empty states. */
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: var(--space-1-5) var(--space-3);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 150ms,
+    transform 150ms var(--ease);
+  white-space: nowrap;
+}
+.btn:active:not(:disabled, [aria-disabled='true']) {
+  transform: scale(0.98);
+}
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+/* Blocked but still focusable (the top bar's Download): it looks disabled, and pressing it shows why. */
+.btn[aria-disabled='true'] {
+  opacity: 0.45;
+}
+.btn--primary {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.btn--primary:hover:not(:disabled, [aria-disabled='true']) {
+  background: var(--accent-hover);
+}
+.btn--secondary {
+  background: var(--surface);
+  border-color: var(--border);
+}
+.btn--secondary:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.btn--ghost {
+  background: transparent;
+  color: var(--text-muted);
+}
+.btn--ghost:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+.btn--danger {
+  background: transparent;
+  color: var(--red-text);
+}
+.btn--danger:hover:not(:disabled) {
+  background: var(--red-bg);
+}
+.btn--danger-hover:hover:not(:disabled) {
+  color: var(--red-text);
+  background: var(--red-bg);
+}
+.btn--small {
+  padding: 3px var(--space-2);
+  font-size: var(--text-sm);
+}
+.btn--icon {
+  padding: 5px;
+}
+/* A text action in running text or a list: the one text-button style. */
+.btn--link {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-strong);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: normal;
+}
+.btn--link:hover:not(:disabled) {
+  color: var(--text);
+}
+.btn--link:active:not(:disabled) {
+  transform: none;
+}
+/* The caret of a menu button, such as Structure's Add. */
+.btn__caret {
+  width: 12px;
+  height: 12px;
+  margin-left: calc(-1 * var(--space-0-5));
+  color: var(--text-muted);
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-pill);
+  padding: 1px var(--space-2);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.badge--red {
+  background: var(--red-bg);
+  color: var(--red-text);
+}
+.badge--yellow {
+  background: var(--yellow-bg);
+  color: var(--yellow-text);
+}
+.badge--blue {
+  background: var(--blue-bg);
+  color: var(--blue-text);
+}
+.badge--green {
+  background: var(--green-bg);
+  color: var(--green-text);
+}
+.badge--gray {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
+/* Form fields */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+  margin-bottom: var(--space-5);
+}
+.field__label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-strong);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.field__hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 0;
+}
+.field__issue {
+  font-size: var(--text-xs);
+  margin: 0;
+  display: flex;
+  gap: var(--space-1-5);
+  align-items: flex-start;
+}
+.field__issue--error {
+  color: var(--red-text);
+}
+.field__issue--warning {
+  color: var(--yellow-text);
+}
+.input,
+.textarea,
+.select {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius);
+  padding: 7px var(--space-2-5);
+  transition:
+    border-color 150ms,
+    box-shadow 150ms;
+}
+.input:hover,
+.textarea:hover,
+.select:hover {
+  border-color: var(--border-input-hover);
+}
+/* The same blue as :focus-visible, drawn as the field's border with a halo so the text keeps its place. */
+.input:focus-visible,
+.select:focus-visible,
+.textarea:focus {
+  outline: none;
+  border-color: var(--focus-border);
+  box-shadow: var(--focus-halo);
+}
+input[type='radio'],
+input[type='checkbox'] {
+  accent-color: var(--accent);
+}
+.select {
+  appearance: none;
+  background-image: var(--select-caret);
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: var(--space-7);
+}
+.input[aria-invalid='true'],
+.textarea[aria-invalid='true'] {
+  border-color: var(--red-text);
+}
+.input--mono,
+.textarea {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+.textarea {
+  resize: vertical;
+  min-height: 220px;
+  line-height: var(--leading-normal);
+}
+.row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+.row--wrap {
+  flex-wrap: wrap;
+}
+.row--between {
+  justify-content: space-between;
+}
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Toggle */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  cursor: pointer;
+  user-select: none;
+}
+.toggle input {
+  appearance: none;
+  width: 30px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+  position: relative;
+  margin: 0;
+  cursor: pointer;
+  transition: background 150ms;
+}
+.toggle input::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-pill);
+  background: var(--on-accent);
+  transition: transform 200ms var(--ease);
+}
+.toggle input:checked {
+  background: var(--accent);
+}
+.toggle input:checked::after {
+  transform: translateX(12px);
+}
+
+/* Tabs and segmented controls */
+.tabs {
+  display: flex;
+  gap: var(--space-0-5);
+  border-bottom: 1px solid var(--border);
+}
+.tabs__tab {
+  border: none;
+  background: none;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  display: inline-flex;
+  gap: var(--space-1-5);
+  align-items: center;
+  font-weight: 500;
+}
+.tabs__tab[aria-selected='true'] {
+  color: var(--text-strong);
+  border-bottom-color: var(--text-strong);
+}
+.segmented {
+  display: inline-flex;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-0-5);
+  gap: var(--space-0-5);
+}
+.segmented button {
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-xs);
+  padding: 3px var(--space-2-5);
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+.segmented button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.segmented button[aria-pressed='true'] {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.error-text {
+  color: var(--red-text);
+  font-size: var(--text-sm);
+  margin: var(--space-2) 0 0;
+}
+
+.note {
+  background: var(--surface-muted);
+  border-radius: var(--radius);
+  padding: var(--space-2-5) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 0 0 var(--space-5);
+}
+/* Browser storage is unavailable: the note under the top bar. */
+.workspace__note {
+  margin: var(--space-3) var(--space-5) 0;
+}
+
+.code-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3-5);
+  overflow: auto;
+  max-height: 60vh;
+  margin: 0;
+  white-space: pre;
+  line-height: var(--leading-normal);
+}
+.integrity {
+  display: grid;
+  gap: var(--space-1-5);
+  margin: var(--space-3) 0 var(--space-4);
+}
+.integrity__value {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2-5);
+}
+.integrity__value code {
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+  font-size: var(--text-xs);
+}
+.radio {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin-bottom: var(--space-2);
+  cursor: pointer;
+}
+.radio input {
+  margin-top: var(--space-1);
+}
+.empty-state {
+  text-align: center;
+  color: var(--text-muted);
+  padding: var(--space-7) var(--space-2);
+}
+.empty-state__icon {
+  color: var(--green-text);
+}

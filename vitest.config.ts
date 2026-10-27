@@ -7,7 +7,7 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.{ts,tsx}', 'packages/*/test/**/*.test.ts'],
     setupFiles: ['./src/test/setup.ts'],
-    // styles.test.ts reads styles.css?raw, which Vitest leaves empty unless it processes the file.
-    css: { include: [/styles\.css/] },
+    // styles.test.ts reads src/ui/styles/*.css?raw, which Vitest leaves empty unless it processes the files.
+    css: { include: [/src\/ui\/styles\//] },
   },
 });

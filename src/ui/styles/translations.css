@@ -1,0 +1,126 @@
+/* The Translations view and the Languages dialog. */
+
+/* Translations */
+.translations {
+  flex: 1;
+  overflow: auto;
+  padding: var(--space-6) var(--space-5) 64px;
+}
+.translations table {
+  border-collapse: collapse;
+  min-width: 100%;
+}
+.translations th,
+.translations td {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-1-5) var(--space-2);
+  text-align: left;
+  vertical-align: top;
+}
+.translations td + td,
+.translations th + th {
+  border-left: 1px solid var(--border);
+}
+.translations th {
+  position: sticky;
+  top: 0;
+  background: var(--canvas);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  z-index: 1;
+}
+/* The text column stays in view while the languages scroll sideways. */
+.translations td:first-child,
+.translations th:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--canvas);
+  box-shadow: inset -1px 0 var(--border);
+}
+.translations th:first-child {
+  z-index: 2;
+}
+.translations td:first-child {
+  min-width: 220px;
+  max-width: 320px;
+  /* Lines the label up with the first line of the cells' text. */
+  padding-top: var(--space-3-5);
+  overflow-wrap: anywhere;
+}
+.translations td .input {
+  min-width: 180px;
+  border-color: transparent;
+  background: transparent;
+}
+/* Wraps and grows with its text, so no cell clips it; without field-sizing, TranslationsView sets the height. */
+.translations__text {
+  display: block;
+  width: 240px;
+  min-height: 0;
+  resize: none;
+  overflow: hidden;
+  field-sizing: content;
+  line-height: var(--leading-normal);
+}
+/* Phones: a narrower text column and cells, so a language column fits beside it. */
+@media (max-width: 600px) {
+  .translations {
+    padding-inline: var(--space-3);
+  }
+  .translations td:first-child {
+    min-width: 128px;
+    max-width: 128px;
+  }
+  .translations__text {
+    width: 180px;
+  }
+}
+/* Cells sit in the table's grid, so the border only shows on hover; focus is the field focus style. */
+.translations td .input:hover {
+  border-color: var(--border-input);
+}
+.translations td .input:focus-visible {
+  border-color: var(--focus-border);
+  background: var(--surface);
+}
+.translations .input[data-empty='true'] {
+  background: var(--yellow-bg);
+}
+
+/* Languages dialog */
+.language-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-5);
+}
+.language-defaults {
+  margin-bottom: var(--space-4);
+}
+.language-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+.checkbox-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-1-5) var(--space-4);
+}
+.checkbox-list__custom {
+  margin-top: var(--space-3);
+}
+.checkbox-list label {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  cursor: pointer;
+}
+
+.translations__cell {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-0-5);
+}

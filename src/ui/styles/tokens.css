@@ -1,0 +1,197 @@
+/*
+ * Design tokens (taste-skill:minimalist-ui: warm monochrome, colour only for meaning, Geist and Geist Mono only).
+ *
+ * Every value in the app chrome comes from a token below. Literal colours, shadows and radii are allowed only here and
+ * inside the `wallet-preview:start` / `wallet-preview:end` blocks, which copy the wallets' own values
+ * (styles.test.ts checks this).
+ *
+ * Type      --text-2xs 11 (badges, kbd, tags) · --text-xs 12 (labels, hints, all mono) · --text-sm 13 (dense UI,
+ *           menus, issues) · --text-base 14 (body, inputs) · --text-md 16 (section titles) · --text-lg 20 (dialog
+ *           titles) · --text-xl 24 (page and inspector titles) · --text-display (start screen hero only).
+ *           Line heights: --leading-display 1.1, --leading-tight 1.25 (titles), --leading-normal 1.5 (lists, code),
+ *           --leading-relaxed 1.6 (body). Fixed-height chips (kbd, tags) set a px line height to their box.
+ * Headings  Three roles: page title (--text-xl/600), section title (--text-md/600, .section__title) and eyebrow
+ *           (--text-xs/600 uppercase, 0.05em, muted, .pane__title).
+ * Spacing   --space-1..8 = 4, 8, 12, 16, 20, 24, 32, 48; half steps for dense controls --space-0-5 2, --space-1-5 6,
+ *           --space-2-5 10, --space-3-5 14. Odd 1/3/5/7/9px paddings are optical nudges inside controls; page layout
+ *           above 48px (56, 64, 96) stays literal.
+ * Radius    --radius-xs 4 (kbd, chips, menu items) · --radius 6 (controls) · --radius-md 8 (menus, popovers) ·
+ *           --radius-lg 12 (cards, dialogs) · --radius-pill (badges, dots, toggles).
+ * Shadow    --shadow-raised (hover lift, drag preview) · --shadow-overlay (menus, palette, dialogs, tour, toasts).
+ *           No other shadows; focus and pressed rings are box-shadow outlines from the colour tokens.
+ * States    --surface-hover (hover, keyboard-highlighted options) · --surface-selected (selected rows) · pressed
+ *           segments are --surface with an inset --border-strong ring and 600 weight.
+ * Focus     --focus-outline everywhere (:focus-visible); inputs, selects and textareas use --focus-border with
+ *           --focus-halo instead. Menu items inset the outline (outline-offset: -2px).
+ * Controls  --control-h 30 (top bar controls) · --control-h-sm 26 (small buttons, compact selects) ·
+ *           --control-h-touch 40 (top bar controls under a finger: `hover: none` or a phone-wide window).
+ * Icons     Phosphor at 12 (carets, inline), 14 (menus, dense rows), 16 (default) and 18 (feature tiles only); the
+ *           wallet previews keep the platform sizes.
+ *
+ * Theming (#145): the dark theme redefines the colour, shadow, backdrop and caret tokens only, twice with the same
+ *           values: under `@media (prefers-color-scheme: dark)` for System, and under `:root[data-theme='dark']`
+ *           for a chosen Dark (styles.test.ts checks they match). `data-theme='light'` keeps the light tokens on a
+ *           dark OS. index.html sets `data-theme` before first paint; src/ui/lib/theme.ts stores the choice.
+ *           Components never name a colour, so they need no change; the wallet-preview blocks keep the wallets'
+ *           own colours in both themes.
+ */
+:root {
+  /* Surfaces */
+  --canvas: #ffffff;
+  --surface: #ffffff;
+  --surface-muted: #f7f6f3;
+  --surface-hover: #efeeea; /* 1.16:1 on white; #f4f3f0 (1.11:1) missed the 1.15:1 floor */
+  --surface-selected: #e8e7e3; /* 1.24:1 on white, a step above hover; selected rows also get a bar and 600 weight */
+  --topbar-bg: color-mix(in srgb, var(--canvas) 85%, transparent);
+  --backdrop: rgb(17 17 17 / 0.18);
+  /* Borders */
+  --border: #eaeaea; /* dividers and cards */
+  --border-strong: #dcdad5;
+  /*
+   * Inputs: 1.71:1 on white (#eaeaea was 1.20:1). Strict 3:1 (#949390) is too heavy for this style, so inputs are
+   * also identified by their label and get a 5.7:1 blue border with a halo on focus. A deliberate trade-off, not
+   * WCAG 1.4.11 conformance.
+   */
+  --border-input: #c8c6c0;
+  --border-input-hover: #a9a7a1; /* 2.41:1 */
+  /* Text */
+  --text: #2f3437;
+  --text-strong: #111111;
+  --text-muted: #6f6e69; /* #787774 in the skill; darkened to reach 4.5:1 on white */
+  --accent: #111111;
+  --accent-hover: #333333;
+  --on-accent: #ffffff;
+  /* Meaning: red error, yellow the issuer must act, green ready, blue I14Y and focus */
+  --red-bg: #fdebec;
+  --red-text: #9f2f2d;
+  --blue-bg: #e1f3fe;
+  --blue-text: #1f6c9f;
+  --green-bg: #edf3ec;
+  --green-text: #346538;
+  --yellow-bg: #fbf3db;
+  --yellow-text: #956400;
+  /* Focus */
+  --focus-outline: 2px solid var(--blue-text);
+  --focus-border: var(--blue-text);
+  --focus-halo: 0 0 0 3px var(--blue-bg);
+  /* Type */
+  --font-sans: 'Geist Variable', 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  --font-mono: 'Geist Mono Variable', 'SF Mono', 'JetBrains Mono', monospace;
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --text-display: clamp(32px, 3.6vw, 44px);
+  --leading-display: 1.1;
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.6;
+  /* Spacing */
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-2-5: 10px;
+  --space-3: 12px;
+  --space-3-5: 14px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 48px;
+  /* Radius */
+  --radius-xs: 4px;
+  --radius: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 9999px;
+  /* Shadow */
+  --shadow-raised: 0 2px 8px rgb(0 0 0 / 0.04);
+  --shadow-overlay: 0 8px 32px rgb(0 0 0 / 0.05);
+  /* The select caret, in --text-muted (a data URI cannot read a token) */
+  --select-caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 256 256'%3E%3Cpath d='M48 96l80 80 80-80' fill='none' stroke='%236f6e69' stroke-width='24' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  /* Controls */
+  --control-h: 30px;
+  --control-h-sm: 26px;
+  --control-h-touch: 40px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  color-scheme: light;
+}
+
+/* Dark theme: System on a dark OS, unless Light was chosen. Keep in step with the block below. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    /* Surfaces: warm near-black steps, each a little lighter than the one below it */
+    --canvas: #191919;
+    --surface: #202020;
+    --surface-muted: #262626;
+    --surface-hover: #2c2c2b; /* 1.17:1 on --surface */
+    --surface-selected: #323230; /* 1.27:1 on --surface; --text-muted on it is 4.57:1 */
+    --backdrop: rgb(0 0 0 / 0.55);
+    /* Borders */
+    --border: #2e2e2e;
+    --border-strong: #3a3a3a;
+    --border-input: #4a4946; /* 1.81:1 on --surface, as the light 1.71:1 */
+    --border-input-hover: #62615d; /* 2.63:1 */
+    /* Text: 11.0, 14.9 and 5.8:1 on --surface */
+    --text: #d4d4d4;
+    --text-strong: #f5f5f5;
+    --text-muted: #9b9a97;
+    --accent: #f5f5f5;
+    --accent-hover: #d4d4d4;
+    --on-accent: #111111;
+    /* Meaning: each pair is at least 7:1, and each text at least 7.6:1 on --surface */
+    --red-bg: #3d1a19;
+    --red-text: #f19a96;
+    --blue-bg: #10304a;
+    --blue-text: #7cc4f2;
+    --green-bg: #1c3320;
+    --green-text: #8fcf95;
+    --yellow-bg: #3a2e14;
+    --yellow-text: #e6b65c;
+    /* Shadow: a dark canvas needs more opacity for the same lift; overlays also keep their border */
+    --shadow-raised: 0 2px 8px rgb(0 0 0 / 0.3);
+    --shadow-overlay: 0 8px 32px rgb(0 0 0 / 0.45);
+    --select-caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 256 256'%3E%3Cpath d='M48 96l80 80 80-80' fill='none' stroke='%239b9a97' stroke-width='24' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    color-scheme: dark;
+  }
+}
+/* Dark theme: chosen in the ⋯ menu or the palette, whatever the OS. */
+:root[data-theme='dark'] {
+  /* Surfaces: warm near-black steps, each a little lighter than the one below it */
+  --canvas: #191919;
+  --surface: #202020;
+  --surface-muted: #262626;
+  --surface-hover: #2c2c2b; /* 1.17:1 on --surface */
+  --surface-selected: #323230; /* 1.27:1 on --surface; --text-muted on it is 4.57:1 */
+  --backdrop: rgb(0 0 0 / 0.55);
+  /* Borders */
+  --border: #2e2e2e;
+  --border-strong: #3a3a3a;
+  --border-input: #4a4946; /* 1.81:1 on --surface, as the light 1.71:1 */
+  --border-input-hover: #62615d; /* 2.63:1 */
+  /* Text: 11.0, 14.9 and 5.8:1 on --surface */
+  --text: #d4d4d4;
+  --text-strong: #f5f5f5;
+  --text-muted: #9b9a97;
+  --accent: #f5f5f5;
+  --accent-hover: #d4d4d4;
+  --on-accent: #111111;
+  /* Meaning: each pair is at least 7:1, and each text at least 7.6:1 on --surface */
+  --red-bg: #3d1a19;
+  --red-text: #f19a96;
+  --blue-bg: #10304a;
+  --blue-text: #7cc4f2;
+  --green-bg: #1c3320;
+  --green-text: #8fcf95;
+  --yellow-bg: #3a2e14;
+  --yellow-text: #e6b65c;
+  /* Shadow: a dark canvas needs more opacity for the same lift; overlays also keep their border */
+  --shadow-raised: 0 2px 8px rgb(0 0 0 / 0.3);
+  --shadow-overlay: 0 8px 32px rgb(0 0 0 / 0.45);
+  --select-caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 256 256'%3E%3Cpath d='M48 96l80 80 80-80' fill='none' stroke='%239b9a97' stroke-width='24' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  color-scheme: dark;
+}
