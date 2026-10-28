@@ -31,3 +31,7 @@ playwright-report/
 
 # Local-only design docs (specs, plans)
 docs/
+
+# Wallet conformance run (conformance/README.md): generated files and the wallet checkouts
+conformance/out/
+conformance/.wallets/
