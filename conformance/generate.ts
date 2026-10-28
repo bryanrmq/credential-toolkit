@@ -12,7 +12,6 @@
  * `<out>/samples.json` lists the samples. Usage: `node conformance/generate.ts [out]` (default `conformance/out`).
  */
 import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { buildBundle } from '../src/core/export/bundle.ts';
 import { EXTERNAL_URL_PLACEHOLDER, ISSUER_METADATA_FORMAT, servedTypeMetadataText, servedTypeMetadataUri } from '../src/core/export/issuerMetadata.ts';
 import { exportProject } from '../src/core/export/project.ts';
 import { issuerIdentifiers, issuerUrl } from '../src/core/issuer.ts';
@@ -79,7 +78,6 @@ async function generate(out: string): Promise<void> {
       bundleUrl: project.hosting.mode === 'url' ? project.hosting.url : null,
       integrity: { bundle: result.outputs.integrity, vctMetadataUri: String(vctIntegrity) },
     };
-    const { digests } = await buildBundle(project);
     const dir = `${out}/${sample.id}`;
     await mkdir(dir, { recursive: true });
     const files: Record<string, string> = {
@@ -89,7 +87,7 @@ async function generate(out: string): Promise<void> {
       'issuer_metadata.json': result.issuerMetadata.json,
       'issuer_metadata.served.json': result.issuerMetadata.json.replaceAll(EXTERNAL_URL_PLACEHOLDER, url),
       'credential.json': JSON.stringify(project.sample, null, 2),
-      'preview.json': JSON.stringify(previewDisplay(project, digests), null, 2),
+      'preview.json': JSON.stringify(previewDisplay(project), null, 2),
       'manifest.json': JSON.stringify(manifest, null, 2),
       'project.credential-project.json': serializeProjectFile(project),
     };

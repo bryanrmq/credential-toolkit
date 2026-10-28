@@ -52,6 +52,8 @@ scripts refuse a checkout whose commit differs from the pin.
      `OcaOverlayValidatorImpl`, `TransformOcaOverlaysImpl`, `GenerateOcaClaimDataImpl` and
      `GenerateOcaCredentialDataImpl`.
    - `GenerateOcaDisplaysImpl` on `credential.json`, with `GenerateOcaClaimDisplaysImpl` and `ValidateImageImpl`.
+   - `GetLocalizedDisplayImpl` with the phone set to each project language, on the credential, cluster and claim
+     displays: the display each screen shows.
 
    It writes `android.json`: whether the wallet accepted the files (or its error and the step), the credential
    displays, the cluster tree, and the parsed attributes (`OcaClaimData`).
@@ -63,6 +65,8 @@ scripts refuse a checkout whose commit differs from the pin.
      `OCABundleService` (data URL or URL, `SRIValidator`).
    - `OcaBundler` (CESR digests, capture bases, overlays).
    - `CaptureBaseDisplayGenerator` and `OverlayBundleAttributesGenerator`.
+   - BITCore `findDisplayWithFallback` with the phone set to each project language, on the root capture base's
+     displays: the card the wallet shows.
 
    It writes `ios.json`.
 5. **`compare.ts`** compares each wallet's display with `preview.json`. It writes `out/report.md` and
@@ -95,7 +99,7 @@ The wallet code the harnesses run stops before the screens. Where a screen then 
 
 | | Android | iOS |
 |---|---|---|
-| Card, per language and theme | Name, description: the primary field, else the meta description (`GenerateOcaCredentialDataImpl`). Also the logo and the background colour. | Name, description, primary field, logo and background colour of the root capture base (`CaptureBaseDisplayGenerator`). |
+| Card, per project language | The language whose card the wallet shows (`cardLanguage`). Then, per theme: name, description (the primary field, else the meta description, as in `GenerateOcaCredentialDataImpl`), logo and background colour. | The language whose card the wallet shows (`cardLanguage`). Then, per theme: name, description, primary field, logo and background colour of the root capture base. |
 | Details, per project language | The cluster tree, compared row by row: section and group paths, titles, claim paths, labels, value types, and entry labels or values for text, numbers and booleans. | For each claim the preview shows: the attribute whose data source is the claim path, with its label, entry label, type, format, standard and character encoding. The attribute `order` must not decrease down a group. |
 
 Rules `compare.ts` applies to the wallet output:
@@ -105,8 +109,11 @@ Rules `compare.ts` applies to the wallet output:
   Rows come in the order the wallet produces them: claims, then sub-clusters.
 - **Android empty clusters:** clusters with no claim below them are dropped, as in
   `MapToCredentialClaimClusterImpl.filterEmptyItems`.
-- **Android language:** the harness takes the display whose locale is the language, else the `fallback` display.
-  It doesn't run `GetLocalizedDisplayImpl`.
+- **Templates:** both wallets rewrite each `{{…}}` of the bundle as the claims path of its attribute when they read
+  it (Android `TransformOcaOverlaysImpl`, iOS `OverlayTemplateResolver`), e.g. `{{["address","city"]}}`. The preview
+  side writes our templates the same way, with the index rule of `CardProfile.indexPath`, before comparing.
+- **Android titles:** a cluster without a picked display has the title `""`, as in
+  `MapToCredentialClaimClusterImpl`.
 - **Android values:** a display's entry label wins over the value, as in `MapToCredentialClaimDataImpl`. Dates and
   images are formatted or decoded by the screen, so only their value type is compared.
 - **Titles with templates:** the screen fills in titles that contain `{{…}}`. The harness doesn't run that code, so
@@ -132,6 +139,7 @@ is the plumbing below.
 | `credential_configurations_supported` is decoded with openid4vc's `AnyCredentialConfigurationListSerializer` (by reflection). | It's the serializer `IssuerCredentialInfo` uses. The whole `IssuerCredentialInfo` isn't decoded: the generic issuer adds the encryption fields it requires when it serves the file. |
 | `TypeMetadataRepository` and `OcaRepository` serve the generated files at their URLs. | They replace the network. |
 | `FetchVcSchema` fails if it's called. | The generated Type Metadata has no `schema_uri`, so the wallet never calls it. |
+| `GetCurrentAppLocale` returns each project language in turn, and the displays are wrapped as `LocalizedDisplay` with their own locale. | `GetCurrentAppLocaleImpl` reads the phone's locales from Android `Resources`. The app supports every sample language (de, fr, it, rm, en). The screens pick from database entities that carry the same locale. |
 
 **iOS (`ios/WalletConformanceTests.swift`)**
 
@@ -139,6 +147,7 @@ is the plumbing below.
 |---|---|
 | `OpenIDRepositoryProtocolSpy` (the wallet's own `@Spyable` spy) serves `vct.served.json` for `fetchTypeMetadata`. | It replaces the network. It decodes the body with `NetworkContainer.shared.decoder()`, as `NetworkService.request` does. |
 | `OCARepositoryProtocol` serves `oca-bundle.json` at the hosting URL. | It replaces the network. |
+| `preferredUserLocales` returns each project language in turn, and the capture base displays are wrapped as `DisplayLocalizable` with their language as locale. | `preferredUserLocales` reads `Locale.preferredLanguages`. The screens pick from credential displays that carry the same locale. |
 | The credential configuration is decoded with `JSONDecoder` from the served `issuer_metadata.json`. | The wallet gets the Issuer Metadata as a JWT signed by the generic issuer, which adds the signature and its own fields. The default `JSONDecoder` matches `NetworkContainer`'s key strategy. |
 
 ## Known differences

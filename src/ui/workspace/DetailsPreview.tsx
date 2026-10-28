@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { selectBranding } from '../../core/card/branding';
+import { cardLanguage } from '../../core/card/cardLanguage';
 import { type DetailsRow, credentialDetails, issuedBy } from '../../core/card/details';
 import {
   ANDROID_DETAILS_TEXT,
@@ -120,9 +121,10 @@ export function DetailsPreview() {
   }, [project, lang, platform]);
   const issuer = issuedBy(project, { languages, platform });
   const differences = useMemo(() => detailsDifferences(project, platform, { deviceLanguages: [lang] }), [project, platform, lang]);
-  const { branding } = selectBranding(project, lang, theme);
+  const cardLang = cardLanguage(project, lang, platform);
+  const { branding } = selectBranding(project, cardLang, theme);
   const background = profile.parseBackground(branding.primaryBackgroundColor) ?? profile.fallbackBackground;
-  const name = project.meta[lang]?.name ?? '';
+  const name = project.meta[cardLang]?.name ?? '';
   const rows = details.sections.flatMap((section) => section.rows);
   const invalidImage = someClaim(rows, (claim) => formatClaim(claim, valueOptions).kind === 'invalidImage');
   const platformName = t.cardPreview.platforms[platform];
@@ -134,7 +136,7 @@ export function DetailsPreview() {
     defaultBackground: isDefaultBackground(profile, background),
     ink: profile.textInk(background),
     name: name || profile.missingName,
-    summary: cardSummary(project, lang, branding, platform),
+    summary: cardSummary(project, cardLang, branding, platform),
     logo: branding.logo,
   };
   const screenProps = { label: `${platformName} ${t.detailsPreview.screen}`, theme, title: name, card, details, valueOptions, issuer, scale };

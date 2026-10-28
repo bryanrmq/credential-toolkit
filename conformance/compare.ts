@@ -62,12 +62,15 @@ interface AndroidClaim {
   valueType: string | null;
   order: number;
   displays: { locale: string | null; name: string; value: string | null }[];
+  /** Language → index of the display `GetLocalizedDisplayImpl` picks. */
+  picked: Record<string, number | null>;
 }
 
 interface AndroidCluster {
   path: string;
   order: number;
   displays: { locale: string; name: string }[];
+  picked: Record<string, number | null>;
   claims: AndroidClaim[];
   childClusters: AndroidCluster[];
 }
@@ -75,6 +78,7 @@ interface AndroidCluster {
 interface AndroidResult {
   accepted: true;
   credentialDisplays: AndroidDisplay[];
+  pickedCredentialDisplay: Record<string, number | null>;
   clusters: AndroidCluster[];
 }
 
@@ -106,6 +110,8 @@ interface IosAttribute {
 interface IosResult {
   accepted: true;
   captureBaseDisplays: IosDisplay[];
+  /** Language → index of the root capture base display `findDisplayWithFallback` picks. */
+  pickedCaptureBaseDisplay: Record<string, number | null>;
   attributes: IosAttribute[];
 }
 
@@ -133,9 +139,6 @@ const show = (path: unknown) => (typeof path === 'string' ? path : JSON.stringif
 
 // --- Android ----------------------------------------------------------------------------------------------------
 
-/** `DisplayLanguage.FALLBACK`: the display every claim gets, labelled with its path. */
-const ANDROID_FALLBACK = 'fallback';
-
 /** `CredentialElementCollectionExt.elementComparator`: a negative order sorts last. Kotlin's sort is stable. */
 function androidSort<T extends { order: number }>(items: T[]): T[] {
   const rank = (order: number) => (order < 0 ? Number.MAX_SAFE_INTEGER : order);
@@ -145,12 +148,6 @@ function androidSort<T extends { order: number }>(items: T[]): T[] {
 /** Whether a claim is somewhere below `cluster` (`MapToCredentialClaimClusterImpl.filterEmptyItems`). */
 function hasClaims(cluster: AndroidCluster): boolean {
   return cluster.claims.length > 0 || cluster.childClusters.some(hasClaims);
-}
-
-/** Picks the display in `lang`, else the fallback one; the wallet's own picking (`GetLocalizedDisplayImpl`) is not run. */
-function androidClaimDisplay(claim: AndroidClaim, lang: string) {
-  const exact = claim.displays.filter((display) => display.locale === lang);
-  return exact.find((display) => display.name !== claim.path) ?? exact[0] ?? claim.displays.find((display) => display.locale === ANDROID_FALLBACK);
 }
 
 function androidValueKind(valueType: string | null): string {
@@ -184,9 +181,11 @@ function compareAndroidDetails(lang: string, wallet: AndroidCluster[], preview: 
 
 function compareAndroidGroup(cluster: AndroidCluster, group: GroupDisplay, lang: string, where: string, add: (d: Omit<Difference, 'sample' | 'platform'>) => void): void {
   if (cluster.path !== JSON.stringify(group.path)) add({ check: 'details', where: `${where} › path`, wallet: cluster.path, preview: JSON.stringify(group.path) });
-  const title = cluster.displays.find((display) => display.locale === lang)?.name ?? null;
+  // `MapToCredentialClaimClusterImpl`: the picked display's name, else "".
+  const picked = cluster.picked[lang];
+  const title = (picked === null || picked === undefined ? undefined : cluster.displays[picked]?.name) ?? '';
   // Titles with `{{…}}` templates are filled in by the screen (`ResolveClaimTemplateImpl`), which the harness doesn't run.
-  if (!group.unmapped && !title?.includes('{{') && title !== group.title) add({ check: 'details', where: `${where} › title`, wallet: title, preview: group.title });
+  if (!group.unmapped && !title.includes('{{') && title !== (group.title ?? '')) add({ check: 'details', where: `${where} › title`, wallet: title, preview: group.title });
   const rows = androidRows(cluster);
   const count = Math.max(rows.length, group.rows.length);
   for (let index = 0; index < count; index++) {
@@ -210,7 +209,8 @@ function compareAndroidClaim(claim: AndroidClaim, expected: ClaimDisplay, lang: 
     add({ check: 'order', where: `${where} › path`, wallet: claim.path, preview: JSON.stringify(expected.path) });
     return;
   }
-  const display = androidClaimDisplay(claim, lang);
+  const picked = claim.picked[lang];
+  const display = picked === null || picked === undefined ? undefined : claim.displays[picked];
   if (display?.name !== expected.label) add({ check: 'details', where: `${where} › label`, wallet: display?.name ?? null, preview: expected.label });
   const kind = androidValueKind(claim.valueType);
   if (kind !== expected.valueKind) add({ check: 'details', where: `${where} › value type`, wallet: kind, preview: expected.valueKind });
@@ -222,14 +222,20 @@ function compareAndroidClaim(claim: AndroidClaim, expected: ClaimDisplay, lang: 
   }
 }
 
-function compareAndroidCard(wallet: AndroidDisplay[], preview: CardDisplay[], languages: string[], add: (d: Omit<Difference, 'sample' | 'platform'>) => void): void {
+function compareCardLanguage(lang: string, wallet: string | null | undefined, preview: CardDisplay[], add: (d: Omit<Difference, 'sample' | 'platform'>) => void): void {
+  const shown = preview.find((entry) => entry.lang === lang)?.shownLang ?? null;
+  if ((wallet ?? null) !== shown) add({ check: 'card', where: `${lang} › language`, wallet: wallet ?? null, preview: shown });
+}
+
+function compareAndroidCard(result: AndroidResult, preview: CardDisplay[], languages: string[], add: (d: Omit<Difference, 'sample' | 'platform'>) => void): void {
   for (const lang of languages) {
-    const displays = wallet.filter((display) => display.locale === lang);
-    if (!displays.length) add({ check: 'card', where: `${lang}`, wallet: null, preview: 'a display' });
-    for (const display of displays) {
+    const picked = result.pickedCredentialDisplay[lang];
+    const locale = picked === null || picked === undefined ? null : result.credentialDisplays[picked]?.locale;
+    compareCardLanguage(lang, locale, preview, add);
+    for (const display of result.credentialDisplays.filter((entry) => locale !== null && entry.locale === locale)) {
       const theme = display.theme === 'dark' ? 'dark' : 'light';
       const card = preview.find((entry) => entry.lang === lang && entry.theme === theme)!;
-      const where = `${lang} › ${display.theme ?? 'no branding'}`;
+      const where = `${lang} › ${locale} ${display.theme ?? 'no branding'}`;
       // `GenerateOcaCredentialDataImpl`: the description is the branding's primary field, else the meta description.
       const expected = {
         name: card.name,
@@ -249,21 +255,17 @@ function compareAndroidCard(wallet: AndroidDisplay[], preview: CardDisplay[], la
 
 // --- iOS --------------------------------------------------------------------------------------------------------
 
-/** The capture base no other one references: the credential's root. */
-function rootDigest(bundle: { capture_bases: { digest: string; attributes: Record<string, string> }[] }): string | undefined {
-  const referenced = new Set(bundle.capture_bases.flatMap((base) => Object.values(base.attributes).flatMap((type) => /refs:([^\]]+)/.exec(type)?.[1] ?? [])));
-  return bundle.capture_bases.find((base) => !referenced.has(base.digest))?.digest;
-}
-
-function compareIosCard(wallet: IosDisplay[], root: string | undefined, preview: CardDisplay[], languages: string[], add: (d: Omit<Difference, 'sample' | 'platform'>) => void): void {
-  const displays = wallet.filter((display) => display.captureBaseDigest === root);
+function compareIosCard(result: IosResult, preview: CardDisplay[], languages: string[], add: (d: Omit<Difference, 'sample' | 'platform'>) => void): void {
+  const displays = result.captureBaseDisplays;
   for (const lang of languages) {
-    const forLang = displays.filter((display) => display.language === lang);
-    if (!forLang.length) add({ check: 'card', where: `${lang}`, wallet: null, preview: 'a display' });
-    for (const display of forLang) {
+    const picked = result.pickedCaptureBaseDisplay[lang];
+    const root = picked === null || picked === undefined ? undefined : displays[picked];
+    const locale = root?.language ?? null;
+    compareCardLanguage(lang, locale, preview, add);
+    for (const display of displays.filter((entry) => root && entry.captureBaseDigest === root.captureBaseDigest && entry.language === locale)) {
       const theme = display.theme === 'dark' ? 'dark' : 'light';
       const card = preview.find((entry) => entry.lang === lang && entry.theme === theme)!;
-      const where = `${lang} › ${display.theme ?? 'no branding'}`;
+      const where = `${lang} › ${locale} ${display.theme ?? 'no branding'}`;
       const branded = display.theme !== null;
       const pairs: [string, unknown, unknown][] = [
         ['name', display.metaName, card.name],
@@ -374,7 +376,6 @@ async function compare(out: string, required: Platform[]): Promise<number> {
     const dir = `${out}/${id}`;
     const manifest = await json<Manifest>(`${dir}/manifest.json`);
     const preview = await json<PreviewDisplay>(`${dir}/preview.json`);
-    const bundle = await json<{ capture_bases: { digest: string; attributes: Record<string, string> }[] }>(`${dir}/oca-bundle.json`);
     const report: SampleReport = { id, source: manifest.source, claims: manifest.claims, hosting: manifest.bundleUrl ? 'URL' : 'data URL', wallets: {} };
     for (const platform of PLATFORMS) {
       const file = `${dir}/${platform}.json`;
@@ -393,11 +394,11 @@ async function compare(out: string, required: Platform[]): Promise<number> {
       const add = (difference: Omit<Difference, 'sample' | 'platform'>) => found.push({ sample: id, platform, ...difference });
       if (platform === 'android') {
         const android = result as AndroidResult;
-        compareAndroidCard(android.credentialDisplays, preview.card, manifest.languages, add);
+        compareAndroidCard(android, preview.card.android, manifest.languages, add);
         for (const lang of manifest.languages) compareAndroidDetails(lang, android.clusters, preview.details.android[lang], add);
       } else {
         const ios = result as IosResult;
-        compareIosCard(ios.captureBaseDisplays, rootDigest(bundle), preview.card, manifest.languages, add);
+        compareIosCard(ios, preview.card.ios, manifest.languages, add);
         for (const lang of manifest.languages) compareIosDetails(ios.attributes, manifest.format, lang, preview.details.ios[lang], add);
       }
       for (const difference of found) difference.known = known.find((entry) => matches(entry, difference))?.id;

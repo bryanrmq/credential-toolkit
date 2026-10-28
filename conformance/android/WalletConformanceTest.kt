@@ -19,7 +19,11 @@ import ch.admin.foitt.openid4vc.domain.usecase.vcSdJwt.FetchVcSchema
 import ch.admin.foitt.sriValidator.domain.SRIValidator
 import ch.admin.foitt.sriValidator.domain.implementation.SRIValidatorImpl
 import ch.admin.foitt.wallet.platform.database.domain.model.Cluster
+import ch.admin.foitt.wallet.platform.database.domain.model.LocalizedDisplay
 import ch.admin.foitt.wallet.platform.imageValidation.domain.usecase.implementation.ValidateImageImpl
+import ch.admin.foitt.wallet.platform.locale.LocaleCompat
+import ch.admin.foitt.wallet.platform.locale.domain.usecase.GetCurrentAppLocale
+import ch.admin.foitt.wallet.platform.locale.domain.usecase.implementation.GetLocalizedDisplayImpl
 import ch.admin.foitt.wallet.platform.oca.domain.model.OcaBundle
 import ch.admin.foitt.wallet.platform.oca.domain.model.OcaRepositoryError
 import ch.admin.foitt.wallet.platform.oca.domain.repository.OcaRepository
@@ -60,6 +64,7 @@ import kotlinx.serialization.json.put
 import org.junit.jupiter.api.Test
 import java.io.File
 import java.net.URL
+import java.util.Locale
 
 class WalletConformanceTest {
 
@@ -134,6 +139,10 @@ class WalletConformanceTest {
         val displays = generateDisplays(jsonObject = claims, credentialFormat = configuration.format.format, ocaBundle = ocaBundle)
         val metaDisplays = displays.get() ?: return rejected("displays", displays.getError().toString(), fetched)
 
+        // The display each screen picks on a phone set to each project language (GetLocalizedDisplayImpl).
+        val languages = manifest.getValue("languages").jsonArray.map { it.jsonPrimitive.content }
+        val pick = Picker(languages)
+
         return buildJsonObject {
             put("accepted", true)
             put("fetched", JsonArray(fetched.map(::JsonPrimitive)))
@@ -150,18 +159,20 @@ class WalletConformanceTest {
                     })
                 }
             })
-            put("clusters", JsonArray(metaDisplays.clusters.map(::cluster)))
+            put("pickedCredentialDisplay", pick(metaDisplays.credentialDisplays.map { it.locale }))
+            put("clusters", JsonArray(metaDisplays.clusters.map { cluster(it, pick) }))
             put("claimData", claimData(ocaBundle))
         }
     }
 
-    private fun cluster(cluster: Cluster): JsonObject = buildJsonObject {
+    private fun cluster(cluster: Cluster, pick: Picker): JsonObject = buildJsonObject {
         put("path", cluster.path)
         put("order", cluster.order)
         put("isSensitive", cluster.isSensitive)
         put("displays", buildJsonArray {
             for (display in cluster.clusterDisplays) add(buildJsonObject { put("locale", display.locale); put("name", display.name) })
         })
+        put("picked", pick(cluster.clusterDisplays.map { it.locale }))
         put("claims", buildJsonArray {
             for ((claim, claimDisplays) in cluster.claims) {
                 add(buildJsonObject {
@@ -176,10 +187,11 @@ class WalletConformanceTest {
                             add(buildJsonObject { put("locale", display.locale); put("name", display.name); put("value", display.value) })
                         }
                     })
+                    put("picked", pick(claimDisplays.map { it.locale }))
                 })
             }
         })
-        put("childClusters", JsonArray(cluster.childClusters.map(::cluster)))
+        put("childClusters", JsonArray(cluster.childClusters.map { cluster(it, pick) }))
     }
 
     private fun claimData(ocaBundle: OcaBundle): JsonArray = buildJsonArray {
@@ -227,6 +239,26 @@ class WalletConformanceTest {
             .declaredConstructors.single()
             .also { it.isAccessible = true }
             .newInstance(repository, safeJson, sriValidator) as FetchTypeMetadata
+    }
+
+    // Shim: the app locale. GetCurrentAppLocaleImpl reads the phone's locales (Android Resources); here the phone is set
+    // to each project language in turn, which the app supports for every sample (de, fr, it, rm, en). The displays are
+    // wrapped as LocalizedDisplay with their own locale: the database entities the screens pick from carry the same one.
+    private class Picker(private val languages: List<String>) {
+        private data class Candidate(override val locale: String, val index: Int) : LocalizedDisplay
+
+        /** For each language, the index of the display the wallet picks among displays with `locales`, or null. */
+        operator fun invoke(locales: List<String?>): JsonObject = JsonObject(
+            languages.associateWith { lang ->
+                val getLocalizedDisplay = GetLocalizedDisplayImpl(
+                    getCurrentAppLocale = object : GetCurrentAppLocale {
+                        override fun invoke(): Locale = LocaleCompat.ofUnknownFormat(lang)
+                    },
+                )
+                getLocalizedDisplay(locales.mapIndexed { index, locale -> Candidate(locale ?: "", index) })?.index
+                    ?.let(::JsonPrimitive) ?: JsonNull
+            },
+        )
     }
 
     // Shim: the network. Serves the generated files at their URLs, as the issuer would.

@@ -4,6 +4,7 @@
 // wrote, and writes `ios.json` next to them. The only code here that is not the wallet's is plumbing, listed in
 // conformance/README.md ("Shims"): the repositories that would fetch over the network serve the generated files.
 
+import BITCore
 import BITNetworking
 import Factory
 import Foundation
@@ -74,10 +75,25 @@ final class WalletConformanceTests: XCTestCase {
       let displays = Container.shared.captureBaseDisplayGenerator().generate(from: bundle)
       let attributes = OverlayBundleAttributesGenerator().generate(from: bundle)
 
+      // The card display the wallet shows on a phone set to each project language: the root capture base's displays
+      // (OcaCredentialGenerator), picked with `findDisplayWithFallback`.
+      // Shim: the phone's languages (`Locale.preferredLanguages`) are set to each project language in turn.
+      let languages = try XCTUnwrap(manifest["languages"] as? [String])
+      let candidates = displays.enumerated()
+        .filter { $0.element.captureBaseDigest == bundle.rootCaptureBaseDigest }
+        .map { DisplayCandidate(locale: $0.element.language, index: $0.offset) }
+      var pickedCaptureBaseDisplay: [String: Any] = [:]
+      for language in languages {
+        Container.shared.preferredUserLocales.register { [language] }
+        pickedCaptureBaseDisplay[language] = orNull(candidates.findDisplayWithFallback()?.index)
+      }
+      Container.shared.preferredUserLocales.reset()
+
       return try [
         "accepted": true,
         "fetched": typeMetadataRepository.fetchTypeMetadataFromReceivedInvocations.map(\.absoluteString),
         "captureBaseDisplays": displays.map { self.display($0) },
+        "pickedCaptureBaseDisplay": pickedCaptureBaseDisplay,
         "attributes": attributes.map { try self.attribute($0) },
       ]
     } catch {
@@ -145,6 +161,14 @@ private struct ServedBundle: OCARepositoryProtocol {
     guard url.absoluteString == self.url else { throw ConformanceError.notServed(url) }
     return data
   }
+}
+
+// MARK: - DisplayCandidate
+
+/// Shim: a capture base display as the `DisplayLocalizable` the screens pick from, with its language as locale.
+private struct DisplayCandidate: DisplayLocalizable {
+  let locale: UserLocale?
+  let index: Int
 }
 
 // MARK: - ConformanceError
