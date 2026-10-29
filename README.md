@@ -14,6 +14,8 @@ lookups (api.i14y.admin.ch), a check for the latest release (api.github.com), an
 statistics (Vercel Web Analytics) and, when you ask for it, a download of your published bundle
 from its hosting URL.
 
+https://github.com/user-attachments/assets/31c12a22-7d8e-4fd8-afde-3625e1862d69
+
 **[Open Credential Toolkit](https://credential-toolkit.vercel.app)**
 
 Credential Toolkit is a community project. It is not an official swiyu or Swiss federal product.
