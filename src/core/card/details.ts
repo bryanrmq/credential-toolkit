@@ -884,6 +884,15 @@ function pickAndroid(displays: Display[], appLocale = ANDROID_DEFAULT_LOCALE): D
   return displays.reduce<Display | undefined>((best, display) => (best === undefined || rank(display) < rank(best) ? display : best), undefined);
 }
 
+/**
+ * The one of `locales` whose display the wallet picks, by the same rules as claim labels: `pickAndroid` with the app
+ * locale (`languages[0]`), or iOS's prefix match on its language codes. Undefined when `locales` is empty.
+ */
+export function pickLocale(locales: readonly LangTag[], platform: CardPlatform, languages: readonly string[]): LangTag | undefined {
+  const displays = locales.map((locale) => ({ locale }));
+  return (platform === 'android' ? pickAndroid(displays, languages[0]) : pickPrefix(displays, languages))?.locale;
+}
+
 /** The language of a tag; private-use tags (`x-…`) have none. */
 function languageOf(tag: string): string {
   const language = tag.split(/[-_]/)[0].toLowerCase();

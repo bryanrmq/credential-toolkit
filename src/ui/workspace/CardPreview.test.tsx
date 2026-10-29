@@ -139,9 +139,12 @@ describe('CardPreview in the wallet preview', () => {
 
   it('names the home row fallback title when the name is empty', async () => {
     const user = userEvent.setup();
+    useStore.getState().update((draft) => {
+      draft.meta['de-CH'] = { name: '', description: '' };
+      draft.branding['de-CH'] = { light: {} };
+    });
     renderPreview();
     await user.click(control('Preview view', 'Home'));
-    act(() => useStore.getState().setEditLang('en-GB'));
     expect(card()).toHaveTextContent('Credential');
     expect(screen.getByText('Android: no text when the name is empty')).toBeInTheDocument();
 
@@ -150,18 +153,25 @@ describe('CardPreview in the wallet preview', () => {
     expect(screen.getByText('iOS: shows "Credential" when the name is empty')).toBeInTheDocument();
   });
 
-  it('follows the editing language, including one with no name or branding yet', async () => {
+  // Both wallets fall back to another language's card (Android `GetLocalizedDisplayImpl`, iOS `findDisplayWithFallback`).
+  it('shows the card the wallet falls back to for a language with no name or branding yet', async () => {
     const user = userEvent.setup();
     renderPreview();
     act(() => useStore.getState().setEditLang('en-GB'));
-    expect(card()).toHaveTextContent('n/a');
-    expect(card().style.background).toBe('rgb(215, 212, 205)');
-    expect(screen.getByText('Android: no text when the name is empty')).toBeInTheDocument();
+    expect(card()).toHaveTextContent('Hundebewilligung');
+    expect(card().style.background).toBe('rgb(59, 130, 246)');
+    expect(screen.getByText('No name, description or branding in en-GB: the wallet shows the de-CH card.')).toBeInTheDocument();
 
     await user.click(control('Preview platform', 'Android'));
-    expect(card()).not.toHaveTextContent('n/a');
-    expect(card().style.background).toBe('rgb(240, 237, 229)');
-    expect(screen.getByText('iOS: shows "n/a" when the name is empty')).toBeInTheDocument();
+    expect(card()).toHaveTextContent('Hundebewilligung');
+
+    act(() =>
+      useStore.getState().update((draft) => {
+        draft.meta['en-GB'] = { name: 'Dog permit', description: '' };
+      }),
+    );
+    expect(card()).toHaveTextContent('Dog permit');
+    expect(screen.queryByText(/the wallet shows the de-CH card/)).not.toBeInTheDocument();
   });
 
   it('shows the light card on the dark tab until a dark variant exists', () => {

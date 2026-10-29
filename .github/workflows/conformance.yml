@@ -1,0 +1,120 @@
+name: Wallet conformance
+
+# Runs the released swiyu wallets' own code on what Credential Toolkit generates (conformance/README.md).
+# Separate from ci.yml because it builds both wallets.
+on:
+  pull_request:
+    paths:
+      - 'src/core/**'
+      - 'packages/**'
+      - 'src/examples/**'
+      - 'conformance/**'
+      - '.github/workflows/conformance.yml'
+  schedule:
+    # Mondays 05:17 UTC
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    name: Generate files and check hashes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node conformance/generate.ts conformance/out
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      # keripy needs libsodium.
+      - run: sudo apt-get install -y --no-install-recommends libsodium23
+      - run: pip install -r conformance/hashes/requirements.txt
+      # Mismatches are reported, and fail the run, in the report job.
+      - run: python -I conformance/hashes/check.py conformance/out || true
+      - uses: actions/upload-artifact@v7
+        with:
+          name: conformance-inputs
+          path: conformance/out
+          if-no-files-found: error
+
+  android:
+    name: Android wallet
+    needs: generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: conformance-inputs
+          path: conformance/out
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - run: conformance/android/run.sh conformance/out
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-results
+          path: conformance/out/*/android.json
+          if-no-files-found: warn
+
+  ios:
+    name: iOS wallet
+    needs: generate
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: conformance-inputs
+          path: conformance/out
+      # The wallet's packages declare swift-tools-version 6.3.
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - run: conformance/ios/run.sh conformance/out
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-results
+          path: conformance/out/*/ios.json
+          if-no-files-found: warn
+
+  report:
+    name: Report
+    needs: [generate, android, ios]
+    if: ${{ always() && needs.generate.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v8
+        with:
+          path: conformance/out
+          pattern: '*-*s'
+          merge-multiple: true
+      - run: node conformance/compare.ts conformance/out --require android,ios
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: conformance-report
+          path: conformance/out

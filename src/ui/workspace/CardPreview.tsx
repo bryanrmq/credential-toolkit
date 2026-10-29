@@ -1,4 +1,5 @@
 import { selectBranding } from '../../core/card/branding';
+import { cardLanguage } from '../../core/card/cardLanguage';
 import { type CardDifference, cardDifferences, otherPlatform } from '../../core/card/differences';
 import { CARD_PROFILES, type CardPlatform, isDefaultBackground, shownVariant } from '../../core/card/profiles';
 import { cardSummary, summaryText } from '../../core/card/summary';
@@ -40,11 +41,15 @@ export function CardPreview() {
   const shown = shownVariant(profile, variant);
   const layout = shown === 'offer' && profile.layout.offer ? profile.layout.offer : profile.layout.detail;
   const { ref, scale } = useFitScale(shown === 'home' ? profile.home.referenceWidth : layout.referenceWidth);
-  const { branding, lightShownForDark } = selectBranding(project, lang, theme);
-  const name = project.meta[lang]?.name ?? '';
+  // A language without a card of its own shows the one the wallet falls back to.
+  const cardLang = cardLanguage(project, lang, platform);
+  const { branding, lightShownForDark } = selectBranding(project, cardLang, theme);
+  const name = project.meta[cardLang]?.name ?? '';
   const other = otherPlatform(platform);
-  const summary = cardSummary(project, lang, branding, platform);
-  const summaries = { [platform]: summaryText(summary), [other]: summaryText(cardSummary(project, lang, branding, other)) } as Record<CardPlatform, string>;
+  const otherLang = cardLanguage(project, lang, other);
+  const summary = cardSummary(project, cardLang, branding, platform);
+  const otherSummary = cardSummary(project, otherLang, selectBranding(project, otherLang, theme).branding, other);
+  const summaries = { [platform]: summaryText(summary), [other]: summaryText(otherSummary) } as Record<CardPlatform, string>;
   const background = profile.parseBackground(branding.primaryBackgroundColor) ?? profile.fallbackBackground;
   const ink = profile.textInk(background);
   const defaultBackground = isDefaultBackground(profile, background);
@@ -90,6 +95,7 @@ export function CardPreview() {
       </div>
       <PreviewNotes
         notes={[
+          cardLang !== lang && { text: t.cardPreview.otherLanguageCard(lang, cardLang) },
           lightShownForDark && { text: t.cardPreview.lightForDark },
           placeholders && { text: project.sample ? t.cardPreview.sampleGaps : t.cardPreview.noSample, sample: true },
         ]}

@@ -1,0 +1,5 @@
+# Separate implementations for the hash checks (check.py), pinned to exact versions.
+# keri: WebOfTrust keripy, the CESR reference implementation (Diger, code I = SHA2-256). Needs libsodium.
+keri==1.3.6
+# rfc8785: Trail of Bits' JSON Canonicalization Scheme (RFC 8785).
+rfc8785==0.1.4

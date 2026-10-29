@@ -443,6 +443,8 @@ export const t = {
     drawn: { detail: 'detail card', offer: 'offer card', home: 'home row', card: 'card' },
     caption: "Approximation of the swiyu wallets. Uses this app's font and leaves out the demo issuer pattern and badges.",
     lightForDark: 'No dark branding: both wallets show the light card in dark mode.',
+    /** The editing language has no name, description or branding, so the wallet shows another language's card. */
+    otherLanguageCard: (lang: string, shown: string) => `No name, description or branding in ${lang}: the wallet shows the ${shown} card.`,
     noSample: 'No sample credential, so the preview shows placeholders for the values.',
     sampleGaps: 'The sample credential has no value for some attributes, so the preview shows placeholders.',
     ink: (platform: string, ink: string) => `${platform}: ${ink} text`,

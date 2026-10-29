@@ -1,0 +1,12 @@
+{
+  "android": {
+    "repository": "https://github.com/swiyu-admin-ch/eidch-android-wallet",
+    "tag": "v1.19.0",
+    "commit": "c29a6f3af51f14c47cf23ab88933522ffa1fbef0"
+  },
+  "ios": {
+    "repository": "https://github.com/swiyu-admin-ch/eidch-ios-wallet",
+    "tag": "v1.19.0",
+    "commit": "42e746c432c2bf43e25f6fa6f360707670c934c0"
+  }
+}
