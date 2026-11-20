@@ -195,6 +195,7 @@ export const t = {
     addAttribute: 'Attribute',
     addGroup: 'Group',
     addList: 'List of objects',
+    addFromI14y: 'From I14Y…',
     empty: 'No attributes yet.',
     emptyHint: 'Add attributes, or fill them from a sample or I14Y.',
     addFirst: 'Add attribute',

@@ -584,7 +584,7 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
     };
   };
 
-  /** Opens the header's Add menu below `button`, right-aligned with it. New items go where N puts them. */
+  /** Opens the header's Add menu below `button`, right-aligned with it. New items, I14Y's too, go where N puts them. */
   const openAddMenu = (button: HTMLElement) => {
     const rect = button.getBoundingClientRect();
     setMenu({
@@ -597,6 +597,8 @@ export function StructurePane({ onSelect }: { onSelect: () => void }) {
           commandItem('tree.addGroup', { labelAt: 'addMenu', then: onSelect }),
           commandItem('tree.addList', { labelAt: 'addMenu', then: onSelect }),
         ],
+        // Opens the I14Y dialog on the group where N adds; the dialog selects what it adds.
+        [commandItem('tree.addFromI14y', { labelAt: 'addMenu' })],
       ],
       at: { x: rect.right, y: rect.bottom + 4 },
       returnFocus: button,
