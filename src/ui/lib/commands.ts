@@ -435,6 +435,7 @@ export const COMMANDS: readonly Command[] = [
   {
     id: 'tree.addFromI14y',
     label: t.treeMenu.addFromI14y,
+    labels: { addMenu: t.structure.addFromI14y },
     icon: MagnifyingGlassIcon,
     scope: 'tree',
     appliesWhen: () => useStore.getState().project !== null,

@@ -24,6 +24,8 @@ function loadProject() {
 const project = () => useStore.getState().project!;
 const keys = (children: Node[] = project().root.children) => children.map((node) => node.key);
 const nodeByKey = (key: string) => [...walkNodes(project().root)].map(({ node }) => node).find((node) => node.key === key)!;
+/** The id of the group of node `key`, a group or list. */
+const groupId = (key: string) => (nodeByKey(key) as Extract<Node, { kind: 'group' }>).group.id;
 const childKeys = (key: string) => {
   const node = nodeByKey(key);
   return node.kind === 'group' ? keys(node.group.children) : [];
@@ -75,11 +77,12 @@ describe('Structure Add menu', () => {
     }
   });
 
-  it('opens a menu of Attribute (N), Group and List of objects, and closes on a second click', async () => {
+  it('opens a menu of Attribute (N), Group, List of objects and From I14Y, and closes on a second click', async () => {
     const user = userEvent.setup();
     render(<Workspace />);
     await user.click(addButton());
-    expect(menuContents()).toEqual(['Attribute [N]', 'Group', 'List of objects']);
+    expect(menuContents()).toEqual(['Attribute [N]', 'Group', 'List of objects', 'From I14Y…']);
+    expect(within(menu()).getAllByRole('separator')).toHaveLength(1);
     expect(item('Attribute')).toHaveFocus();
     expect(addButton()).toHaveAttribute('aria-expanded', 'true');
 
@@ -140,9 +143,40 @@ describe('Structure Add menu', () => {
 
     addButton().focus();
     await user.keyboard(' ');
-    await user.keyboard('{End}{Enter}');
+    await user.keyboard('{End}{ArrowUp}{Enter}');
     expect(keys()).toEqual(['a', 'person', 'd', 'group']);
     expect(childKeys('group')).toEqual(['items']);
+
+    addButton().focus();
+    await user.keyboard('{Enter}{End}{Enter}');
+    expect(queryMenu()).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'I14Y' })).toHaveAttribute('data-group', groupId('items'));
+  });
+
+  it('opens I14Y where N adds: the selected group, the selected attribute\'s group, or the top level from Credential', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<Workspace />);
+    await user.click(row('person'));
+    await user.click(addButton());
+    await user.click(item('From I14Y…'));
+    expect(queryMenu()).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'I14Y' })).toHaveAttribute('data-group', groupId('person'));
+    unmount();
+
+    render(<Workspace />);
+    await user.click(row('b'));
+    await user.click(addButton());
+    await user.click(item('From I14Y…'));
+    expect(screen.getByRole('dialog', { name: 'I14Y' })).toHaveAttribute('data-group', groupId('person'));
+  });
+
+  it('opens I14Y on the top level from Credential', async () => {
+    const user = userEvent.setup();
+    render(<Workspace />);
+    await user.click(row('Credential'));
+    await user.click(addButton());
+    await user.click(item('From I14Y…'));
+    expect(screen.getByRole('dialog', { name: 'I14Y' })).toHaveAttribute('data-group', project().root.id);
   });
 
   it('works under 1000 px too, and switches to the Edit pane with the key focused', async () => {
